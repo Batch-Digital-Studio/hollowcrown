@@ -83,6 +83,17 @@ func drive(p: Player, g: Game) -> void:
 			inp.aim = p.global_position + inp.move * 200.0
 		else:
 			inp.move = to.normalized()
+	# spend passive points (prefers the Pyre branch, then whatever is available)
+	if p.passive_points() > 0:
+		var tree := PassivesDB.nodes()
+		var pick := ""
+		for id in tree:
+			if p.can_allocate(id):
+				if pick == "" or id.begins_with("b0"):
+					pick = id
+		if pick != "":
+			p.allocate(pick)
+			print("BOT allocated ", tree[pick].name)
 	# exercise equip code
 	if _equip_t > 15.0:
 		_equip_t = 0.0

@@ -62,7 +62,31 @@ func _draw() -> void:
 	# Zone label
 	_text_left(f, Vector2(24, 36), g.zone_title(), 20, Color(1.0, 0.82, 0.45))
 	_text_left(f, Vector2(24, 60), "Area Level %d   ·   Slain %d   ·   Remaining %d" % [g.area_level(), g.kills, g.enemies.size()], 14, Color(0.7, 0.68, 0.65))
-	_text_left(f, Vector2(vs.x - 260, 36), "I / Tab — Inventory", 14, Color(0.6, 0.58, 0.55))
+	_text_left(f, Vector2(vs.x - Zone.W * 3.0 - 20, 40), "I / Tab — Inventory", 14, Color(0.6, 0.58, 0.55))
+	if p.passive_points() > 0:
+		var a := 0.6 + 0.4 * sin(_t * 4.0)
+		_text(f, Vector2(vs.x / 2.0, y0 - 34), "P — %d unspent Ember Point%s" % [p.passive_points(), "s" if p.passive_points() > 1 else ""], 16, Color(1.0, 0.75, 0.35, a))
+	# Minimap
+	if g.minimap.tex and not g.inv_ui.visible:
+		var ms := 3.0
+		var mr := Rect2(vs.x - Zone.W * ms - 20, 56, Zone.W * ms, Zone.H * ms)
+		draw_rect(mr.grow(4), Color(0.02, 0.02, 0.03, 0.55))
+		draw_texture_rect(g.minimap.tex, mr, false)
+		draw_rect(mr.grow(4), Color(0.6, 0.42, 0.22, 0.8), false, 1.5)
+		var pp := mr.position + p.global_position / Zone.CELL * ms
+		draw_circle(pp, 4.0, Color(1.0, 0.85, 0.4))
+		if g.boss and is_instance_valid(g.boss) and not g.boss.dead:
+			var bc := Vector2i(g.boss.global_position / Zone.CELL)
+			if g.minimap.is_revealed(bc) or g.zone and bc == g.zone.boss_cell:
+				var bp := mr.position + g.boss.global_position / Zone.CELL * ms
+				draw_circle(bp, 6.0, Color(1.0, 0.35, 0.1, 0.4 + 0.3 * sin(_t * 4.0)))
+				draw_circle(bp, 3.0, Color(1.0, 0.45, 0.15))
+		for e in g.enemies:
+			if e.rarity == "rare" and g.minimap.is_revealed(Vector2i(e.global_position / Zone.CELL)):
+				draw_circle(mr.position + e.global_position / Zone.CELL * ms, 2.5, Color(1.0, 0.85, 0.3))
+		for c in g.world_layer.get_children():
+			if c is Portal:
+				draw_circle(mr.position + c.global_position / Zone.CELL * ms, 5.0, Color(0.7, 0.5, 1.0))
 	# Boss bar
 	if g.boss and is_instance_valid(g.boss) and not g.boss.dead and g.boss.aggro:
 		var bw := 640.0

@@ -8,3 +8,5 @@
 - Loot: 20 bases, 27 affixes with tiers, 5 uniques. Inventory, equip, comparison tooltips, character sheet.
 - Generated zones with themes per depth; portal descent; autosave.
 - Test bot (`--autoplay`) used for smoke tests and screenshots.
+- Procedural SFX (19 sounds), minimap with fog of war, Ember Constellation passive tree with keystones.
+- Fix: game input now works while paused (closing passive tree / pause menu).

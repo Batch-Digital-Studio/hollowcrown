@@ -23,6 +23,7 @@ static func setup_input_map() -> void:
 	_key("skill_5", [KEY_R])
 	_key("inventory", [KEY_I, KEY_TAB])
 	_key("pause", [KEY_ESCAPE])
+	_key("passives", [KEY_P])
 	_key("respawn", [KEY_ENTER])
 	_mouse("skill_1", MOUSE_BUTTON_LEFT)
 	_mouse("skill_2", MOUSE_BUTTON_RIGHT)

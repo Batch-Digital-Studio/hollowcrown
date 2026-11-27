@@ -12,6 +12,7 @@ const DODGE_CD := 0.85
 var input := PlayerInput.new()
 var bar: Array = SkillsDB.PLAYER_BAR.duplicate()
 var equipment := {}
+var passives := {"start": true}
 var inventory: Array = []
 var xp := 0
 var flask_charges := 3.0
@@ -56,7 +57,51 @@ func build_stats(eq: Dictionary) -> StatBlock:
 		var it: Item = eq[slot]
 		if it:
 			s.add_mod_list(it.to_mods())
+	var tree := PassivesDB.nodes()
+	for id in passives:
+		if tree.has(id):
+			s.add_mods(tree[id].stats)
 	return s
+
+func passive_points() -> int:
+	return (level - 1) - (passives.size() - 1)
+
+func can_allocate(id: String) -> bool:
+	if passives.has(id) or passive_points() <= 0:
+		return false
+	for l in PassivesDB.nodes()[id].links:
+		if passives.has(l):
+			return true
+	return false
+
+func allocate(id: String) -> bool:
+	if not can_allocate(id):
+		return false
+	passives[id] = true
+	recalc_stats()
+	return true
+
+## Refund only if every other allocated node stays connected to the start.
+func can_refund(id: String) -> bool:
+	if id == "start" or not passives.has(id):
+		return false
+	var tree := PassivesDB.nodes()
+	var seen := {"start": true}
+	var stack := ["start"]
+	while not stack.is_empty():
+		var cur: String = stack.pop_back()
+		for l in tree[cur].links:
+			if l != id and passives.has(l) and not seen.has(l):
+				seen[l] = true
+				stack.append(l)
+	return seen.size() == passives.size() - 1
+
+func refund(id: String) -> bool:
+	if not can_refund(id):
+		return false
+	passives.erase(id)
+	recalc_stats()
+	return true
 
 static func calc_max_life(s: StatBlock) -> float:
 	return maxf(1.0, s.get_stat("life_flat") * s.inc_mult(["inc_life"]) * s.get_stat("more_life"))
@@ -118,6 +163,8 @@ func gain_xp(amount: int) -> void:
 		FX.burst(global_position, Color(1.0, 0.8, 0.35), 50, 420.0, 9.0, 0.8)
 		FX.text(global_position, "LEVEL %d" % level, Color(1.0, 0.85, 0.4), 34)
 		FX.sound("levelup", null, 0.0, 0.0)
+		if game() and game().hud:
+			game().hud.show_message("LEVEL %d" % level, "+1 Ember Point · press P to open the Constellation")
 		leveled_up.emit(level)
 
 func add_flask_charge(amount: float) -> void:
@@ -212,11 +259,15 @@ func to_save() -> Dictionary:
 	var inv: Array = []
 	for it in inventory:
 		inv.append(it.to_dict() if it else null)
-	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv}
+	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys()}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
+	passives = {"start": true}
+	for id in d.get("passives", []):
+		if PassivesDB.nodes().has(id):
+			passives[id] = true
 	equipment.clear()
 	var eq: Dictionary = d.get("equipment", {})
 	for s in eq:

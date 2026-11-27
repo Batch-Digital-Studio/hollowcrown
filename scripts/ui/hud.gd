@@ -4,6 +4,7 @@ extends CanvasLayer
 
 var view: HudView
 var inventory: InventoryUI
+var passives: PassiveUI
 var _overlay: Control
 var _title: Control
 var _vignette: TextureRect
@@ -27,6 +28,10 @@ func _ready() -> void:
 	inventory.set_anchors_preset(Control.PRESET_FULL_RECT)
 	inventory.visible = false
 	add_child(inventory)
+	passives = PassiveUI.new()
+	passives.set_anchors_preset(Control.PRESET_FULL_RECT)
+	passives.visible = false
+	add_child(passives)
 	_show_title()
 
 func _make_vignette() -> Texture2D:
@@ -129,7 +134,7 @@ func _show_title() -> void:
 	box.add_child(sp2)
 	box.add_child(_label(CONTROLS, 16, Color(0.6, 0.58, 0.55)))
 
-const CONTROLS := "WASD move  ·  Mouse aim  ·  LMB Ember Bolt  ·  RMB Ashen Cleave\nQ Rimeburst  ·  E Stormthread  ·  R Cinderfall  ·  Space dodge  ·  1 flask\nI / Tab inventory  ·  Esc pause"
+const CONTROLS := "WASD move  ·  Mouse aim  ·  LMB Ember Bolt  ·  RMB Ashen Cleave\nQ Rimeburst  ·  E Stormthread  ·  R Cinderfall  ·  Space dodge  ·  1 flask\nI / Tab inventory  ·  P passive tree  ·  Esc pause"
 
 func _start(cont: bool) -> void:
 	hide_overlays()

@@ -21,6 +21,7 @@ var depth := 1
 var state := "title"     # title / play / dead
 var boss: Enemy
 var kills := 0
+var minimap := Minimap.new()
 var deaths := 0
 var _save_t := 0.0
 
@@ -32,10 +33,12 @@ var _shot_i := 0
 var _clock := 0.0
 var quit_after := -1.0
 var _inv_at := -1.0
+var _tree_at := -1.0
 var _near_boss_level := 0
 
 func _ready() -> void:
 	instance = self
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	rng.randomize()
 	PlayerInput.setup_input_map()
 	world_layer = Node2D.new()
@@ -73,6 +76,8 @@ func _parse_args() -> void:
 			_inv_at = float(a.substr(9))
 		elif a.begins_with("--near-boss="):
 			_near_boss_level = int(a.substr(12))
+		elif a.begins_with("--tree-at="):
+			_tree_at = float(a.substr(10))
 		elif a == "--fresh":
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
@@ -149,6 +154,7 @@ func build_zone() -> void:
 	player.shock_time = 0.0
 	camera.global_position = player.global_position
 	camera.reset_smoothing()
+	minimap.reset(zone)
 	_spawn_packs()
 	_spawn_boss()
 	inv_ui.refresh()
@@ -362,21 +368,27 @@ func has_line_of_sight(a: Vector2, b: Vector2) -> bool:
 
 func _process(delta: float) -> void:
 	_clock += delta / maxf(Engine.time_scale, 0.04)
-	if state == "play" and player and not player.dead:
-		var over_ui := inv_ui.visible and inv_ui.mouse_over_panel()
+	var paused := get_tree().paused
+	if state == "play" and player and not player.dead and not paused:
+		var over_ui := (inv_ui.visible and inv_ui.mouse_over_panel()) or hud.passives.visible
 		if bot:
 			bot.drive(player, self)
 		else:
 			player.input.poll_local(get_global_mouse_position(), over_ui)
 		camera.global_position = player.global_position + (player.input.aim - player.global_position).limit_length(220.0) * 0.18
+		minimap.update(player.global_position, delta)
 		_save_t += delta
 		if _save_t > 30.0:
 			_save_t = 0.0
 			save_game()
-	if Input.is_action_just_pressed("inventory") and state == "play":
+	if Input.is_action_just_pressed("passives") and state == "play" and (not paused or hud.passives.visible):
+		hud.passives.toggle()
+	if Input.is_action_just_pressed("inventory") and state == "play" and not paused:
 		inv_ui.toggle()
 	if Input.is_action_just_pressed("pause") and state == "play":
-		if inv_ui.visible:
+		if hud.passives.visible:
+			hud.passives.toggle()
+		elif inv_ui.visible:
 			inv_ui.toggle()
 		else:
 			hud.toggle_pause()
@@ -389,6 +401,10 @@ func _process(delta: float) -> void:
 	_testing_hooks()
 
 func _testing_hooks() -> void:
+	if _tree_at > 0.0 and _clock >= _tree_at and state == "play":
+		_tree_at = -1.0
+		hud.passives.toggle()
+		hud.passives._summary_before = {}
 	if _inv_at > 0.0 and _clock >= _inv_at and state == "play":
 		_inv_at = -1.0
 		inv_ui.toggle()
