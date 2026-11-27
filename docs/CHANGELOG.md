@@ -58,3 +58,11 @@
 - Tests: new `scenes/test_crafting.tscn` (all currencies + all Essences); pad test now 24 checks incl. crafting and buying with A/B. Flags `--mechanics` (Reliquary/Bound Ember near start), `--rich`, `--writ-rares`.
 - Tuning: Bound Ember and Cursed Reliquary guardians are gentler at depth 1 after the Shaman bot died to them.
 - Not verified on Jason's PC or a real controller.
+
+## 2026-11-27 — Stage C: Ascensions
+- 12 ascensions with 72 notables, all implemented (see ROADMAP for the few approximations). New systems they needed: freeze, ignite stacking, chill/shock strength, chaos penetration, Stoneblood dynamic armour, squire/bog-beast permanent companions, minion haste/empower, banner cap separate from totems, returning and forking projectiles, trap tagging (Caltrops, Explosive Bolt, Smoke Veil), following ground effects, per-Rite overrides from notables (`skill` with `_pct` keys).
+- Ascension Trials: seal appears beside you after the Regent on depths 5/10/15/20; 3 waves + champion; +2 points each.
+- Class screen: Ascension tab. Class screen and passive tree now take clicks through `_input` (same as the inventory) so the controller cursor is reliable.
+- Husk cap now counts only husks (hawk, squires, beast don't take husk slots).
+- Test flags: `--asc=<id>:<n,n>`, `--asc-probe`, `--trial`, `--kill-boss`, `--god`.
+- Not verified on Jason's PC or a real controller. Balance untested beyond bot runs.

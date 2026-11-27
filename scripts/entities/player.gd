@@ -17,6 +17,47 @@ var class_id := "classic"
 var class2_id := ""              # second class (dual-class, level 10)
 var class_nodes := {}            # "class_id/branch:index" -> true
 var rite_specs := {}             # "skill_id/spec_id" -> ranks
+var ascendancy := ""             # AscensionsDB key, chosen at the first Ascension Trial
+var asc_nodes: Array = []        # indices of taken notables
+var asc_trials := 0              # Ascension Trials completed (each grants 2 points)
+var asc := Asc.new()             # runtime state for ascension behaviours (cooldowns, timers)
+
+func asc_points_total() -> int:
+	return asc_trials * AscensionsDB.POINTS_PER_TRIAL
+
+func asc_points() -> int:
+	return asc_points_total() - asc_nodes.size()
+
+func asc_nodes_list() -> Array:
+	if ascendancy == "" or not AscensionsDB.ASC.has(ascendancy):
+		return []
+	var out: Array = []
+	var nodes: Array = AscensionsDB.ASC[ascendancy].nodes
+	for i in asc_nodes:
+		if int(i) < nodes.size():
+			out.append(nodes[int(i)])
+	return out
+
+func choose_ascendancy(id: String) -> bool:
+	if ascendancy != "" or asc_trials <= 0 or not AscensionsDB.ASC.has(id) or AscensionsDB.ASC[id]["class"] != class_id:
+		return false
+	ascendancy = id
+	FX.text(global_position, "ASCENDED: " + String(AscensionsDB.ASC[id].name).to_upper(), AscensionsDB.ASC[id].color, 28)
+	return true
+
+func take_asc(i: int) -> bool:
+	if ascendancy == "" or asc_points() <= 0 or asc_nodes.has(i):
+		return false
+	asc_nodes.append(i)
+	recalc_stats()
+	return true
+
+func refund_asc(i: int) -> bool:
+	if not asc_nodes.has(i) or not can_respec():
+		return false
+	asc_nodes.erase(i)
+	recalc_stats()
+	return true
 var res := {"spirit": 0.0, "kindling": 0.0, "resolve": 0.0, "focus": 0.0}
 var spirit: float:
 	get: return res.spirit
@@ -107,6 +148,8 @@ func build_stats(eq: Dictionary) -> StatBlock:
 		var n := ClassesDB.node(parts[0], parts[1])
 		if not n.is_empty():
 			s.add_mods(n.stats)
+	for n in asc_nodes_list():
+		s.add_mods(n.get("stats", {}))
 	return s
 
 # ---------- classes ----------
@@ -148,6 +191,8 @@ func pay(cost: Dictionary) -> void:
 		res[r] = maxf(0.0, float(res[r]) - float(cost[r]))
 
 func add_buff(id: String, buff_stats: Dictionary, duration: float) -> void:
+	if duration > 1.0:
+		duration *= 1.0 + stats.get_stat("inc_buff_duration") / 100.0
 	for b in buffs:
 		if b.id == id:
 			b.time = duration
@@ -167,6 +212,11 @@ func pre_cast(skill_id: String, s: Dictionary) -> void:
 	var cls: String = s.get("class", "")
 	if cls == "magus" and s.kind == "spell" and not ["lance", "cataclysm"].has(s.behavior) and not s.has("res_cost"):
 		gain_res("kindling", 1.0)
+	var extra := asc.cast_extra(self, skill_id)
+	if not extra.is_empty():
+		var stx := cast_stats.duplicate_block()
+		stx.add_mods(extra)
+		cast_stats = stx
 	if s.behavior == "lance" and resources().has("kindling"):
 		var k: float = res.kindling
 		var st := cast_stats.duplicate_block()
@@ -177,6 +227,8 @@ func pre_cast(skill_id: String, s: Dictionary) -> void:
 		var st2 := cast_stats.duplicate_block()
 		st2.add("inc_crit_chance", 5000.0)
 		st2.add("pierce_add", 99.0)
+		if stats.get_stat("perfect_focus") > 0.0:
+			st2.add("pf_return", 1.0)
 		cast_stats = st2
 		res.focus -= 50.0
 		FX.text(global_position, "EMPOWERED", Color(0.8, 1.0, 0.6), 20)
@@ -196,6 +248,22 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 
 func on_blocked() -> void:
 	gain_res("resolve", 4.0)
+	if stats.get_stat("block_nova") > 0.0 and asc.nova_cd <= 0.0:
+		asc.nova_cd = 1.0
+		var g := game()
+		var sk := {"kind": "spell", "base_damage": {"fire": [8.0 + level * 2.0, 14.0 + level * 3.0]}, "crit": 5.0, "tags": ["area"], "ignite_chance": 25.0}
+		for t in g.targets_in_circle(faction, global_position, 190.0):
+			t.take_hit(Damage.roll_hit(sk, stats, g.rng), self, t.global_position - global_position, 220.0)
+		FX.ring(global_position, 190.0, Color(1.0, 0.55, 0.2), 0.3, 10.0)
+
+## Stoneblood: armour from Resolve.
+func defense_stats() -> StatBlock:
+	var k := stats.get_stat("armour_per_resolve")
+	if k <= 0.0 or not resources().has("resolve"):
+		return stats
+	var b := stats.duplicate_block()
+	b.add("armour", float(res.resolve) * k)
+	return b
 
 func _tick_class(delta: float) -> void:
 	_combat_t -= delta
@@ -308,7 +376,11 @@ func _after_build_change() -> void:
 func skill_def(skill_id: String) -> Dictionary:
 	var base: Dictionary = SkillsDB.SKILLS[skill_id]
 	var specs: Array = ClassesDB.SPECS.get(skill_id, [])
-	if specs.is_empty():
+	var asc_mods: Array = []
+	for n in asc_nodes_list():
+		if n.has("skill") and n.skill.has(skill_id):
+			asc_mods.append(n.skill[skill_id])
+	if specs.is_empty() and asc_mods.is_empty():
 		return base
 	var s := base.duplicate()
 	for sp in specs:
@@ -316,6 +388,14 @@ func skill_def(skill_id: String) -> Dictionary:
 		if r > 0 and sp.has("skill"):
 			for k in sp.skill:
 				s[k] = float(s.get(k, 0.0)) + float(sp.skill[k]) * r
+	for m in asc_mods:
+		for k in m:
+			if String(k).ends_with("_pct"):
+				var real := String(k).trim_suffix("_pct")
+				if s.has(real):
+					s[real] = float(s[real]) * (1.0 + float(m[k]) / 100.0)
+			else:
+				s[k] = float(s.get(k, 0.0)) + float(m[k])
 	return s
 
 ## Stats used when casting this Rite: character stats plus that Rite's specialization.
@@ -332,6 +412,10 @@ func stats_for(skill_id: String) -> StatBlock:
 			for k in sp.stats:
 				for i in r:
 					extra.add(k, float(sp.stats[k]))
+			any = true
+	for n in asc_nodes_list():
+		if n.has("skill_stats") and n.skill_stats.has(skill_id):
+			extra.add_mods(n.skill_stats[skill_id])
 			any = true
 	if any:
 		st = stats.merged_with(extra)
@@ -471,6 +555,7 @@ func _physics_process(delta: float) -> void:
 		return
 	tick_common(delta)
 	_tick_class(delta)
+	asc.tick(self, delta)
 	_anim += delta
 	_dodge_cd = maxf(0.0, _dodge_cd - delta)
 	mana = minf(max_mana, mana + stats.get_stat("mana_regen") * stats.inc_mult(["inc_mana_regen"]) * delta)
@@ -662,7 +747,8 @@ func to_save() -> Dictionary:
 		inv.append(it.to_dict() if it else null)
 	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero,
 		"class": class_id, "class2": class2_id, "class_nodes": class_nodes.keys(), "rite_specs": rite_specs, "bar": bar,
-		"spirit": spirit, "res": res, "currency": currency}
+		"spirit": spirit, "res": res, "currency": currency,
+		"ascendancy": ascendancy, "asc_nodes": asc_nodes, "asc_trials": asc_trials}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
@@ -673,6 +759,11 @@ func from_save(d: Dictionary) -> void:
 	class_nodes = {}
 	for k in d.get("class_nodes", []):
 		class_nodes[k] = true
+	ascendancy = d.get("ascendancy", "")
+	asc_nodes = []
+	for i in d.get("asc_nodes", []):
+		asc_nodes.append(int(i))
+	asc_trials = int(d.get("asc_trials", 0))
 	rite_specs = {}
 	var rs: Dictionary = d.get("rite_specs", {})
 	for k in rs:

@@ -37,6 +37,11 @@ func _process(delta: float) -> void:
 				t.root_time = maxf(t.root_time, root)
 		var bc: Color = Color(0.3, 0.5, 0.25) if style == "tentacle" else skill.color
 		FX.burst(position, bc, 30 if style != "arrow" else 8, radius * 2.0, 9.0, 0.5)
+		if style == "meteor" and g and is_instance_valid(user) and Asc.ostat(user, "inferno_crown") > 0.0:
+			var gfx := GroundEffect.new()
+			user.cast_stats = user.stats
+			gfx.setup(Asc.BURN_GROUND, user, position)
+			g.fx_node.add_child(gfx)
 		if style == "tentacle" or style == "meteor":
 			FX.shake(5.0)
 			FX.sound("boom", position, -8.0 if style == "tentacle" else -12.0)

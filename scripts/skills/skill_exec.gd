@@ -200,6 +200,12 @@ static func _ground(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vec
 	var gfx := GroundEffect.new()
 	gfx.setup(s, user, pos)
 	user.game().fx_node.add_child(gfx)
+	if s.get("trap", false) and user.stats.get_stat("trap_extra") > 0.0:
+		var side := (target_pos - origin).normalized().orthogonal()
+		for k in int(user.stats.get_stat("trap_extra")):
+			var g2 := GroundEffect.new()
+			g2.setup(s, user, pos + side * (float(s.radius) * 1.6) * (1.0 if k % 2 == 0 else -1.0))
+			user.game().fx_node.add_child(g2)
 
 static func _telegraph(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	FX.sound("windup", origin, -2.0, 0.0)
@@ -235,7 +241,7 @@ static func _clamp_target(s: Dictionary, origin: Vector2, target_pos: Vector2) -
 static func owned_minions(g: Game, user: Actor, temporary: bool) -> Array:
 	var out: Array = []
 	for a in g.allies:
-		if a is Minion and a.owner_actor == user and (a.temporary > 0.0) == temporary:
+		if a is Minion and a.kind == "husk" and a.owner_actor == user and (a.temporary > 0.0) == temporary:
 			out.append(a)
 	return out
 
@@ -295,10 +301,13 @@ static func _totem(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vect
 		if g.is_wall(pos):
 			pos = origin
 	var ward: bool = s.get("ward", false)
+	var banner: bool = s.get("banner", false)
 	var cap := 1 if ward else 1 + int(st.get_stat("totem_max_add"))
+	if banner:
+		cap = 1 + int(st.get_stat("banner_max_add"))
 	var mine: Array = []
 	for a in g.allies:
-		if a is Totem and a.owner_actor == user and a.ward == ward:
+		if a is Totem and a.owner_actor == user and a.ward == ward and bool(a.skill.get("banner", false)) == banner:
 			mine.append(a)
 	while mine.size() >= cap:
 		var oldest: Totem = mine.pop_front()
@@ -381,14 +390,19 @@ static func _corpse_burst(s: Dictionary, user: Actor, origin: Vector2, target_po
 
 static func _grand_rite(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	var g := user.game()
-	var list: Array = g.corpses_near(origin, float(s.radius), int(s.max))
+	var max_n := int(s.max)
+	var hcap := int(user.stats.get_stat("horde_cap"))
+	if hcap > 0:
+		var have := owned_minions(g, user, true).size()
+		max_n = maxi(0, mini(max_n, hcap - have))
+	var list: Array = g.corpses_near(origin, float(s.radius), max_n)
 	var n := 0
 	for c in list:
 		var pos: Vector2 = c.pos
 		g.consume_corpse(c)
 		spawn_minion(g, user, pos, float(s.duration))
 		n += 1
-	while n < 4:
+	while n < mini(4, max_n):
 		spawn_minion(g, user, origin + Vector2.RIGHT.rotated(n * TAU / 4.0) * 90.0, float(s.duration))
 		n += 1
 	FX.ring(origin, 420.0, s.color, 0.8, 14.0)
@@ -416,6 +430,15 @@ static func _blink(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vect
 	FX.burst(origin, s.color, 24, 220.0, 7.0, 0.4)
 	user.global_position = dest
 	FX.flash(dest, s.color, 70.0, 0.2)
+	if user.stats.get_stat("thunderstep") > 0.0:
+		var bl: Dictionary = SkillsDB.SKILLS["ball_lightning"].duplicate()
+		bl.speed = 220.0
+		bl.range = 260.0
+		for k in 3:
+			var pr := Projectile.new()
+			user.cast_stats = user.stats
+			pr.setup(bl, user, origin, Vector2.RIGHT.rotated(k * TAU / 3.0))
+			g.fx_node.add_child(pr)
 	FX.sound("dodge", null, -6.0)
 
 static func _hit_area(s: Dictionary, user: Actor, pos: Vector2, r: float) -> void:
@@ -522,13 +545,26 @@ static func _fissure(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) 
 static func _warcry(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	var g := user.game()
 	var r := float(s.radius)
+	var n_hit := 0
 	for t in g.targets_in_circle(user.faction, origin, r):
 		if t is Enemy:
 			t._target = user
 			t._retarget = 3.0
 			t.aggro = true
+			n_hit += 1
+	var wr := user.stats.get_stat("warcry_resolve")
+	if wr > 0.0 and user.has_method("gain_res"):
+		user.gain_res("resolve", wr * n_hit)
+	var buff: Dictionary = s.buff.duplicate()
+	var rally := user.stats.get_stat("rally_speed")
+	if rally > 0.0:
+		buff["inc_attack_speed"] = float(buff.get("inc_attack_speed", 0.0)) + rally
+		for a in g.allies:
+			if a is Minion and a.owner_actor == user:
+				a.haste_t = float(s.duration)
+				a.haste_amt = rally / 100.0
 	if user.has_method("add_buff"):
-		user.add_buff(s.name, s.buff, float(s.duration))
+		user.add_buff(s.name, buff, float(s.duration))
 	FX.ring(origin, r, s.color, 0.5, 10.0)
 	FX.text(origin, s.name.to_upper(), s.color, 22)
 	FX.sound("windup", null, -4.0, 0.0)
@@ -539,6 +575,12 @@ static func _buff(s: Dictionary, user: Actor, origin: Vector2) -> void:
 		user.add_buff(id, s.buff, float(s.duration))
 	if s.has("heal_pct"):
 		user.heal(user.max_life * float(s.heal_pct) / 100.0)
+	if s.get("special_fx", "") == "oathbreaker" and user.stats.get_stat("shared_oath") > 0.0:
+		for a in user.game().allies:
+			if a is Minion and a.owner_actor == user:
+				a.empower_t = float(s.duration)
+				a.empower_amt = 0.4
+				FX.burst(a.global_position, Color(1.0, 0.6, 0.2), 10, 140.0, 6.0, 0.4)
 	FX.ring(origin, 90.0, s.color, 0.4, 8.0)
 	FX.burst(origin, s.color, 24, 200.0, 7.0, 0.5)
 	if s.has("special_fx"):

@@ -45,9 +45,12 @@ func _radius(t: String) -> float:
 		"keystone": return 28.0
 	return 12.0
 
-func _gui_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
 	var p := Game.instance.player
 	if event is InputEventMouseButton:
+		get_viewport().set_input_as_handled()
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			zoom = clampf(zoom * 1.1, 0.4, 1.6)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:

@@ -29,9 +29,10 @@ func _process(delta: float) -> void:
 			_hover = r
 	queue_redraw()
 
-func _gui_input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.pressed):
+func _input(event: InputEvent) -> void:
+	if not visible or not (event is InputEventMouseButton and event.pressed):
 		return
+	get_viewport().set_input_as_handled()
 	var p := Game.instance.player
 	if p == null or _hover.is_empty():
 		return
@@ -60,8 +61,21 @@ func _gui_input(event: InputEvent) -> void:
 					FX.sound("levelup", null, -2.0, 0.0)
 			"tab":
 				_class_tab = h.idx
+			"asc_choose":
+				if p.choose_ascendancy(h.asc):
+					FX.sound("levelup", null, -2.0, 0.0)
+					Game.instance.save_game()
+				else:
+					FX.text(p.global_position, "Complete an Ascension Trial first (Depth 5)", Color(1, 0.6, 0.4), 16)
+			"asc_node":
+				if p.take_asc(h.i):
+					FX.sound("pickup", null, -4.0, 0.0)
+					Game.instance.save_game()
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		match h.kind:
+			"asc_node":
+				if not p.refund_asc(h.i) and p.asc_nodes.has(h.i):
+					FX.text(p.global_position, "Respecs cost Ember Shards after level 20 (coming soon)", Color(1, 0.6, 0.4), 16)
 			"node":
 				if not p.refund_node(h.cls, h.b, h.i) and not p.can_respec():
 					FX.text(p.global_position, "Respecs cost Ember Shards after level 20 (coming soon)", Color(1, 0.6, 0.4), 16)
@@ -80,26 +94,37 @@ func _draw() -> void:
 	_rects.clear()
 	draw_rect(Rect2(Vector2.ZERO, vs), Color(0.03, 0.03, 0.04, 0.97))
 	var cls := p.classes()
-	_class_tab = clampi(_class_tab, 0, cls.size() - 1)
-	var cid: String = cls[_class_tab]
+	var has_asc := not AscensionsDB.for_class(p.class_id).is_empty()
+	var tabs: Array = cls.duplicate()
+	if has_asc:
+		tabs.append("ascension")
+	_class_tab = clampi(_class_tab, 0, tabs.size() - 1)
+	var asc_view: bool = tabs[_class_tab] == "ascension"
+	var cid: String = cls[mini(_class_tab, cls.size() - 1)]
 	var cdef := ClassesDB.class_def(cid)
 	var gold := Color(1.0, 0.82, 0.45)
 	_txt(f, Vector2(40, 48), "CLASS  ·  " + String(cdef.name).to_upper(), 28, gold)
-	var info := "Class Points %d    ·    Rite Points %d    ·    %s" % [p.class_points(), p.rite_points(),
+	var info := "Class Points %d    ·    Rite Points %d    ·    Ascension Points %d    ·    %s" % [p.class_points(), p.rite_points(), p.asc_points(),
 		"Respecs free until level %d" % Player.FREE_RESPEC_LEVEL if p.can_respec() else "Respecs need Ember Shards"]
 	_txt(f, Vector2(40, 78), info, 16, Color(0.95, 0.75, 0.45) if p.class_points() + p.rite_points() > 0 else Color(0.65, 0.62, 0.6))
 	var help := "A take / add / select   ·   X refund   ·   B close" if PlayerInput.using_pad else "Click take / add / select   ·   Right-click refund   ·   K / Esc close"
 	_txt(f, Vector2(vs.x - 40 - f.get_string_size(help, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x, 48), help, 15, Color(0.6, 0.58, 0.55))
 	# class tabs (dual-class)
-	if cls.size() > 1:
-		for i in cls.size():
+	if tabs.size() > 1:
+		for i in tabs.size():
 			var r := Rect2(40 + i * 200, 92, 190, 30)
 			_rects.append({"rect": r, "kind": "tab", "idx": i})
 			draw_rect(r, Color(0.15, 0.12, 0.1) if i == _class_tab else Color(0.07, 0.06, 0.07))
-			_txt(f, r.position + Vector2(10, 21), ClassesDB.class_def(cls[i]).name, 15, gold if i == _class_tab else Color(0.7, 0.7, 0.7))
+			var tname: String = "Ascension" if tabs[i] == "ascension" else ClassesDB.class_def(tabs[i]).name
+			if tabs[i] == "ascension" and p.asc_points() > 0:
+				tname += "  (%d)" % p.asc_points()
+				draw_rect(r, Color(1.0, 0.85, 0.45, 0.5 + 0.5 * sin(_t * 5.0)), false, 2.0)
+			_txt(f, r.position + Vector2(10, 21), tname, 15, gold if i == _class_tab else Color(0.7, 0.7, 0.7))
 	# ---- class tree: three branch columns ----
-	var branches: Array = cdef.get("branches", [])
-	if branches.is_empty():
+	var branches: Array = [] if asc_view else cdef.get("branches", [])
+	if asc_view:
+		_draw_ascension(p, f, gold)
+	if branches.is_empty() and not asc_view:
 		_txt(f, Vector2(40, 160), "The classic Kindled has no class tree.", 18, Color(0.8, 0.8, 0.8))
 		_txt(f, Vector2(40, 188), "Start a New Kindled and pick the Bog Shaman to try the class system.", 16, Color(0.65, 0.62, 0.6))
 	var col_w := 245.0
@@ -197,6 +222,66 @@ func _draw() -> void:
 		draw_arc(mp, 10, 0, TAU, 20, gold, 2.0, true)
 	if not _hover.is_empty():
 		_tooltip(_hover)
+
+func _draw_ascension(p: Player, f: Font, gold: Color) -> void:
+	var col_w := 245.0
+	if p.ascendancy == "":
+		var opts := AscensionsDB.for_class(p.class_id)
+		var hint := "Choose one ascension (permanent). " + ("You have %d points to spend." % p.asc_points() if p.asc_trials > 0 else "Unlocks after the Ascension Trial at Depth 5.")
+		_txt(f, Vector2(40, 150), hint, 16, gold if p.asc_trials > 0 else Color(0.65, 0.62, 0.6))
+		for k in opts.size():
+			var a: Dictionary = AscensionsDB.ASC[opts[k]]
+			var x := 40.0 + k * (col_w + 14.0)
+			var r := Rect2(x, 166, col_w, 520)
+			_rects.append({"rect": r, "kind": "asc_choose", "asc": opts[k], "adef": a})
+			var hov: bool = _hover.get("asc", "") == opts[k]
+			draw_rect(r, Color(0.09, 0.08, 0.07) if hov else Color(0.06, 0.055, 0.065))
+			draw_rect(r, a.color if hov else a.color.darkened(0.5), false, 2.0)
+			_txt(f, r.position + Vector2(12, 30), a.name, 20, a.color)
+			_txt(f, r.position + Vector2(12, 52), a.flavor, 12, Color(0.7, 0.68, 0.65))
+			var y := r.position.y + 84
+			for n in a.nodes:
+				_txt(f, Vector2(x + 12, y), n.name, 14, Color(0.95, 0.92, 0.85))
+				var lines := _wrap(f, n.desc, col_w - 24, 11)
+				for li in lines.size():
+					_txt(f, Vector2(x + 12, y + 17 + li * 14), lines[li], 11, Color(0.6, 0.62, 0.68))
+				y += 24 + lines.size() * 14 + 6
+			if p.asc_trials > 0:
+				_txt(f, Vector2(x + 12, r.end.y - 14), ("A" if PlayerInput.using_pad else "Click") + " to ascend", 13, gold)
+		return
+	var a2: Dictionary = AscensionsDB.ASC[p.ascendancy]
+	_txt(f, Vector2(40, 150), a2.name.to_upper() + "  ·  " + a2.flavor, 18, a2.color)
+	_txt(f, Vector2(40, 174), "%d of %d Ascension Points spent  ·  next points from the Trial at Depth %s" % [p.asc_nodes.size(), p.asc_points_total(),
+		str(AscensionsDB.TRIAL_DEPTHS[p.asc_trials]) if p.asc_trials < AscensionsDB.TRIAL_DEPTHS.size() else "-"], 13, Color(0.65, 0.62, 0.6))
+	for i in a2.nodes.size():
+		var n2: Dictionary = a2.nodes[i]
+		var r2 := Rect2(40 + (i % 2) * 380, 196 + (i / 2) * 110, 366, 96)
+		var taken := p.asc_nodes.has(i)
+		var avail := not taken and p.asc_points() > 0
+		_rects.append({"rect": r2, "kind": "asc_node", "i": i})
+		draw_rect(r2, Color(a2.color.r * 0.22, a2.color.g * 0.22, a2.color.b * 0.22) if taken else Color(0.07, 0.065, 0.075))
+		var border: Color = a2.color if taken else (a2.color.darkened(0.2) if avail else Color(0.25, 0.24, 0.26))
+		if avail:
+			border.a = 0.6 + 0.4 * sin(_t * 5.0)
+		draw_rect(r2, border, false, 3.0)
+		_txt(f, r2.position + Vector2(14, 28), n2.name, 17, Color(1, 1, 1) if taken else Color(0.82, 0.8, 0.76))
+		var lines2 := _wrap(f, n2.desc, 340, 13)
+		for li in lines2.size():
+			_txt(f, r2.position + Vector2(14, 52 + li * 17), lines2[li], 13, Color(0.6, 0.75, 0.95) if taken else Color(0.55, 0.55, 0.6))
+
+func _wrap(f: Font, s: String, width: float, size: int) -> Array:
+	var out: Array = []
+	var line := ""
+	for w in s.split(" "):
+		var t := w if line == "" else line + " " + w
+		if f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width and line != "":
+			out.append(line)
+			line = w
+		else:
+			line = t
+	if line != "":
+		out.append(line)
+	return out
 
 func _node_line(n: Dictionary) -> String:
 	if n.type == "rite":

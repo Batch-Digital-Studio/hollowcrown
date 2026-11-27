@@ -32,6 +32,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_t += delta
+	if float(skill.get("follow", 0.0)) > 0.0 and is_instance_valid(user):
+		position = position.move_toward(user.global_position, 260.0 * delta)
 	_tick_t += delta
 	_ember_t -= delta
 	if _ember_t <= 0.0:

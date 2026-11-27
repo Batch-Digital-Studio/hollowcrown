@@ -97,7 +97,7 @@ static func roll_hit(skill: Dictionary, stats: StatBlock, rng: RandomNumberGener
 		out[c.type] += c.amount * stats.inc_mult(incs) * stats.more_mult(mores)
 
 	# 4. Crit.
-	var crit_chance: float = float(skill.get("crit", 5.0)) * stats.inc_mult(["inc_crit_chance"])
+	var crit_chance: float = float(skill.get("crit", 5.0)) * stats.inc_mult(["inc_crit_chance"]) + stats.get_stat("crit_flat")
 	crit_chance = clampf(crit_chance, 0.0, 100.0)
 	var crit := rng.randf() * 100.0 < crit_chance
 	if crit:
@@ -115,21 +115,21 @@ static func roll_hit(skill: Dictionary, stats: StatBlock, rng: RandomNumberGener
 	if crit:
 		for a in ["ignite", "chill", "shock"]:
 			ail[a] = 100.0
-	return {"damage": out, "crit": crit, "ailments": ail}
+	return {"damage": out, "crit": crit, "ailments": ail, "trap": skill.get("trap", false)}
 
 ## Defender-side mitigation. Returns {type: amount} after armour/resists/shock.
-static func mitigate(dmg: Dictionary, defender: StatBlock, damage_taken_mult: float = 1.0) -> Dictionary:
+static func mitigate(dmg: Dictionary, defender: StatBlock, damage_taken_mult: float = 1.0, pen: Dictionary = {}) -> Dictionary:
 	var out := {}
 	for t in dmg:
 		var amt: float = dmg[t]
 		if amt <= 0.0:
 			continue
 		if t == "physical":
-			var armour := defender.get_stat("armour")
+			var armour := defender.get_stat("armour") * defender.inc_mult(["inc_armour"])
 			if armour > 0.0:
 				amt *= 1.0 - armour / (armour + 5.0 * amt)  # big hits pierce armour
 		else:
-			var res := minf(defender.get_stat("res_" + t), RES_CAP)
+			var res := minf(defender.get_stat("res_" + t), RES_CAP) - float(pen.get(t, 0.0))
 			amt *= 1.0 - res / 100.0
 		out[t] = amt * damage_taken_mult
 	return out

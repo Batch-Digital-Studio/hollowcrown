@@ -57,3 +57,11 @@
 - [x] Bound Embers (~half of zones): empowered rare breaks out of a crystal, drops an Essence
 - [x] Writs of the Hollow King: one objective per zone on the HUD, pays shards + currency + rare/unique
 - [ ] Peddler stock is per zone and doesn't persist through save/load (regenerates)
+
+## Stage C — Ascensions (done 2026-11-27)
+- [x] 12 ascensions x 6 notables (data in `scripts/data/ascensions_db.gd`, behaviour in `scripts/classes/asc.gd`)
+- [x] Ascension Trials after the Regent on depths 5/10/15/20: golden seal, 3 waves + champion, +2 points each (8 total)
+- [x] Ascension tab in the class screen (choose once, take/refund notables; controller A/X/B)
+- [x] Probe test `--asc-probe` (18 behaviour checks) + every ascension run fully allocated with the bot
+- [ ] Balance: bot (level 22) dies in the depth 5 Trial without god mode; Trial may be too hard or the bot too weak
+- [ ] Approximations to revisit: Shieldwall/Rallying Cry/Shared Oath affect you + your minions (no co-op allies yet); Glacial Echo = second lance projectile; Perfect Focus = projectiles return once

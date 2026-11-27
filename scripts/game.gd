@@ -42,6 +42,7 @@ var _tree_at := -1.0
 var _class_at := -1.0
 var _heart_at := -1.0
 var peddler: Peddler = null
+var _asc_arg := ""          # test: "<ascendancy>:<n1,n2,...>" sets trials + notables
 var writ: Writ = null
 var pad_cursor := Vector2(800, 450)   # virtual cursor for menus on a controller
 var _rift_log := 0.0
@@ -105,12 +106,16 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--asc-probe":
+			add_child(load("res://scripts/tests/asc_probe.gd").new())
 		elif a == "--totem-probe":
 			add_child(load("res://scripts/tests/totem_probe.gd").new())
 		elif a == "--pad-test":
 			add_child(load("res://scripts/tests/pad_test.gd").new())
 		elif a.begins_with("--class-at="):
 			_class_at = float(a.substr(11))
+		elif a.begins_with("--asc="):
+			_asc_arg = a.substr(6)
 		elif a.begins_with("--heart-at="):
 			_heart_at = float(a.substr(11))
 		elif a == "--fresh":
@@ -247,6 +252,10 @@ func build_zone() -> void:
 		rq.position = _open_spot(8.0 if (force_mech and i == 0) else 14.0)
 		world_layer.add_child(rq)
 	var has_ember := force_mech or rng.randf() < 0.5
+	if OS.get_cmdline_user_args().has("--trial"):
+		var ts := Trial.Seal.new()
+		ts.position = _open_spot(6.0)
+		fx_node.add_child(ts)
 	if has_ember:
 		var be := BoundEmber.new()
 		be.roll(rng, depth)
@@ -269,6 +278,20 @@ func _open_spot(min_start: float) -> Vector2:
 		if Vector2(c - zone.start_cell).length() > min_start and Vector2(c - zone.boss_cell).length() > 10.0:
 			return zone.cell_center(c)
 	return zone.cell_center(zone.floor_cells[rng.randi() % zone.floor_cells.size()])
+
+## Ascension Trial seal after the Regent on depths 5/10/15/20 (if this character still owes that trial).
+func _maybe_trial(pos: Vector2) -> void:
+	if player == null or AscensionsDB.for_class(player.class_id).is_empty():
+		return
+	var idx := AscensionsDB.TRIAL_DEPTHS.find(depth)
+	if idx < 0 or player.asc_trials > idx:
+		return
+	if is_wall(pos):
+		pos = player.global_position
+	var seal := Trial.Seal.new()
+	seal.position = pos
+	fx_node.add_child(seal)
+	hud.show_message("AN ASCENSION TRIAL AWAITS", "Step onto the golden seal.")
 
 func writ_event(ev: String) -> void:
 	if writ == null or not writ.event(ev):
@@ -464,6 +487,8 @@ func _on_enemy_died(a: Actor) -> void:
 		writ_event("boss")
 		print("BOSS killed at t=%.1f" % _clock)
 		hud.show_message("THE ASHEN REGENT FALLS", "A way down has opened.")
+		var away := (player.global_position - e.global_position).normalized() if player else Vector2.LEFT
+		_maybe_trial(player.global_position + away * 120.0 if player else e.global_position)
 		var portal := Portal.new()
 		portal.global_position = e.global_position + Vector2(0, -40)
 		portal.entered.connect(_descend)
@@ -688,6 +713,22 @@ func _click(button: int) -> void:
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
+	if player and OS.get_cmdline_user_args().has("--god"):
+		player.life = player.max_life
+	if OS.get_cmdline_user_args().has("--kill-boss") and state == "play" and boss and is_instance_valid(boss) and not boss.dead and _clock > 2.0:
+		boss.take_hit({"damage": {"physical": 1.0e9}, "crit": false, "ailments": {}}, player)
+	if _asc_arg != "" and state == "play" and player:
+		var parts := _asc_arg.split(":")
+		_asc_arg = ""
+		player.asc_trials = 4
+		player.ascendancy = parts[0]
+		player.asc_nodes = []
+		if parts.size() > 1 and parts[1] != "":
+			for n in parts[1].split(","):
+				player.asc_nodes.append(int(n))
+		player.recalc_stats(true)
+		print("TEST ascendancy ", player.ascendancy, " nodes ", player.asc_nodes)
+		hud.class_ui._class_tab = 99
 	if _heart_at > 0.0 and _clock >= _heart_at and state == "play":
 		_heart_at = -1.0
 		player.add_currency("rift_splinter", 100)

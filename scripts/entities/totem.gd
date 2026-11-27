@@ -36,6 +36,7 @@ func setup(owner_: Actor, s: Dictionary, pos: Vector2, st: StatBlock) -> void:
 	max_life = hp
 	life = hp
 	_invuln = 3.0 if st.get_stat("totem_cast_speed") >= 20.0 else 0.0
+	_invuln = maxf(_invuln, Asc.ostat(owner_, "totem_invuln"))
 	# Damage for the linked Rite: the owner's stats for that Rite, with totem modifiers.
 	if linked != "" and owner_.has_method("stats_for"):
 		_cast_stats = owner_.stats_for(linked).duplicate_block()
@@ -114,6 +115,10 @@ func _fire(target: Actor) -> void:
 	var p := Projectile.new()
 	p.setup(s, self, origin, dir)
 	game().fx_node.add_child(p)
+	if Asc.ostat(self, "totem_link") > 0.0:
+		var p2 := Projectile.new()
+		p2.setup(s, self, origin, dir.rotated(0.22))
+		game().fx_node.add_child(p2)
 	FX.flash(origin, skill.color, 30.0, 0.12)
 
 func _draw() -> void:

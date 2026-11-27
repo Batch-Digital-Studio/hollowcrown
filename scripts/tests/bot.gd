@@ -57,6 +57,9 @@ func drive(p: Player, g: Game) -> void:
 			best = d
 			target = e
 	for c in g.fx_node.get_children():
+		if c is Trial.Seal:
+			target = c
+			best = 0.0
 		if c is Rift.Seal and c.global_position.distance_to(p.global_position) * 1.3 < best:
 			target = c
 			best = c.global_position.distance_to(p.global_position) * 1.3
@@ -116,6 +119,15 @@ func drive(p: Player, g: Game) -> void:
 			inp.aim = p.global_position + inp.move * 200.0
 		else:
 			inp.move = to.normalized()
+	# ascension: pick the first ascendancy of the class, then notables in order
+	if p.asc_points() > 0:
+		if p.ascendancy == "":
+			var opts := AscensionsDB.for_class(p.class_id)
+			if not opts.is_empty():
+				p.choose_ascendancy(opts[0])
+		for i in 6:
+			if p.asc_points() > 0 and not p.asc_nodes.has(i):
+				p.take_asc(i)
 	# spend passive points (prefers the Pyre branch, then whatever is available)
 	if p.passive_points() > 0:
 		var tree := PassivesDB.nodes()

@@ -3,7 +3,7 @@ extends Actor
 ## A raised husk fighting for its owner. Follows, leashes, picks targets near its owner.
 
 var owner_actor: Actor
-var kind := "husk"            # husk | hawk
+var kind := "husk"            # husk | hawk | squire | beast
 var temporary := 0.0          # >0: dies when it runs out (Grand Rite horde)
 var brute := false
 var explode := false
@@ -53,6 +53,27 @@ func setup(owner_: Actor, lvl: int, pos: Vector2, temp_seconds: float = 0.0) -> 
 		stats.add("life_regen", hp * 0.03)
 		radius = 14.0
 		display_name = "Spirit Hawk"
+	if kind == "squire" or kind == "beast":
+		var big := kind == "beast"
+		hp = 160.0 * pow(1.12, lvl - 1) * (1.0 + os.get_stat("inc_minion_life") / 100.0) * (1.4 if big else 1.0)
+		stats = StatBlock.new()
+		stats.add("life_flat", hp)
+		stats.add("move_speed_base", 300.0 if big else 280.0)
+		stats.add("inc_damage", os.get_stat("inc_minion_damage"))
+		stats.add("more_damage", (pow(1.1, lvl - 1) - 1.0) * 100.0 + (80.0 if big else 40.0))
+		stats.add("armour", 60.0 * lvl)
+		stats.add("block_chance", 0.0 if big else 25.0)
+		for r in ["res_fire", "res_cold", "res_lightning", "res_chaos"]:
+			stats.add(r, 40.0)
+		stats.add("life_regen", hp * 0.02)
+		if big:
+			stats.add("poison_chance", 40.0)
+		else:
+			stats.add("conv_physical_to_fire", 50.0)
+		radius = 22.0 if big else 18.0
+		display_name = "Bog Beast" if big else "Sworn Squire"
+	if kind == "hawk" and os.get_stat("hawk_fury") > 0.0:
+		stats.add("inc_attack_speed", 100.0)
 	max_life = hp
 	life = hp
 	_offset = Vector2.RIGHT.rotated(randf() * TAU) * randf_range(50, 110)
@@ -73,8 +94,13 @@ func _ready() -> void:
 	_mat = ShaderMaterial.new()
 	_mat.shader = load("res://assets/shaders/sprite_fx.gdshader")
 	_spr = AnimatedSprite2D.new()
-	_spr.sprite_frames = Art.frames_for("big_zombie" if brute else "zombie")
-	var px := 3.0 if brute else 4.0
+	var sprite_id := "big_zombie" if brute else "zombie"
+	if kind == "squire":
+		sprite_id = "knight_m"
+	elif kind == "beast":
+		sprite_id = "swampy"
+	_spr.sprite_frames = Art.frames_for(sprite_id)
+	var px := 3.0 if brute else (4.5 if kind == "beast" else 4.0)
 	_spr.scale = Vector2.ONE * px
 	_spr.position = Vector2(0, -(34.0 if brute else 16.0) * px / 2.0 + 4.0)
 	_spr.material = _mat
@@ -156,6 +182,10 @@ func _update_visuals() -> void:
 		_spr.play(anim)
 	_spr.flip_h = facing.x < -0.05
 	var tint := Color(0.7, 1.0, 0.75)
+	if kind == "squire":
+		tint = Color(0.75, 0.85, 1.2, 0.8)
+	elif kind == "beast":
+		tint = Color(0.9, 1.1, 0.85)
 	if temporary > 0.0:
 		tint = Color(0.6, 1.2, 0.7, 0.85)
 	_mat.set_shader_parameter("tint", tint)
@@ -196,6 +226,7 @@ func die(killer: Actor) -> void:
 	super.die(killer)
 	var g := game()
 	g.allies.erase(self)
+	Asc.on_minion_died(self)
 	if explode and g:
 		var s := {"kind": "spell", "base_damage": {"fire": [max_life * 0.08, max_life * 0.12]}, "crit": 5.0, "tags": ["area"], "ignite_chance": 30.0}
 		for t in g.targets_in_circle("player", global_position, 110.0):

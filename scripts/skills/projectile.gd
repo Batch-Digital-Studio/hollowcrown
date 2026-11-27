@@ -15,6 +15,8 @@ var color := Color.WHITE
 var _trail: Array = []
 var _glow: Sprite2D
 var _zap_t := 0.0
+var forked := false
+var can_return := false
 
 func setup(s: Dictionary, u: Actor, pos: Vector2, dir: Vector2) -> void:
 	skill = s
@@ -27,6 +29,7 @@ func setup(s: Dictionary, u: Actor, pos: Vector2, dir: Vector2) -> void:
 	radius = s.get("radius", 10.0)
 	max_range = s.get("range", 800.0)
 	pierce = int(user_stats.get_stat("pierce_add")) + int(s.get("pierce", 0))
+	can_return = user_stats.get_stat("pf_return") > 0.0
 	color = s.color
 	z_index = 8
 
@@ -46,7 +49,12 @@ func _physics_process(delta: float) -> void:
 	if _trail.size() > 8:
 		_trail.pop_back()
 	queue_redraw()
-	if travel > max_range or g.is_wall(position):
+	if travel > max_range and can_return:
+		can_return = false
+		travel = 0.0
+		vel = -vel
+		hit.clear()
+	elif travel > max_range or g.is_wall(position):
 		_pop()
 		return
 	if skill.has("zap_interval"):
@@ -73,13 +81,27 @@ func _physics_process(delta: float) -> void:
 			for k in res.damage:
 				res.damage[k] *= 1.0 + float(skill.vs_chilled) / 100.0
 		var src_ok := user if is_instance_valid(user) else null
+		var fs := user_stats.get_stat("far_shot")
+		if fs > 0.0:
+			for k in res.damage:
+				res.damage[k] *= 1.0 + fs / 100.0 * clampf(travel / 700.0, 0.0, 1.0)
 		t.take_hit(res, src_ok, vel, 110.0)
+		if not forked and user_stats.get_stat("fork") > 0.0 and src_ok:
+			forked = true
+			for sgn in [-1.0, 1.0]:
+				var fp := Projectile.new()
+				fp.setup(skill, src_ok, position, vel.normalized().rotated(0.45 * sgn))
+				fp.user_stats = user_stats
+				fp.forked = true
+				fp.hit = hit.duplicate()
+				fp.max_range = maxf(200.0, max_range - travel)
+				g.fx_node.add_child(fp)
 		if skill.has("root"):
 			t.root_time = maxf(t.root_time, float(skill.root))
 		if skill.has("pull") and src_ok:
 			t.knock = (src_ok.global_position - t.global_position).normalized() * 1100.0
 		if skill.has("vines"):
-			var vs := {"kind": "attack", "base_damage": {"chaos": [3, 6]}, "radius": 70.0, "windup": 0.05, "root": 0.6, "color": Color(0.45, 0.8, 0.35), "crit": 5.0, "tags": []}
+			var vs := {"kind": "attack", "base_damage": {"chaos": [3, 6]}, "radius": 70.0, "windup": 0.05, "root": 0.6 + float(skill.get("vine_root", 0.0)), "color": Color(0.45, 0.8, 0.35), "crit": 5.0, "tags": []}
 			var e := Eruption.new()
 			e.setup(vs, src_ok if src_ok else t, position, user_stats)
 			g.fx_node.add_child(e)
@@ -91,12 +113,34 @@ func _physics_process(delta: float) -> void:
 				if o != t:
 					o.take_hit(Damage.roll_hit(skill, user_stats, g.rng), user if is_instance_valid(user) else null, o.global_position - position, 60.0)
 			FX.ring(position, sr, color, 0.3, 5.0)
+			if skill.get("trap", false) and src_ok:
+				_trap_combo(g, src_ok, sr)
 		if faction == "player":
 			FX.shake(2.0)
 		if pierce <= 0:
 			_pop()
 			return
 		pierce -= 1
+
+## Trapwright: Chain Detonation and Smoke Bombs on an Explosive Bolt blast.
+func _trap_combo(g: Game, src: Actor, sr: float) -> void:
+	if user_stats.get_stat("chain_detonation") > 0.0:
+		for c in g.fx_node.get_children():
+			if c is GroundEffect and c.user == src and c.skill.get("trap", false) and c.skill.has("slow") and c.position.distance_to(position) < sr + c.radius:
+				for t2 in g.targets_in_circle(faction, c.position, c.radius * 1.3):
+					var r2 := Damage.roll_hit(c.skill, c.user_stats, g.rng)
+					for k in r2.damage:
+						r2.damage[k] *= 4.0
+					t2.take_hit(r2, src, t2.global_position - c.position, 200.0)
+				FX.ring(c.position, c.radius * 1.3, Color(0.9, 0.85, 0.7), 0.3, 8.0)
+				FX.sound("boom", c.position, -10.0)
+				c.queue_free()
+	if user_stats.get_stat("smoke_bombs") > 0.0:
+		var sv: Dictionary = src.skill_def("smoke_veil") if src.has_method("skill_def") else SkillsDB.SKILLS["smoke_veil"]
+		var ge := GroundEffect.new()
+		src.cast_stats = src.stats
+		ge.setup(sv, src, position)
+		g.fx_node.add_child(ge)
 
 func _pop() -> void:
 	FX.burst(position, color, 10, 200.0, 6.0, 0.3)

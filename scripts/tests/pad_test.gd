@@ -33,6 +33,12 @@ func axis(a: int, v: float) -> void:
 	e.device = 0
 	Input.parse_input_event(e)
 
+func _rect_of(kind: String, key: String, val) -> Rect2:
+	for r in g.hud.class_ui._rects:
+		if r.kind == kind and r.get(key) == val:
+			return r.rect
+	return Rect2()
+
 func check(name: String, ok: bool) -> void:
 	print(("  PASS " if ok else "  FAIL ") + name)
 	if not ok:
@@ -215,5 +221,54 @@ func _process(delta: float) -> void:
 		29:
 			if t > 12.30:
 				check("B closes the shop", not g.inv_ui.visible)
+				g.player.asc_trials = 1
+				tap(JOY_BUTTON_DPAD_DOWN)
+				step = 30
+		30:
+			if t > 12.70:
+				check("D-pad down opens class screen for ascension", g.hud.class_ui.visible)
+				var r := _rect_of("tab", "idx", 1)
+				if r.size.x > 0.0:
+					g.set_pad_cursor(r.get_center())
+				step = 31
+		31:
+			if t > 12.90:
+				tap(JOY_BUTTON_A)
+				step = 32
+		32:
+			if t > 13.20:
+				var r2 := _rect_of("asc_choose", "asc", "gravebinder")
+				check("A on the Ascension tab shows the three choices", r2.size.x > 0.0)
+				if r2.size.x > 0.0:
+					g.set_pad_cursor(r2.get_center())
+				step = 33
+		33:
+			if t > 13.40:
+				tap(JOY_BUTTON_A)
+				step = 34
+		34:
+			if t > 13.70:
+				check("A chooses Gravebinder", g.player.ascendancy == "gravebinder")
+				var r3 := _rect_of("asc_node", "i", 0)
+				if r3.size.x > 0.0:
+					g.set_pad_cursor(r3.get_center())
+				step = 35
+		35:
+			if t > 13.90:
+				tap(JOY_BUTTON_A)
+				step = 36
+		36:
+			if t > 14.20:
+				check("A takes the Legion notable", g.player.asc_nodes.has(0))
+				tap(JOY_BUTTON_X)
+				step = 37
+		37:
+			if t > 14.50:
+				check("X refunds it (free respec below 20)", not g.player.asc_nodes.has(0))
+				tap(JOY_BUTTON_B)
+				step = 38
+		38:
+			if t > 14.80:
+				check("B closes the class screen", not g.hud.class_ui.visible)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)
