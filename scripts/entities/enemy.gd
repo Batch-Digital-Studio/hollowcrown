@@ -12,6 +12,8 @@ var _strafe := 1.0
 var _boss_phase := 1
 var _boss_cycle := 0
 var _summon_cd := 8.0
+var brain: BossBrain = null
+var _intro_done := false
 
 
 const AGGRO_RANGE := 620.0
@@ -40,6 +42,9 @@ func setup(id: String, lvl: int, rar: String, mod_ids: Array) -> void:
 		stats.add_mods(EnemiesDB.MONSTER_MODS[m].stats)
 	max_life = stats.get_stat("life_flat") * stats.get_stat("more_life")
 	life = max_life
+	if def.get("ai", "") == "brain":
+		brain = BossBrain.new()
+		brain.setup(self)
 	if mods.size() > 0:
 		var names: Array = []
 		for m in mods:
@@ -56,6 +61,12 @@ func _ready() -> void:
 	add_child(shape)
 	_strafe = 1.0 if game().rng.randf() < 0.5 else -1.0
 	_build_visuals()
+
+func damage_taken_mult() -> float:
+	var m := super()
+	if brain:
+		m *= brain.taken_mult()
+	return m
 
 func is_boss() -> bool:
 	return def.get("boss", false)
@@ -98,7 +109,15 @@ func _physics_process(delta: float) -> void:
 			"melee": move = _ai_melee(p, to_p, dist)
 			"ranged": move = _ai_ranged(p, to_p, dist)
 			"boss": move = _ai_boss(p, to_p, dist, delta)
+			"brain":
+				move = brain.tick(p, to_p, dist, delta)
+				_boss_phase = brain.phase
 			"summoner": move = _ai_summoner(p, to_p, dist)
+	elif aggro and brain and (brain.charge_left > 0.0 or brain.charge_wind > 0.0 or brain.stagger > 0.0):
+		move = brain.tick(p, to_p, dist, delta)
+	if aggro and is_boss() and not _intro_done:
+		_intro_done = true
+		g.hud.show_message(String(def.name).to_upper(), def.get("intro", ""))
 	# separation from other monsters
 	var sep := Vector2.ZERO
 	for o in g.enemies_near(global_position, radius * 2.2):
@@ -196,7 +215,7 @@ func die(killer: Actor) -> void:
 	if dead:
 		return
 	super.die(killer)
-	var c: Color = def.eye
+	var c: Color = def.get("eye", def.get("light", Color(1.0, 0.75, 0.3)))
 	FX.burst(global_position, c, 26 if rarity == "normal" else 50, 300.0, 8.0, 0.6)
 	FX.burst(global_position, Color(0.4, 0.38, 0.36), 18, 200.0, 10.0, 0.8)
 	FX.flash(global_position, c, radius * 3.0, 0.2)
@@ -244,6 +263,16 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if ignite_time > 0.0:
 		draw_arc(Vector2(0, 2), radius * 1.2, 0, TAU, 24, Color(1, 0.45, 0.1, 0.8), 2.0, true)
+	if frozen_time > 0.0:
+		var h := sprite_height() + 12.0
+		var w := radius * 1.25
+		var ice := PackedVector2Array([Vector2(-w, 6), Vector2(-w * 1.1, -h * 0.55), Vector2(-w * 0.4, -h - 6), Vector2(w * 0.5, -h), Vector2(w * 1.1, -h * 0.5), Vector2(w, 6)])
+		draw_colored_polygon(ice, Color(0.6, 0.85, 1.0, 0.35))
+		draw_polyline(ice + PackedVector2Array([ice[0]]), Color(0.85, 0.97, 1.0, 0.9), 2.5, true)
+	elif chill_time > 0.0:
+		draw_arc(Vector2(0, 2), radius * 1.2, 0, TAU, 24, Color(0.6, 0.9, 1.0, 0.7), 2.0, true)
+	if not poisons.is_empty():
+		draw_arc(Vector2(0, 2), radius * 1.05, 0, TAU, 24, Color(0.45, 0.95, 0.25, 0.6), 2.0, true)
 	if curse_time > 0.0:
 		var cc := Color(0.7, 0.4, 0.95, 0.8)
 		draw_arc(Vector2(0, -sprite_height() - 14), 9, 0, TAU, 12, cc, 2.0, true)
@@ -251,6 +280,12 @@ func _draw() -> void:
 	if rarity == "rare" or rarity == "magic":
 		var c := Color(1.0, 0.8, 0.3, 0.6) if rarity == "rare" else Color(0.45, 0.6, 1.0, 0.5)
 		draw_arc(Vector2(0, 2), radius * 1.35, _anim, _anim + PI * 1.5, 24, c, 2.0, true)
+	if brain and brain.shielded():
+		draw_arc(Vector2(0, -sprite_height() * 0.45), radius * 1.6, 0, TAU, 48, Color(0.75, 0.5, 1.0, 0.5 + 0.3 * sin(_anim * 6.0)), 5.0, true)
+	if brain and brain.stagger > 0.0:
+		for i in 3:
+			var a := _anim * 4.0 + i * TAU / 3.0
+			draw_circle(Vector2(cos(a) * 30.0, -sprite_height() - 20.0 + sin(a) * 8.0), 5.0, Color(1.0, 0.9, 0.4))
 	if is_boss():
 		var crown_c := Color(1.0, 0.75, 0.3) if _boss_phase == 1 else Color(1.0, 0.35, 0.1)
 		if def.get("rift", false):
@@ -311,6 +346,8 @@ func _update_visuals() -> void:
 		tint = tint * Color(1.25, 0.8, 0.7)
 	if def.get("rift", false):
 		tint = tint * Color(0.85, 0.6, 1.3)
+	if def.has("tint"):
+		tint = tint * def.tint
 	_mat.set_shader_parameter("tint", tint)
 	_mat.set_shader_parameter("flash", 0.75 if hit_flash > 0.0 else 0.0)
 	# attack lunge

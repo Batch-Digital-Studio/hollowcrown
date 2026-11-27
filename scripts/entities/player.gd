@@ -648,6 +648,9 @@ func _physics_process(delta: float) -> void:
 	tick_common(delta)
 	_tick_class(delta)
 	asc.tick(self, delta)
+	# Spirit trickles in while monsters are near (0.6 / s)
+	if resources().has("spirit") and game() and not game().targets_in_circle(faction, global_position, 600.0).is_empty():
+		gain_res("spirit", 0.6 * delta)
 	_anim += delta
 	_dodge_cd = maxf(0.0, _dodge_cd - delta)
 	mana = minf(max_mana, mana + stats.get_stat("mana_regen") * stats.inc_mult(["inc_mana_regen"]) * delta)

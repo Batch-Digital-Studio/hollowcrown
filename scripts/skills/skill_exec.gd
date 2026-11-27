@@ -282,9 +282,13 @@ static func _raise(s: Dictionary, user: Actor, target_pos: Vector2) -> void:
 		g.consume_corpse(c)
 		spawn_minion(g, user, pos)
 		room -= 1
-	if corpses.is_empty() and float(user.get("spirit")) >= float(s.spirit_cost):
-		user.set("spirit", float(user.get("spirit")) - float(s.spirit_cost))
-		spawn_minion(g, user, user.global_position + (target_pos - user.global_position).limit_length(120.0))
+	if corpses.is_empty():
+		# No bodies (boss arenas): raise a weaker Ash Husk from the ground instead
+		var am := spawn_minion(g, user, user.global_position + (target_pos - user.global_position).limit_length(120.0))
+		am.max_life *= 0.6
+		am.life = am.max_life
+		am.display_name = "Ash Husk"
+		am.modulate = Color(0.85, 0.85, 0.85)
 	FX.sound("portal", null, -8.0, 0.15)
 	FX.ring(target_pos, float(s.radius) * 0.5, s.color, 0.4, 5.0)
 

@@ -98,3 +98,15 @@
 - Known, not fixed yet: a Reliquary guardian can spawn inside a wall where it can't be hit.
 - Ascension Trial seal and the boss portal could spawn on top of each other. The seal is now placed 3.5-6.5 cells from the boss, at least 300 px from the portal, the loot pile and the player (checked on 3 maps: ~350 px apart).
 - A skipped Ascension Trial now reappears after the next Regent until it's done.
+
+## 2026-11-27 — Bosses, Spirit, element visuals (from Jason's playtest)
+- Boss rotation by depth: 1 Ashen Regent, 2 The Rot Mother, 3 The Frostwarden, 4 The Pyre Brute, 5 The Gravecaller King, then around again. New `scripts/entities/boss_brain.gd` + `scripts/skills/hazard.gd` (telegraphs: circle = get out, ring = get in, line = sidestep; can follow you, then lock).
+  - Rot Mother: following bile slams leave poison pools, rot spray, broods of husks (corpses for Shamans); phase 2 rains pools.
+  - Frostwarden: alternates "Come closer" rings and "Get back" bursts, fans of ice lances; phase 2 adds lances and a chilling aura.
+  - Pyre Brute: telegraphed charge that leaves fire; charging into a wall staggers him for 2.2 s (+50% damage taken); stomp and cinder rain; phase 2 double charges.
+  - Gravecaller King: shielded (90% less damage) while his guard of skeletons lives, bone-spear bursts, blinks away leaving a blast; phase 2 Soul Rend and double bursts.
+  - Boss bar shows the boss's name, a phase-2 mark at 50%, and SHIELDED / STAGGERED. Intro hint when a boss first engages. Test flag `--boss=<id>`.
+- Spirit: kills give more (4/8/20/40); damaging bosses gives up to 120 Spirit over their life, rares 30; minion hits +0.5; +0.6/s while monsters are near.
+- Raise Husk with no corpse nearby now raises an Ash Husk (60% life) for no Spirit.
+- Element visuals: burning enemies flicker with rising flames (more with Everburn stacks), chilled ones shed frost and get a blue ring, frozen ones are encased in ice, shocked ones crackle with sparks, poisoned ones bubble green, cursed ones trail purple. Hits flare by element (flames, ice shards + ring, lightning spark, chaos bubbles, blood).
+- Verified in the cloud: all 4 new bosses run without errors; the Magus bot (level 10, no gear) killed the Frostwarden, Pyre Brute and Gravecaller King and died once to the Rot Mother. Not yet played by Jason.

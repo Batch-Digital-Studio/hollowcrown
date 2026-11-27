@@ -134,6 +134,49 @@ func burst(pos: Vector2, color: Color, count: int = 14, speed: float = 260.0, si
 	p.emitting = true
 	get_tree().create_timer(life + 0.2, false).timeout.connect(p.queue_free)
 
+## Particles that drift up (flames, bubbles) or down (gravity > 0: frost, snow).
+func rise(pos: Vector2, color: Color, count: int = 4, size: float = 7.0, life: float = 0.6, gravity: float = -260.0, spread_px: float = 16.0) -> void:
+	if not world or not enabled:
+		return
+	var p := CPUParticles2D.new()
+	p.position = pos
+	p.one_shot = true
+	p.emitting = false
+	p.amount = count
+	p.lifetime = life
+	p.explosiveness = 0.6
+	p.texture = soft_tex
+	p.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = spread_px
+	p.spread = 25.0
+	p.direction = Vector2.UP if gravity < 0.0 else Vector2.DOWN
+	p.gravity = Vector2(0, gravity)
+	p.initial_velocity_min = 10.0
+	p.initial_velocity_max = 40.0
+	p.scale_amount_min = size / 16.0 * 0.6
+	p.scale_amount_max = size / 16.0 * 1.3
+	var ramp := Gradient.new()
+	ramp.set_color(0, color.lightened(0.35))
+	ramp.set_color(1, Color(color.r, color.g, color.b, 0.0))
+	p.color_ramp = ramp
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	p.material = mat
+	world.add_child(p)
+	p.emitting = true
+	get_tree().create_timer(life + 0.2, false).timeout.connect(p.queue_free)
+
+## A short jagged spark (shock / lightning hits).
+func spark(pos: Vector2, color: Color, length: float = 40.0) -> void:
+	if not world or not enabled:
+		return
+	var lf := LightningFX.new()
+	var a := randf() * TAU
+	lf.points = [pos - Vector2.RIGHT.rotated(a) * length * 0.5, pos + Vector2.RIGHT.rotated(a) * length * 0.5]
+	lf.color = color
+	world.add_child(lf)
+
 func ring(pos: Vector2, radius: float, color: Color, duration: float = 0.35, width: float = 6.0) -> void:
 	if not world:
 		return

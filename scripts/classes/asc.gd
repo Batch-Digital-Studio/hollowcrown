@@ -185,6 +185,14 @@ static func after_hit(target: Actor, source, result: Dictionary, dmg: Dictionary
 	var o := owner_player(source)
 	if o == null or target.faction == "player":
 		return
+	# Spirit from damage: bosses are worth 120 Spirit over their whole life, rares 30; minion hits add a little
+	if o.resources().has("spirit") and target is Enemy:
+		var per_life: float = {"boss": 120.0, "rare": 30.0, "magic": 6.0}.get(target.rarity, 0.0)
+		var sg := per_life * amount / maxf(1.0, target.max_life)
+		if source is Minion:
+			sg += 0.5
+		if sg > 0.0:
+			o.gain_res("spirit", sg)
 	var s := o.stats
 	if s.get_stat("freeze_below") > 0.0 and target.is_chilled() and target.life > 0.0 and target.life < target.max_life * s.get_stat("freeze_below") / 100.0 and target.frozen_time <= 0.0:
 		target.freeze(1.5)

@@ -68,6 +68,31 @@ const ENEMIES := {
 		"stats": {"armour": 250, "res_fire": 30, "res_cold": 30, "res_lightning": 30},
 		"boss": true,
 	},
+	# ---- rotating bosses (scripts/entities/boss_brain.gd) ----
+	"rot_mother": {
+		"name": "The Rot Mother", "life": 3300, "speed": 95.0, "radius": 70.0, "sprite": "big_zombie", "px": 6.5, "light": Color(0.5, 1.0, 0.3), "xp": 420,
+		"skills": ["rot_slam", "rot_spray", "rot_sweep"], "ai": "brain", "brain": "rot", "range": 180.0, "tint": Color(0.75, 1.15, 0.6),
+		"stats": {"armour": 200, "res_chaos": 40, "res_cold": 20}, "boss": true,
+		"intro": "Her brood crawls from the bog.", "enrage_text": "THE BOG OVERFLOWS",
+	},
+	"frostwarden": {
+		"name": "The Frostwarden", "life": 2900, "speed": 115.0, "radius": 62.0, "sprite": "ice_zombie", "px": 7.0, "light": Color(0.5, 0.85, 1.0), "xp": 420,
+		"skills": ["frost_sweep", "frost_lance_b", "frost_burst"], "ai": "brain", "brain": "frost", "range": 170.0, "tint": Color(0.8, 0.95, 1.25),
+		"stats": {"armour": 220, "res_cold": 60, "res_lightning": 20}, "boss": true,
+		"intro": "Rings and lances: read the floor.", "enrage_text": "WINTER WITHOUT END",
+	},
+	"pyre_brute": {
+		"name": "The Pyre Brute", "life": 3400, "speed": 120.0, "radius": 72.0, "sprite": "ogre", "px": 6.5, "light": Color(1.0, 0.5, 0.15), "xp": 420,
+		"skills": ["pyre_stomp", "pyre_charge", "pyre_meteor"], "ai": "brain", "brain": "pyre", "range": 180.0, "tint": Color(1.2, 0.8, 0.65),
+		"stats": {"armour": 320, "res_fire": 60}, "boss": true,
+		"intro": "Bait the charge into a wall.", "enrage_text": "THE PYRE ROARS",
+	},
+	"grave_king": {
+		"name": "The Gravecaller King", "life": 2700, "speed": 110.0, "radius": 56.0, "sprite": "necromancer", "px": 7.0, "light": Color(0.75, 0.5, 1.0), "xp": 420,
+		"skills": ["grave_spears", "grave_rend", "grave_burst"], "ai": "brain", "brain": "grave", "range": 400.0, "tint": Color(0.9, 0.8, 1.2),
+		"stats": {"armour": 120, "res_chaos": 40, "res_fire": 20, "res_lightning": 20}, "boss": true,
+		"intro": "Kill his guard to break his shield.", "enrage_text": "THE DEAD ANSWER",
+	},
 }
 
 ## Modifiers that can appear on magic/rare monsters.

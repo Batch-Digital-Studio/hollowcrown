@@ -147,9 +147,16 @@ func _draw() -> void:
 		var bw := 640.0
 		var br := Rect2(vs.x / 2 - bw / 2, 34, bw, 18)
 		draw_rect(br.grow(3), Color(0, 0, 0, 0.85))
-		draw_rect(Rect2(br.position, Vector2(bw * g.boss.life / g.boss.max_life, 18)), Color(0.8, 0.3, 0.1))
+		var bc: Color = g.boss.def.get("light", Color(0.8, 0.3, 0.1)).darkened(0.25)
+		draw_rect(Rect2(br.position, Vector2(bw * g.boss.life / g.boss.max_life, 18)), bc)
+		draw_rect(Rect2(br.position + Vector2(bw * 0.5 - 1, 0), Vector2(2, 18)), Color(1, 1, 1, 0.5))   # phase 2 mark
 		draw_rect(br.grow(3), Color(1.0, 0.7, 0.3), false, 2.0)
-		_text(f, Vector2(vs.x / 2, 26), "THE ASHEN REGENT", 18, Color(1.0, 0.78, 0.4))
+		var title := String(g.boss.def.name).to_upper()
+		if g.boss.brain and g.boss.brain.shielded():
+			title += "  ·  SHIELDED (kill his guard)"
+		elif g.boss.brain and g.boss.brain.stagger > 0.0:
+			title += "  ·  STAGGERED"
+		_text(f, Vector2(vs.x / 2, 26), title, 18, Color(1.0, 0.78, 0.4))
 	# Message
 	if message_t > 0.0:
 		var a := minf(1.0, message_t) * minf(1.0, (3.5 - message_t) * 3.0)

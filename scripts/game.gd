@@ -407,8 +407,16 @@ func spawn_enemy(id: String, lvl: int, rar: String, mods: Array, pos: Vector2) -
 	enemies.append(e)
 	return e
 
+## Depth 1 is the Ashen Regent, then the others in turn, then around again.
+const BOSS_ROTATION := ["regent", "rot_mother", "frostwarden", "pyre_brute", "grave_king"]
+
 func _spawn_boss() -> void:
-	boss = spawn_enemy("regent", area_level() + 2, "boss", [], zone.cell_center(zone.boss_cell))
+	var forced := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--boss="):
+			forced = a.substr(7)
+	var bid: String = forced if forced != "" else BOSS_ROTATION[(depth - 1) % BOSS_ROTATION.size()]
+	boss = spawn_enemy(bid, area_level() + 2, "boss", [], zone.cell_center(zone.boss_cell))
 	# Scale boss with depth a little more.
 	boss.max_life *= 1.0 + (depth - 1) * 0.35
 	boss.life = boss.max_life
@@ -506,7 +514,7 @@ func _on_enemy_died(a: Actor) -> void:
 		var cs: Array = CurrencyDB.CRAFTING
 		drop_currency(cs[rng.randi() % cs.size()], 1, e.global_position)
 	if player and not player.dead and player.max_spirit() > 0.0 and e.global_position.distance_to(player.global_position) < 800.0:
-		var gain: float = {"normal": 2.0, "magic": 5.0, "rare": 12.0, "boss": 40.0}.get(e.rarity, 2.0)
+		var gain: float = {"normal": 4.0, "magic": 8.0, "rare": 20.0, "boss": 40.0}.get(e.rarity, 4.0)
 		player.spirit = minf(player.max_spirit(), player.spirit + gain)
 	var xp := int(round(e.def.xp * pow(1.12, e.level - 1) * mult))
 	if player and not player.dead:
@@ -516,10 +524,10 @@ func _on_enemy_died(a: Actor) -> void:
 		if e.rarity == "boss" and i == 0:
 			it = Loot.make_item(e.level, rng, "rare" if rng.randf() > 0.35 else "unique")
 		drop_item(it, e.global_position)
-	if e.type_id == "regent":
+	if e.is_boss() and not e.def.get("rift", false):
 		writ_event("boss")
-		print("BOSS killed at t=%.1f" % _clock)
-		hud.show_message("THE ASHEN REGENT FALLS", "A way down has opened.")
+		print("BOSS killed at t=%.1f (%s)" % [_clock, e.type_id])
+		hud.show_message(String(e.def.name).to_upper() + " FALLS", "A way down has opened.")
 		var portal := Portal.new()
 		set_meta("boss_pos", e.global_position)
 		portal.global_position = _portal_spot(e.global_position)

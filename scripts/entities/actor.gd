@@ -278,6 +278,23 @@ func _on_hit_fx(dmg: Dictionary, amount: float, crit: bool) -> void:
 		c = Color(1.0, 0.3, 0.3)
 	FX.number(global_position, amount, c, crit)
 	FX.burst(global_position, c, 6 if not crit else 14, 180.0 if not crit else 320.0, 5.0)
+	if faction == "player":
+		return
+	# element flourish so you can see what you're dealing
+	var body := global_position + Vector2(0, -radius * 0.6)
+	match Damage.dominant(dmg):
+		"fire":
+			FX.rise(body, Color(1.0, 0.5, 0.15), 8, 10.0, 0.5, -320.0, radius * 0.5)
+		"cold":
+			FX.burst(body, Color(0.75, 0.92, 1.0), 10, 380.0, 4.0, 0.35)
+			FX.ring(global_position, radius * 1.3, Color(0.6, 0.9, 1.0), 0.25, 3.0)
+		"lightning":
+			FX.spark(body, Color(1.0, 0.95, 0.5), radius * 1.6)
+			FX.burst(body, Color(1.0, 0.95, 0.6), 8, 420.0, 3.0, 0.2)
+		"chaos":
+			FX.rise(body, Color(0.5, 1.0, 0.3), 6, 8.0, 0.7, -120.0, radius * 0.5)
+		"physical":
+			FX.burst(body, Color(0.75, 0.15, 0.12), 6, 220.0, 4.0, 0.3)
 
 func die(_killer: Actor) -> void:
 	if dead:
@@ -292,7 +309,33 @@ func die(_killer: Actor) -> void:
 				FX.ring(t.global_position, 40.0, Color(0.7, 0.4, 0.95), 0.4)
 	died.emit(self)
 
+var _ail_fx := 0.0
+
+## Ongoing status visuals: flames, frost, ice, sparks, bubbles.
+func _ailment_fx(delta: float) -> void:
+	_ail_fx -= delta
+	if _ail_fx > 0.0 or not FX.enabled:
+		return
+	_ail_fx = 0.16
+	var g := game()
+	if g == null or g.player == null or global_position.distance_to(g.player.global_position) > 1100.0:
+		return
+	var body := global_position + Vector2(0, -radius * 0.7)
+	if ignite_time > 0.0:
+		FX.rise(body, Color(1.0, 0.45, 0.12), 3 + mini(ignite_stacks, 3), 9.0, 0.55, -300.0, radius * 0.5)
+	if frozen_time > 0.0:
+		FX.burst(body, Color(0.85, 0.97, 1.0), 2, 60.0, 5.0, 0.4)
+	elif chill_time > 0.0:
+		FX.rise(body + Vector2(0, -radius * 0.4), Color(0.7, 0.9, 1.0), 2, 5.0, 0.7, 120.0, radius * 0.6)
+	if shock_time > 0.0 and randf() < 0.5:
+		FX.spark(body + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * radius * 0.5, Color(1.0, 0.95, 0.5), radius)
+	if not poisons.is_empty():
+		FX.rise(body, Color(0.45, 0.95, 0.25), 1 + mini(poisons.size() / 4, 3), 7.0, 0.9, -90.0, radius * 0.5)
+	if curse_time > 0.0 and randf() < 0.4:
+		FX.rise(global_position, Color(0.7, 0.4, 0.95), 1, 6.0, 0.8, -60.0, radius * 0.6)
+
 func tick_common(delta: float) -> void:
+	_ailment_fx(delta)
 	busy_time = maxf(0.0, busy_time - delta)
 	for k in cooldowns.keys():
 		cooldowns[k] = maxf(0.0, cooldowns[k] - delta)
