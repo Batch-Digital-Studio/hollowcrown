@@ -23,6 +23,9 @@ var theme_tint := Color.WHITE
 var biome_id := "crypt"
 var biome: Dictionary = {}
 var is_town := false
+var is_slice := false
+var slice: Dictionary = {}
+const SLICE_CENTER := Vector2(45 * 64, 35 * 64)   # px; the layout's (0, 0)
 var town_spots := {}   # town: name -> cell (stash, salvager, peddler, waypoint, portal)
 
 func generate(seed_value: int, depth: int, biome_override: String = "") -> void:
@@ -57,6 +60,54 @@ func generate(seed_value: int, depth: int, biome_override: String = "") -> void:
 	if is_town:
 		braziers.clear()
 		chest_cells.clear()
+	_build_chunks()
+	queue_redraw()
+
+## Playtest slice: the fixed Whisperwood Clearing shared with the Unreal test (metres -> px: x * 32).
+static func slice_px(x: float, z: float) -> Vector2:
+	return SLICE_CENTER + Vector2(x, z) * 32.0
+
+func generate_slice(layout: Dictionary) -> void:
+	is_slice = true
+	slice = layout
+	rng = RandomNumberGenerator.new()
+	rng.seed = 1127
+	grid.resize(W * H)
+	grid.fill(0)
+	biome_id = "forest"
+	biome = WorldDB.BIOMES[biome_id]
+	is_town = false
+	theme_tint = Color.WHITE
+	theme_accent = biome.accent
+	var r_px: float = float(layout.walk_radius_m) * 32.0 + 40.0
+	for y in H:
+		for x in W:
+			if cell_center(Vector2i(x, y)).distance_to(SLICE_CENTER) < r_px:
+				_setc(x, y, 1)
+	var ps: Array = layout.player_start
+	start_cell = Vector2i(slice_px(ps[0], ps[1]) / CELL)
+	var lm: Dictionary = layout.landmark
+	boss_cell = Vector2i(slice_px(lm.x, lm.z) / CELL)
+	floor_cells.clear()
+	for y in H:
+		for x in W:
+			if is_floor_cell(x, y):
+				floor_cells.append(Vector2i(x, y))
+	_build_collision()
+	var body := StaticBody2D.new()   # trees, rocks, logs, stones: round colliders
+	body.collision_layer = 1
+	body.collision_mask = 0
+	add_child(body)
+	for b in layout.blockers:
+		var cs := CollisionShape2D.new()
+		var c := CircleShape2D.new()
+		c.radius = float(b[2]) * 32.0
+		cs.shape = c
+		cs.position = slice_px(b[0], b[1])
+		body.add_child(cs)
+	_deco.clear()
+	braziers.clear()
+	chest_cells.clear()
 	_build_chunks()
 	queue_redraw()
 

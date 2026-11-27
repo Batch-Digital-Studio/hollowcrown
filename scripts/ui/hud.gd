@@ -155,6 +155,9 @@ func _show_title() -> void:
 	if g.has_save():
 		box.add_child(_button("Continue", func(): _start(true)))
 	box.add_child(_button("New Kindled" if g.has_save() else "Begin", func(): _start(false)))
+	box.add_child(_button("Playtest: Whisperwood Clearing", func():
+		hide_overlays()
+		Game.instance.start_slice()))
 	var sp2 := Control.new()
 	sp2.custom_minimum_size = Vector2(0, 20)
 	box.add_child(sp2)

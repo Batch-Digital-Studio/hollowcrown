@@ -108,3 +108,9 @@ Jason's creative brief + choice "Real-time 3D, KayKit". The simulation is unchan
 - [ ] Monster models are all KayKit skeletons (by role); proper models per monster family later
 - [ ] Props, chests, NPCs, portals and loot are still the 2D sprites standing upright in the 3D world; convert to models
 - [ ] Gathering/crafting foreshadowing not done yet (no ore/herb assets in the packs used)
+
+## Stage K — Godot vs Unreal playtest (2026-11-27)
+- [x] Original Whisperwood kit from Blender scripts; shared layout; Godot slice + Unreal slice; how-to in docs/PLAYTEST.md
+- [ ] Jason plays both on his PC (controller), compares look and frame time, decides on the engine
+- [ ] If Godot: bring the Whisperwood kit into the real Whisperwood region (generated zones) and add tree canopy fade near the hero
+- [ ] If Unreal: plan a real port (C++/Blueprint gameplay, Niagara effects); needs Visual Studio installed

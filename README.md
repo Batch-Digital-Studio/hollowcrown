@@ -69,4 +69,5 @@ In Emberhold, open the inventory next to the Ember Vault (stash), Grimm the Smel
   - Ascension / keystone probe: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --asc-probe`
   - Isometric 3D view probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --iso-probe`
   - Menu input probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --menu-probe`
+  - Whisperwood playtest probe: `godot --headless --path . --fixed-fps 60 -- --slice-probe`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

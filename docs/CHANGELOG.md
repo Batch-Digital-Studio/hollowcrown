@@ -129,3 +129,9 @@
 - Renderer: switched to Forward+ (falls back to Compatibility automatically). Adds SSAO + SSIL in the 3D view. Checked in the cloud with a software Vulkan driver: iso probe 16/16, menu probe 37/37. Frame rate on Jason's PC not measured yet.
 - New `docs/DECISIONS.md`: confirmed choices and open questions.
 - Unreal test: project HollowcrownUE created on Jason's PC (UE 5.8.4). Scripts in `unreal/ClaudeScripts` build a test level with the same iso camera; Blender trees import and light correctly with Lumen. Not yet a fair comparison (placeholder assets, no matching Godot scene, no frame timing).
+
+## 2026-11-27 — Whisperwood Clearing: Godot vs Unreal playtest
+- See `docs/PLAYTEST.md`. Original Blender asset kit (22 assets incl. Hollow Oak landmark, Emberhood mushrooms, deer and crow with animations), procedural textures, shared seeded layout.
+- Godot: title-screen "Playtest: Whisperwood Clearing" (`--slice`): fixed layout, round colliders, skeleton waves, wildlife, dusk mood, falling leaves, fireflies, FPS readout; never writes the save. `--slice-probe` 9/9.
+- Unreal (HollowcrownUE): `s10_import.py`, `s11_build_level.py`, `s12_play.py` (Python game director in Play-In-Editor). Ran on Jason's PC: walking, Ember Bolt hits/kills, skeleton attacks, waves; ~60 fps (editor cap), GPU ~4-6 ms by `stat unit`. Controller not tested by me.
+- Regression: pad test 0 failures, menu probe 37/37, iso probe 16/16.

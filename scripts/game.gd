@@ -58,6 +58,11 @@ var _rift_log := 0.0
 var _near_boss_level := 0
 var iso_view: IsoView
 var _menu_block := false
+var slice_mode := false          # Whisperwood Clearing playtest (Godot side of the Unreal comparison)
+var slice_layout: Dictionary = {}
+var _slice_wave := -1.0
+var _fps_label: Label
+const SLICE_PATH := "res://assets/whisperwood/slice_layout.json"
 const SETTINGS_PATH := "user://settings.cfg"
 
 func _ready() -> void:
@@ -132,6 +137,11 @@ func _parse_args() -> void:
 			_tree_at = float(a.substr(10))
 		elif a == "--menu-probe":
 			add_child(load("res://scripts/tests/menu_probe.gd").new())
+		elif a == "--slice-probe":
+			set_meta("autoslice", true)
+			add_child(load("res://scripts/tests/slice_probe.gd").new())
+		elif a == "--slice":
+			set_meta("autoslice", true)
 		elif a == "--iso-probe":
 			add_child(load("res://scripts/tests/iso_probe.gd").new())
 		elif a == "--nav-probe":
@@ -154,7 +164,10 @@ func _parse_args() -> void:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
 			depth = int(a.substr(8))
-	if bot:
+	if has_meta("autoslice"):
+		hud.hide_overlays()
+		start_slice(OS.get_environment("HC_CLASS") if OS.get_environment("HC_CLASS") != "" else "magus")
+	elif bot:
 		hud.hide_overlays()
 		var bot_class: String = OS.get_environment("HC_CLASS") if OS.get_environment("HC_CLASS") != "" else "classic"
 		for a2 in OS.get_cmdline_user_args():
@@ -228,7 +241,45 @@ func start_game(continue_save: bool, hero: String = "", class_id: String = "clas
 	if not in_town:
 		hud.show_message(zone_title(), "Area Level %d" % area_level())
 
+## Start the fixed Whisperwood Clearing playtest (no save is touched).
+func start_slice(class_id: String = "magus") -> void:
+	slice_mode = true
+	slice_layout = JSON.parse_string(FileAccess.get_file_as_string(SLICE_PATH))
+	stash.clear()
+	stash.resize(STASH_TABS * STASH_SLOTS)
+	in_town = false
+	depth = 4
+	player = Player.new()
+	var heroes: Array = ClassesDB.class_def(class_id).heroes
+	player.hero = heroes[0]
+	player.set_class(class_id)
+	player.died.connect(_on_player_died)
+	player.inventory_changed.connect(func(): inv_ui.refresh())
+	state = "play"
+	build_zone()
+	hud.show_message("Whisperwood Clearing", "Playtest · Godot %s · %s" % [Engine.get_version_info().string, RenderingServer.get_current_rendering_method()])
+	if _fps_label == null:
+		var cl := CanvasLayer.new()
+		cl.layer = 20
+		add_child(cl)
+		_fps_label = Label.new()
+		_fps_label.position = Vector2(20, 110)
+		_fps_label.add_theme_font_size_override("font_size", 18)
+		_fps_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		_fps_label.add_theme_constant_override("outline_size", 5)
+		cl.add_child(_fps_label)
+
+func _spawn_slice_packs() -> void:
+	var lvl := 3
+	for pk in slice_layout.packs:
+		var c := Zone.slice_px(pk.x, pk.z)
+		for i in int(pk.n):
+			var off := Vector2.RIGHT.rotated(TAU * i / float(pk.n)) * 70.0
+			spawn_enemy("husk", lvl, "magic" if i == 0 else "normal", [], c + off)
+
 func zone_title() -> String:
+	if slice_mode:
+		return "Whisperwood Clearing · Playtest"
 	if in_town:
 		return WorldDB.TOWN_NAME
 	return "Depth %d · %s" % [depth, WorldDB.zone_name(depth)]
@@ -260,7 +311,10 @@ func build_zone() -> void:
 	zone.z_index = -10
 	add_child(zone)
 	move_child(zone, 0)
-	zone.generate(rng.randi(), depth, "town" if in_town else "")
+	if slice_mode:
+		zone.generate_slice(slice_layout)
+	else:
+		zone.generate(rng.randi(), depth, "town" if in_town else "")
 	ambient.color = zone.biome.ambient
 	_build_nav()
 	iso_view.build(zone)
@@ -284,6 +338,11 @@ func build_zone() -> void:
 		light_root.add_child(l)
 	peddler = null
 	writ = null
+	if slice_mode:
+		_spawn_slice_packs()
+		_slice_wave = -1.0
+		inv_ui.refresh()
+		return
 	if in_town:
 		_setup_town()
 		hud.show_message(WorldDB.TOWN_NAME, "Safe haven")
@@ -699,7 +758,7 @@ func respawn() -> void:
 	hud.show_message(zone_title(), "The embers carry you back.")
 
 func save_game() -> void:
-	if player == null:
+	if player == null or slice_mode:
 		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -863,6 +922,18 @@ func _process(delta: float) -> void:
 		if _save_t > 30.0:
 			_save_t = 0.0
 			save_game()
+	if slice_mode and state == "play":
+		if enemies.is_empty():
+			if _slice_wave < 0.0:
+				_slice_wave = float(slice_layout.get("respawn_s", 6.0))
+			_slice_wave -= delta
+			if _slice_wave <= 0.0:
+				_slice_wave = -1.0
+				_spawn_slice_packs()
+				hud.show_message("The skeletons rise again", "")
+		if _fps_label and Engine.get_process_frames() % 15 == 0:
+			var fps := Engine.get_frames_per_second()
+			_fps_label.text = "Godot %s · %s\n%d fps · %.1f ms" % [Engine.get_version_info().string, RenderingServer.get_current_rendering_method(), fps, 1000.0 / maxf(1.0, fps)]
 	if Input.is_action_just_pressed("passives") and state == "play" and (not paused or hud.passives.visible):
 		hud.passives.toggle()
 	if Input.is_action_just_pressed("class_screen") and state == "play" and (not paused or hud.class_ui.visible):

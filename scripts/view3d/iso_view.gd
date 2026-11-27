@@ -202,10 +202,57 @@ func build(z: Zone) -> void:
 		env.ambient_light_energy = 0.7
 	env.fog_light_color = bg.lightened(0.05)
 	env.fog_density = 0.014 if z.biome_id == "crypt" else 0.008
+	if z.is_slice:   # Whisperwood dusk, from the shared layout
+		var md: Dictionary = z.slice.mood
+		var fc: Array = md.fog_color
+		var am: Array = md.ambient
+		var sc: Array = md.sun_color
+		env.background_color = Color(fc[0], fc[1], fc[2]).darkened(0.6)
+		env.fog_light_color = Color(fc[0], fc[1], fc[2])
+		env.fog_density = 0.012
+		env.ambient_light_color = Color(am[0], am[1], am[2])
+		env.ambient_light_energy = 0.7
+		sun.light_color = Color(sc[0], sc[1], sc[2])
+		sun.light_energy = 1.1
+		sun.rotation = Vector3(deg_to_rad(-float(md.sun_pitch_deg)), deg_to_rad(float(md.sun_yaw_deg)), 0.0)
+		_leaves(true)
+		_have_target = false
+		return
+	_leaves(false)
 	ash.emitting = z.biome_id in ["crypt", "volcanic"]
 	ash.visible = ash.emitting
 	sun.light_energy = 0.35 if z.biome_id in ["crypt", "castle", "cave", "volcanic"] else 0.7
 	_have_target = false
+
+## Falling leaves around the camera (Whisperwood); reuses the ash emitter's settings.
+func _leaves(on: bool) -> void:
+	var q := ash.mesh as QuadMesh
+	if on:
+		q.size = Vector2(0.22, 0.16)
+		q.material = _leaf_mat()
+		ash.amount = 90
+		ash.direction = Vector3(0.6, -1, 0.3)
+		ash.initial_velocity_min = 0.6
+		ash.initial_velocity_max = 1.2
+		ash.angular_velocity_min = -180.0
+		ash.angular_velocity_max = 180.0
+		ash.emitting = true
+		ash.visible = true
+	else:
+		q.size = Vector2(0.12, 0.12)
+		q.material = glow_material(Color(1.0, 0.6, 0.35, 0.55))
+		ash.amount = 160
+
+var _leafm: StandardMaterial3D
+func _leaf_mat() -> StandardMaterial3D:
+	if _leafm == null:
+		_leafm = StandardMaterial3D.new()
+		_leafm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_leafm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		_leafm.vertex_color_use_as_albedo = true
+		_leafm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_leafm.albedo_color = Color(0.75, 0.45, 0.18)
+	return _leafm
 
 func _process(delta: float) -> void:
 	if not active or game == null:

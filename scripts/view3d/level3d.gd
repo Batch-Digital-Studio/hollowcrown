@@ -75,8 +75,84 @@ func _add(name: String, xf: Transform3D, tint: Color = Color.WHITE) -> void:
 		_batches[key] = {"mesh": m[0], "local": m[1], "xforms": [], "tint": tint}
 	_batches[key].xforms.append(xf)
 
+const WW := "res://assets/whisperwood/%s.glb"
+
+## Whisperwood Clearing playtest: everything placed from the shared layout (same file Unreal reads).
+func build_slice(z: Zone) -> void:
+	zone = z
+	var L: Dictionary = z.slice
+	var c := IsoView.to3d(Zone.SLICE_CENTER)
+	_add_ww("ground", Transform3D(Basis(), c))
+	for p in L.props:
+		var b := Basis(Vector3.UP, deg_to_rad(float(p.rot))).scaled(Vector3.ONE * float(p.scale))
+		_add_ww(String(p.kind), Transform3D(b, c + Vector3(float(p.x), 0, float(p.z))))
+	for e in L.ember_lights:   # Emberhood mushrooms glow
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.5, 0.18)
+		l.omni_range = 4.5
+		l.light_energy = 1.6
+		l.position = c + Vector3(float(e[0]), 0.6, float(e[1]))
+		add_child(l)
+		torches.append(l)
+		var ff := _fireflies(Color(1.0, 0.7, 0.3))
+		ff.position = l.position
+		add_child(ff)
+	var lm: Dictionary = L.landmark
+	var ol := OmniLight3D.new()
+	ol.light_color = Color(1.0, 0.45, 0.12)
+	ol.omni_range = 11.0
+	ol.light_energy = 3.0
+	ol.position = c + Vector3(float(lm.x), 1.2, float(lm.z))
+	add_child(ol)
+	torches.append(ol)
+	for a in L.animals.deer:
+		_animal("deer", c + Vector3(float(a[0]), 0, float(a[1])), float(a[2]), c, float(L.walk_radius_m))
+	for a in L.animals.crow:
+		_animal("crow", c + Vector3(float(a[0]), 0, float(a[1])), float(a[2]), c, float(L.walk_radius_m))
+	_flush()
+
+func _add_ww(kind: String, xf: Transform3D) -> void:
+	var path := WW % kind
+	var cx := int(floor(xf.origin.x / 2.0)) / CH
+	var cz := int(floor(xf.origin.z / 2.0)) / CH
+	var key := "%d,%d|%s" % [cx, cz, path]
+	if not _batches.has(key):
+		var m: Array = mesh_of(path)
+		_batches[key] = {"mesh": m[0], "local": m[1], "xforms": [], "tint": Color.WHITE}
+	_batches[key].xforms.append(xf)
+
+func _animal(kind: String, pos: Vector3, yaw: float, center: Vector3, r: float) -> void:
+	var a := AmbientAnimal.new()
+	add_child(a)
+	a.setup(kind, pos, yaw, center, r)
+
+func _fireflies(col: Color) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 10
+	p.lifetime = 3.0
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 1.6
+	p.direction = Vector3.UP
+	p.spread = 180.0
+	p.initial_velocity_min = 0.1
+	p.initial_velocity_max = 0.4
+	p.gravity = Vector3(0, 0.05, 0)
+	var q := QuadMesh.new()
+	q.size = Vector2(0.12, 0.12)
+	q.material = IsoView.glow_material(col)
+	p.mesh = q
+	var g := Gradient.new()
+	g.set_color(0, Color(col.r, col.g, col.b, 0.0))
+	g.add_point(0.3, col)
+	g.set_color(g.get_point_count() - 1, Color(col.r, col.g, col.b, 0.0))
+	p.color_ramp = g
+	return p
+
 func build(z: Zone) -> void:
 	zone = z
+	if z.is_slice:
+		build_slice(z)
+		return
 	look = LOOKS.get(z.biome_id, LOOKS.crypt)
 	var floor_w: Dictionary = look.floor
 	var total := 0
