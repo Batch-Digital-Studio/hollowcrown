@@ -90,3 +90,9 @@
 - Ashen Cleave gets a 6-10 physical base. Split Shot: 4 degree spread (was 7), 1-3 physical base, 85% effectiveness. Projectile Rites can now set their own `spread`.
 - Note: skill effectiveness only scales added damage, not weapon damage.
 - Bot: Shaman no longer spams Raise Husk at the husk cap. The Shaman bot still clears slowest (about 70 kills vs 100-180), which looks like bot behaviour more than damage; worth checking in a real playtest.
+
+## 2026-11-27 — Fixes from Jason's first playtest
+- Controller cursor in menus froze after one step on a real PC (the OS pointer warp looked like mouse input). Mouse events caused by the pad cursor are now ignored.
+- Boss portal no longer sits on the loot pile: it spawns about 4.5 cells away, and you stand in it for 1 second to descend (ring shows progress), so you can't fall through while looting.
+- Minions path around walls (A* over the zone grid, `Game.nav_path`) instead of walking straight into obstacles; a minion stuck for 2 s hops back to you. New `--nav-probe` test (husk behind a wall must reach and hit its target): passes on 3 maps.
+- Known, not fixed yet: a Reliquary guardian can spawn inside a wall where it can't be hit.

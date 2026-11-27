@@ -108,6 +108,8 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--nav-probe":
+			add_child(load("res://scripts/tests/nav_probe.gd").new())
 		elif a == "--ttk":
 			add_child(load("res://scripts/tests/ttk_bench.gd").new())
 		elif a == "--asc-probe":
@@ -202,6 +204,7 @@ func build_zone() -> void:
 	add_child(zone)
 	move_child(zone, 0)
 	zone.generate(rng.randi(), depth)
+	_build_nav()
 	if player.get_parent() == null:
 		world_layer.add_child(player)
 	player.global_position = zone.cell_center(zone.start_cell)
@@ -516,7 +519,8 @@ func _on_enemy_died(a: Actor) -> void:
 		var away := (player.global_position - e.global_position).normalized() if player else Vector2.LEFT
 		_maybe_trial(player.global_position + away * 120.0 if player else e.global_position)
 		var portal := Portal.new()
-		portal.global_position = e.global_position + Vector2(0, -40)
+		set_meta("boss_pos", e.global_position)
+		portal.global_position = _portal_spot(e.global_position)
 		portal.entered.connect(_descend)
 		fx_node.add_child(portal)
 		var pl := FX.make_light(Color(0.7, 0.5, 1.0), 420.0, 1.4)
@@ -624,6 +628,56 @@ func enemies_near(pos: Vector2, r: float) -> Array:
 		if e.global_position.distance_squared_to(pos) < r2:
 			out.append(e)
 	return out
+
+# ---------- navigation (minions route around walls) ----------
+var nav: AStarGrid2D
+
+func _build_nav() -> void:
+	nav = AStarGrid2D.new()
+	nav.region = Rect2i(0, 0, Zone.W, Zone.H)
+	nav.cell_size = Vector2(Zone.CELL, Zone.CELL)
+	nav.offset = Vector2(Zone.CELL * 0.5, Zone.CELL * 0.5)
+	nav.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	nav.update()
+	for y in Zone.H:
+		for x in Zone.W:
+			if not zone.is_floor_cell(x, y):
+				nav.set_point_solid(Vector2i(x, y), true)
+
+## True if a body of radius r can walk straight from a to b.
+func clear_walk(a: Vector2, b: Vector2, r: float) -> bool:
+	var d := a.distance_to(b)
+	if d < 1.0:
+		return true
+	var dir := (b - a) / d
+	var side := dir.orthogonal() * r * 0.8
+	var steps := int(d / 24.0) + 1
+	for i in steps + 1:
+		var p := a + dir * minf(d, i * 24.0)
+		if is_wall(p) or is_wall(p + side) or is_wall(p - side):
+			return false
+	return true
+
+## Grid path from a to b (cell centres), empty if none.
+func nav_path(a: Vector2, b: Vector2) -> PackedVector2Array:
+	if nav == null:
+		return PackedVector2Array()
+	var ca := Vector2i(floor(a / Zone.CELL))
+	var cb := Vector2i(floor(b / Zone.CELL))
+	if not nav.region.has_point(ca) or not nav.region.has_point(cb) or nav.is_point_solid(ca) or nav.is_point_solid(cb):
+		return PackedVector2Array()
+	return nav.get_point_path(ca, cb)
+
+## Portal spot: 4-5 cells from the boss's loot pile, toward the player if possible.
+func _portal_spot(boss_pos: Vector2) -> Vector2:
+	var away := Vector2.RIGHT
+	if player:
+		away = (player.global_position - boss_pos).normalized().rotated(1.2)
+	for k in 16:
+		var p := boss_pos + away.rotated(k * TAU / 16.0) * Zone.CELL * 4.5
+		if not is_wall(p) and clear_walk(boss_pos, p, 20.0):
+			return p
+	return boss_pos + Vector2(0, -Zone.CELL * 3)
 
 func is_wall(pos: Vector2) -> bool:
 	return zone == null or zone.is_wall_at(pos)
@@ -743,6 +797,16 @@ func _click(button: int) -> void:
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
+	if OS.get_cmdline_user_args().has("--portal-test") and state == "play" and player:
+		for c in fx_node.get_children():
+			if c is Portal:
+				if not has_meta("pt_logged"):
+					set_meta("pt_logged", true)
+					print("PORTAL spawned %.0f px from the boss loot pile" % c.global_position.distance_to(get_meta("boss_pos", c.global_position)))
+				player.global_position = c.global_position
+		if depth >= 2 and not has_meta("pt_done"):
+			set_meta("pt_done", true)
+			print("PORTAL descended to depth %d at t=%.1f" % [depth, _clock])
 	if state == "play" and _clock > 1.0 and _clock < 1.1:
 		var args := OS.get_cmdline_user_args()
 		for c in world_layer.get_children():

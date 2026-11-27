@@ -113,6 +113,10 @@ func drive(p: Player, g: Game) -> void:
 		inp.move = Vector2.ZERO
 		return
 	var tpos: Vector2 = _altar_spot if target is BloodAltar else target.global_position
+	if OS.get_environment("HC_BOTDBG") != "" and int(_t * 60.0) % 300 == 0:
+		print("BOTDBG target=%s dist=%.0f" % [target.get_class() + ":" + str(target.get_script().get_global_name() if target.get_script() else ""), tpos.distance_to(p.global_position)])
+		if target is Enemy:
+			print("BOTDBG enemy=%s life=%.0f/%.0f wall=%s los=%s aggro=%s busy=%.1f pos=%s n_enemies=%d" % [target.display_name, target.life, target.max_life, g.is_wall(target.global_position), g.has_line_of_sight(p.global_position, target.global_position), target.aggro, p.busy_time, target.global_position, g.enemies.size()])
 	var to := tpos - p.global_position
 	var dist := to.length()
 	inp.aim = target.global_position

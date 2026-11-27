@@ -3,6 +3,10 @@ extends Actor
 ## A raised husk fighting for its owner. Follows, leashes, picks targets near its owner.
 
 var owner_actor: Actor
+var _path := PackedVector2Array()
+var _path_t := 0.0
+var _path_goal := Vector2.ZERO
+var _stuck := 0.0
 var kind := "husk"            # husk | hawk | squire | beast
 var temporary := 0.0          # >0: dies when it runs out (Grand Rite horde)
 var brute := false
@@ -154,12 +158,12 @@ func _physics_process(delta: float) -> void:
 				var mark := 0.10 + owner_actor.stats.get_stat("hawk_mark") / 100.0
 				_target.apply_curse(owner_actor, mark, 0.0, 4.0, false)
 		elif busy_time <= 0.0:
-			move = to.normalized()
+			move = _steer(_target.global_position, delta)
 	else:
 		var to_home := home - global_position
 		if to_home.length() > 40.0:
-			move = to_home.normalized() * clampf(to_home.length() / 120.0, 0.4, 1.0)
-			facing = to_home.normalized()
+			move = _steer(home, delta) * clampf(to_home.length() / 120.0, 0.4, 1.0)
+			facing = move.normalized() if move.length() > 0.01 else facing
 	# keep minions from stacking
 	var sep := Vector2.ZERO
 	for o in g.allies:
@@ -171,7 +175,34 @@ func _physics_process(delta: float) -> void:
 			sep += d / l * (radius * 2.0 - l)
 	velocity = move * move_speed() + sep * 5.0 + knock
 	move_and_slide()
+	# stuck for 2 s while trying to move: hop back to the owner
+	if move.length() > 0.3 and get_real_velocity().length() < 20.0:
+		_stuck += delta
+		if _stuck > 2.0:
+			_stuck = 0.0
+			_path = PackedVector2Array()
+			global_position = owner_actor.global_position + _offset * 0.5
+			FX.burst(global_position, Color(0.5, 0.9, 0.4), 8, 100.0, 5.0, 0.3)
+	else:
+		_stuck = 0.0
 	_update_visuals()
+
+## Direction toward goal: straight if the way is clear, otherwise along an A* path round the walls.
+func _steer(goal: Vector2, delta: float) -> Vector2:
+	var g := game()
+	if g.clear_walk(global_position, goal, radius):
+		_path = PackedVector2Array()
+		return (goal - global_position).normalized()
+	_path_t -= delta
+	if _path.is_empty() or _path_t <= 0.0 or _path_goal.distance_to(goal) > 96.0:
+		_path = g.nav_path(global_position, goal)
+		_path_goal = goal
+		_path_t = 0.5
+	while _path.size() > 1 and (global_position.distance_to(_path[0]) < 28.0 or g.clear_walk(global_position, _path[1], radius)):
+		_path.remove_at(0)
+	if _path.is_empty():
+		return (goal - global_position).normalized()
+	return (_path[0] - global_position).normalized()
 
 func _update_visuals() -> void:
 	if _spr == null:
