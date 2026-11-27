@@ -904,6 +904,8 @@ func from_save(d: Dictionary) -> void:
 func set_class(c: String) -> void:
 	class_id = c
 	ensure_roots()
+	if resources().has("spirit"):
+		res["spirit"] = 60.0   # new Shamans can raise husks right away
 	var start: Array = ClassesDB.class_def(c).get("starting_rites", [])
 	bar = []
 	for i in SkillsDB.BAR_SIZE:

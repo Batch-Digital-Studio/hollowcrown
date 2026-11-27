@@ -108,6 +108,8 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--ttk":
+			add_child(load("res://scripts/tests/ttk_bench.gd").new())
 		elif a == "--asc-probe":
 			add_child(load("res://scripts/tests/asc_probe.gd").new())
 		elif a == "--totem-probe":

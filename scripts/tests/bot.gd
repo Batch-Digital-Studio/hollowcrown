@@ -47,6 +47,12 @@ func drive(p: Player, g: Game) -> void:
 			if a is Minion: husks += 1
 			elif a is Totem: totems += 1
 		print("BOT %s t=%.0f lvl=%d allies=%d/%d res=%s life=%.0f/%.0f ward=%.0f" % [p.class_id, _t, p.level, husks, totems, str(p.res), p.life, p.max_life, p.ward_pool])
+	if OS.get_environment("HC_BOTDBG") != "" and int(_t * 60.0) % 300 == 0:
+		var near := 0
+		for e in g.enemies:
+			if e.global_position.distance_to(p.global_position) < 520.0:
+				near += 1
+		print("BOTDBG t=%.0f mana=%.0f/%.0f near=%d busy=%.2f bar=%s" % [_t, p.mana, p.max_mana, near, p.busy_time, str(p.bar)])
 	inp.dodge = false
 	inp.flask = p.life < p.max_life * 0.5
 	# target
@@ -129,7 +135,10 @@ func drive(p: Player, g: Game) -> void:
 				main = i
 				break
 		inp.skill_held[main] = true
-		inp.skill_held[phase] = true
+		var ph_skill: String = p.bar[phase]
+		var husk_n := SkillExec.owned_minions(g, p, false).size()
+		if not (ph_skill == "raise_husk" and husk_n >= 4):
+			inp.skill_held[phase] = true
 		if dist < 150.0 and p.class_id == "classic":
 			inp.skill_held[1] = true
 		if p.life < p.max_life * 0.35 and randf() < 0.05:

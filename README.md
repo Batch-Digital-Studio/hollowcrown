@@ -58,5 +58,6 @@ Walk onto seals to use them (Rift Seal, Ascension Trial). Stand next to a Reliqu
   - `godot --headless --path . res://scenes/test_items.tscn`
   - `godot --headless --path . res://scenes/test_crafting.tscn`
   - Controller test: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --pad-test`
+  - Class time-to-kill benchmark: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --ttk`
   - Ascension / keystone probe: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --asc-probe`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

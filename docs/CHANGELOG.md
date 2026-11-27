@@ -83,3 +83,10 @@
 - Tuning from bot runs: lower Tribute payouts; early Fogborn mostly normal rarity, fewer and weaker.
 - Test flags: `--altar`, `--fog`, `--altar-now`, `--fog-now`. Pad test now 35 checks incl. loadout swap.
 - Not verified on Jason's PC or a real controller.
+
+## 2026-11-27 — Balance pass 1
+- Benchmark `--ttk` (time to kill a 3000-life husk at level 5, starter weapon, main Rite). Before: Magus 24 s, Shaman 38 s (with 4 husks), Oathsworn 50 s, Ranger 60+ s. After: Magus 24 s, Shaman 20 s, Oathsworn 41 s, Ranger 36 s (Cleave and Split Shot are area Rites, so slower on one target is intended).
+- Bone Spear 16-25 (was 12-19), pierces 2. Husk Claw 8-14 (was 6-11). New Shamans start with 60 Spirit.
+- Ashen Cleave gets a 6-10 physical base. Split Shot: 4 degree spread (was 7), 1-3 physical base, 85% effectiveness. Projectile Rites can now set their own `spread`.
+- Note: skill effectiveness only scales added damage, not weapon damage.
+- Bot: Shaman no longer spams Raise Husk at the husk cap. The Shaman bot still clears slowest (about 70 kills vs 100-180), which looks like bot behaviour more than damage; worth checking in a real playtest.

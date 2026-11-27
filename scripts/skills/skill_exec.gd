@@ -80,7 +80,7 @@ static func is_player(a: Actor) -> bool:
 
 static func _projectiles(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) -> void:
 	var count := 1 + int(user.cast_stats.get_stat("proj_count_add")) + int(s.get("extra_proj", 0))
-	var spread := deg_to_rad(10.0 if count < 4 else 7.0)
+	var spread := deg_to_rad(float(s.get("spread", 10.0 if count < 4 else 7.0)))
 	for i in count:
 		var off := (i - (count - 1) / 2.0) * spread
 		var p := Projectile.new()

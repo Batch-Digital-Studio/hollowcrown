@@ -39,7 +39,8 @@
 ## Stage B — Other three classes (done 2026-11-27)
 - [x] Ember Magus, Oathsworn, Hollow Ranger with resources, Specials, trees, specs
 - [x] Dual-class live
-- [ ] Balance pass (Magus strong, Oathsworn early game slow)
+- [x] First balance pass (2026-11-27): starter Rites evened out with a time-to-kill benchmark (`--ttk`)
+- [ ] Balance from Jason's playtest (Shaman bot still clears slowest; Trial at depth 5 may be hard)
 
 ## Stage E — Hollow Rifts (done 2026-11-27)
 - [x] Rift Seals in ~35% of zones; walking up opens a rift that widens on kills, shrinks when idle, closes at 60 s
