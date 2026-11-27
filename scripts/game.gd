@@ -721,6 +721,7 @@ func _pad_menus(delta: float) -> void:
 
 func set_pad_cursor(p: Vector2) -> void:
 	pad_cursor = p
+	PlayerInput.ignore_mouse_until = Time.get_ticks_msec() + 150
 	get_viewport().warp_mouse(p)
 
 ## Where menus should treat the pointer: the pad cursor on a controller, else the mouse.
@@ -737,6 +738,7 @@ func _click(button: int) -> void:
 		e.pressed = pressed
 		e.position = pos
 		e.global_position = pos
+		e.device = PlayerInput.SYNTHETIC
 		Input.parse_input_event(e)
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 

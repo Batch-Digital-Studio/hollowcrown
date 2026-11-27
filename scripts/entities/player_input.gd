@@ -23,6 +23,8 @@ const CHORD_MS := 110   # msec timestamp of the last tap per skill
 const BUFFER_MS := 300
 
 static var using_pad := false    # last input came from a controller
+static var ignore_mouse_until := 0  # ms: mouse motion caused by the pad cursor warping the OS pointer
+const SYNTHETIC := -77              # device id of mouse clicks the pad cursor generates
 
 const SKILL_ACTIONS := ["skill_1", "skill_2", "skill_3", "skill_4", "skill_5", "skill_6"]
 const KEY_LABELS := ["LMB", "RMB", "Q", "E", "R", "F"]
@@ -134,8 +136,12 @@ static func note_event(event: InputEvent) -> void:
 	elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.4:
 		using_pad = true
 	elif event is InputEventMouseMotion and event.relative.length() > 3.0:
-		using_pad = false
-	elif event is InputEventMouseButton or event is InputEventKey:
+		if Time.get_ticks_msec() > ignore_mouse_until:
+			using_pad = false
+	elif event is InputEventMouseButton:
+		if event.device != SYNTHETIC:
+			using_pad = false
+	elif event is InputEventKey:
 		using_pad = false
 
 static func labels() -> Array:
