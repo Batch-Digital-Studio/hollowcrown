@@ -113,9 +113,9 @@ footer{color:var(--dim);font-size:14px}
       <ul>
         <li><span class="k">Level cap 60</span> for now (raise it as content grows).</li>
         <li>Every level: <span class="k">1 Class Point</span> (class skill trees) and <span class="k">1 Ember Point</span> (shared Constellation).</li>
-        <li><span class="k">Level 10:</span> choose a second class. You get its skill tree and Rites. Class Points are shared between both trees.</li>
+        <li><span class="k">Level 10:</span> choose a second class (decided). You get its skill tree and Rites. Class Points are shared between both trees.</li>
         <li><span class="k">Ascension Trials</span> at Depths 5, 10, 15, 20 each give 2 Ascension Points (8 total). You pick one ascension of your <i>first</i> class at the first trial.</li>
-        <li><span class="k">Rites level up by use</span> (1 to 20). Each level is a point in that Rite's own specialization tree.</li>
+        <li><span class="k">Rite Points</span> come from character level (1 per level from level 2) into a shared pool you spend on any Rite's specialization tree.</li>
         <li><span class="k">Specials:</span> each class has an ultimate, charged by its resource. Press LB + RB together (a short chord window stops the flask and slot 6 from also firing).</li>
       </ul>
     </div>
@@ -127,6 +127,7 @@ footer{color:var(--dim);font-size:14px}
         <li><span class="k">Spirit Barrier</span> (Shaman): damage shared with your minions and totems.</li>
         <li>Resistances: fire, cold, lightning, and new <span class="k">chaos</span> (for poison and rift damage). Cap 75%.</li>
         <li>No attribute points. Gear requirements use level only, so any class can wear anything.</li>
+        <li><span class="k">Respecs</span> are free until level 20, then cost Ember Shards scaling with level (decided).</li>
       </ul>
     </div>
   </div>
@@ -138,9 +139,9 @@ footer{color:var(--dim);font-size:14px}
 
 <section data-tab="ascensions"><h2>Ascensions</h2><p>Three per class. Each has six notables; you earn enough points for four, so no two ascended characters need to look alike.</p><div class="filter" id="ascFilter" role="group" aria-label="Filter by class"></div><div class="grid" id="ascGrid"></div></section>
 
-<section data-tab="skills"><h2>Rites (skills)</h2><p>Forty Rites. Six can be on the bar at once (RT, A, X, B, Y, RB). Every Rite levels up as you use it and has its own specialization tree; three worked examples are at the bottom.</p><div class="filter" id="skillFilter" role="group" aria-label="Filter by class"></div>
+<section data-tab="skills"><h2>Rites (skills)</h2><p>Forty Rites. Six can be on the bar at once (RT, A, X, B, Y, RB). Every Rite has its own specialization tree, fed by Rite Points from character level; three worked examples are at the bottom.</p><div class="filter" id="skillFilter" role="group" aria-label="Filter by class"></div>
   <div class="scroll"><table class="stack" id="skillTable"><thead><tr><th>Rite</th><th>Class · branch</th><th>Tags</th><th>What it does</th></tr></thead><tbody></tbody></table></div>
-  <h2 style="margin-top:32px">Rite specialization trees</h2><p>Each Rite has about 12 modifier nodes and gains up to 20 points from use. Five Rites can be specialized at once; swapping one out keeps its progress.</p><div class="grid" id="specGrid"></div></section>
+  <h2 style="margin-top:32px">Rite specialization trees</h2><p>Each Rite has about 12 modifier nodes and takes up to 20 points. Points come from a shared pool earned by character level, so you can move them between Rites (free respec until level 20).</p><div class="grid" id="specGrid"></div></section>
 
 <section data-tab="constellation"><h2>The Ember Constellation (shared tree)</h2>
   <p>One tree of about 150 nodes that every class uses. Each class enters at its own star on the outer ring; dual-classing adds a second entry star. Eight regions, each with a <span class="k">Mastery</span> node where you pick one of three effects, plus <span class="k">keystones</span> that rewrite how you play. Six Ember Sockets hold jewels (Hollow Embers) in a later stage.</p>
@@ -159,7 +160,7 @@ footer{color:var(--dim);font-size:14px}
   <div class="scroll"><table class="stack" id="planTable"><thead><tr><th>Stage</th><th>What gets built</th><th>Sessions</th></tr></thead><tbody></tbody></table></div>
   <div class="note warn"><b>Art gaps in the pixel pack</b> (no bird, wolf, totem or bow-draw animations): Spirit Hawk is drawn as a glowing spirit in code, the wolf companion becomes a bog beast (the pack's swampy sprite), totems use the pack's stone columns (literal Grim Pillars), and rift monsters are violet-tinted versions of existing demons.</div></section>
 
-<section data-tab="questions"><h2>Questions for you</h2><div class="grid" id="qGrid"></div></section>
+<section data-tab="questions"><h2>Decisions (26 Nov 2026)</h2><div class="grid" id="qGrid"></div></section>
 
 <footer style="margin-top:40px">Hollowcrown design guide, draft 1, 26 Nov 2026. Lives in the repo at docs/design_guide.html.</footer>
 </div></main>
@@ -167,7 +168,7 @@ footer{color:var(--dim);font-size:14px}
 <script>
 {
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TABS=[["overview","Overview"],["classes","Classes"],["ascensions","Ascensions"],["skills","Rites"],["constellation","Constellation"],["mechanics","Mechanics"],["crafting","Crafting"],["controller","Controller"],["plan","Build plan"],["questions","Questions"]];
+const TABS=[["overview","Overview"],["classes","Classes"],["ascensions","Ascensions"],["skills","Rites"],["constellation","Constellation"],["mechanics","Mechanics"],["crafting","Crafting"],["controller","Controller"],["plan","Build plan"],["questions","Decisions"]];
 const CLASSES=[
  {id:"oath",name:"Oathsworn",sprite:"Knight",c:"#ff6a2b",role:"Melee, shields, fire-blessed steel. Tanks for the party.",res:"Resolve (0 to 100). Gained when you are hit, block, or land melee hits. Decays out of combat. Spent by Oath Rites.",special:"Oathbreaker: spend full Resolve to become an ember colossus for 10 s. Bigger, unstoppable, every swing sends a fire wave.",branches:["Bulwark: block, armour, retaliation","Crusade: melee damage, attack speed, area","Oaths: warcries, banners, fire on attacks"],def:"Armour + block"},
  {id:"magus",name:"Ember Magus",sprite:"Wizard",c:"#7cc8ff",role:"Elemental spellcaster. Fire, cold and lightning in one kit.",res:"Kindling (0 to 5 charges). Each spell cast adds one. Spender Rites consume all charges for an amplified version (Ember Bolt at 5 becomes a Pyre Lance).",special:"Cataclysm: channel for 6 s while meteors, ice and lightning rain around you.",branches:["Pyre: fire and ignite","Rime: cold, chill and freeze","Storm: lightning, shock and crit"],def:"Ember Ward (recharging shield)"},
@@ -203,8 +204,8 @@ const MECH=[
  ["Writs of the Hollow King","Bounty-inspired.",["Each zone has one Writ: slay three rares, survive the rift for 45 s, clear 80% of the zone, kill the boss without a flask, and so on.","Rewards: Ember Shards, crafting currency, sometimes a guaranteed unique.","Gives every zone a goal beyond walking to the boss."]]];
 const CUR=[["Ember Shards","Gold. Buy from the Peddler, respec passives.","Everywhere"],["Kindling Shard","Reroll a magic item's affixes.","Common drop"],["Coal of Ascension","Upgrade a normal item to rare.","Uncommon drop, Writs"],["Ash Salt","Remove a random affix.","Shattering rares"],["Hollow Ember","Add a random affix to a rare.","Rare drop, Reliquaries"],["Crown Fragment","Reroll the values of an item's affixes.","Bosses, Writs"],["Essences","Craft a rare with a guaranteed affix type.","Bound Embers"],["Rift Splinters / Rift Heart","100 splinters make a Heart that opens the Rift Lord.","Hollow Rifts"],["Ash dust","Shatter items to collect dust; spend it on rerolls at the Peddler.","Shattering"]];
 const PAD=[["RT","Rite slot 1 (main)"],["A","Rite slot 2"],["X","Rite slot 3"],["B","Rite slot 4"],["Y","Rite slot 5"],["RB","Rite slot 6"],["LB + RB","Class Special"],["LT","Dodge"],["LB","Flask"],["Left stick","Move (cursor in menus)"],["Right stick","Aim; auto-targets when released"],["D-pad Up","Ember Constellation"],["D-pad Down","Class skill trees and ascension"],["D-pad Left / Right","Swap loadout"],["View","Inventory"],["Menu","Pause"]];
-const PLAN=[["A. Class framework","Classes, resources, Specials, class skill tree screen, dual-class at 10. The current five Rites move into their classes.","2 to 3"],["B. Rites","The other 35 Rites, Rite levels and specialization trees, bows and traps, minions and totems.","3 to 4"],["C. Ascensions","Ascension Trials every 5 depths; all 12 ascensions.","2"],["D. Constellation v2","About 150 nodes, 8 regions, masteries, 12 keystones, class entry stars.","1 to 2"],["E. Hollow Rifts","Rift Seal, spreading rift with world inversion, rift monsters, Splinters, Rift Lord.","1 to 2"],["F. Economy","Currencies, crafting, Peddler, Reliquaries, Bound Embers, Writs.","2 to 3"],["G. Co-op","Host-authoritative multiplayer for 1 to 4 players.","3+"]];
-const Q=[["Names","Oathsworn, Ember Magus, Hollow Ranger and Bog Shaman are placeholders. Want to name them from your own world?"],["Which class first?","Stage A is fastest if I fully build one class first. Which would you play first?"],["Dual-class timing","Level 10, or after beating the first Ashen Regent?"],["Respec cost","Free respecs (experiment freely) or Ember Shard cost (choices matter)?"],["More mechanics later?","You skipped Blood Altars and Ember Fog for now. Keep them on the list for a later batch?"],["Rite levels","Rites level from use (Last Epoch style). Or should Rite points come from character level instead?"]];
+const PLAN=[["A. Bog Shaman first","Class framework (resources, Specials, class tree screen, dual-class at 10) built around the Bog Shaman: minions, totems as stone pillars, poison and chaos, Spirit, Grand Rite, all 10 Shaman Rites. Current five Rites stay usable meanwhile.","3 to 4"],["B. The other classes","Ember Magus, Oathsworn and Hollow Ranger with their 30 Rites, bows and traps, Rite Point specialization trees.","3 to 4"],["C. Ascensions","Ascension Trials every 5 depths; all 12 ascensions.","2"],["D. Constellation v2","About 150 nodes, 8 regions, masteries, 12 keystones, class entry stars.","1 to 2"],["E. Hollow Rifts","Rift Seal, spreading rift with world inversion, rift monsters, Splinters, Rift Lord.","1 to 2"],["F. Economy","Currencies, crafting, Peddler, Reliquaries, Bound Embers, Writs.","2 to 3"],["H. Later mechanics","Blood Altars (Ritual-style) and Ember Fog (Delirium-style).","2"],["G. Co-op","Host-authoritative multiplayer for 1 to 4 players.","3+"]];
+const Q=[["First class: Bog Shaman","Built first, in full: minions, totems, poison and chaos, Spirit, Grand Rite, all 10 Rites."],["Names: keep them","Oathsworn, Ember Magus, Hollow Ranger, Bog Shaman."],["Dual-class: level 10","Pick your second class at level 10."],["Respec: free until level 20","Then refunds cost Ember Shards, scaling with level."],["Later mechanics: keep both","Blood Altars and Ember Fog come after Rifts and the economy."],["Rite Points: from character level","A shared pool earned by leveling, spent on any Rite's specialization tree."]];
 
 const byId=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
 document.getElementById('tabs').innerHTML=TABS.map(([h,l])=>`<a href="#${h}">${l}</a>`).join('');
