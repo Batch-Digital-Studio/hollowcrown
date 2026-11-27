@@ -47,3 +47,14 @@
 - Currencies (Ember Shards, Kindling Shard, Coal of Ascension, Ash Salt, Hollow Ember, Crown Fragment, Ash Dust) as magnetized pickups, saved with the character, shown in the inventory purse. Shattering items gives Ash Dust.
 - Test flags: `--rift` (force a seal near the start), `--heart-at=T` (grant and open a Rift Heart).
 - Verified in the cloud: bot cleared forced rifts and killed the Rift Lord (Magus, 43 s); all tests pass. Not verified on Jason's PC/controller.
+
+## 2026-11-27 — Stage F: economy
+- Crafting currencies are now usable: pick one up in the inventory purse (A / click), apply to an item; B / right-click drops it. Purse shows all currencies and Essences, two columns.
+- Essences (8 affixes x 4 tiers). Design note: an Essence's tier is lowered if the item level is more than 10 below that tier's requirement.
+- Ashen Peddler: open the inventory beside him and his shop replaces the character sheet. Shattering beside him also sells for Ember Shards.
+- Reliquaries open by standing next to them for one second, so modifiers can be read first and the box skipped (no extra button needed on pad).
+- Bound Embers and Writs (rares, clear 80%, Regent without flask, all Reliquaries, Bound Ember, 45 s rift).
+- Controller menus now use a game-tracked cursor (`Game.pad_cursor`) instead of reading the OS mouse; the OS mouse is still moved to match. Needed so the headless pad test can drive clicks.
+- Tests: new `scenes/test_crafting.tscn` (all currencies + all Essences); pad test now 24 checks incl. crafting and buying with A/B. Flags `--mechanics` (Reliquary/Bound Ember near start), `--rich`, `--writ-rares`.
+- Tuning: Bound Ember and Cursed Reliquary guardians are gentler at depth 1 after the Shaman bot died to them.
+- Not verified on Jason's PC or a real controller.

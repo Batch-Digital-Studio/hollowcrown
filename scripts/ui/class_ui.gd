@@ -22,7 +22,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_t += delta
-	var m := get_viewport().get_mouse_position()
+	var m := Game.pointer()
 	_hover = {}
 	for r in _rects:
 		if r.rect.has_point(m):
@@ -193,7 +193,7 @@ func _draw() -> void:
 		_txt(f, Vector2(rx + 6 * 84 + 10, by + 30), "Special: " + spk.name, 15, Color(0.6, 1.0, 0.5))
 		_txt(f, Vector2(rx + 6 * 84 + 10, by + 52), ("LB + RB" if PlayerInput.using_pad else "T") + "  ·  %d Spirit" % int(spk.get("spirit_cost", 0)), 13, Color(0.65, 0.62, 0.6))
 	if PlayerInput.using_pad:
-		var mp := get_viewport().get_mouse_position()
+		var mp := Game.pointer()
 		draw_arc(mp, 10, 0, TAU, 20, gold, 2.0, true)
 	if not _hover.is_empty():
 		_tooltip(_hover)
@@ -249,7 +249,7 @@ func _tooltip(h: Dictionary) -> void:
 	w += 28
 	var hgt := lines.size() * 21 + 16
 	var vs := get_viewport_rect().size
-	var m := get_viewport().get_mouse_position() + Vector2(18, 16)
+	var m := Game.pointer() + Vector2(18, 16)
 	m.x = minf(m.x, vs.x - w - 10)
 	m.y = minf(m.y, vs.y - hgt - 10)
 	draw_rect(Rect2(m, Vector2(w, hgt)), Color(0.03, 0.025, 0.035, 0.98))

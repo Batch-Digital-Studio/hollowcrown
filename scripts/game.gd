@@ -41,6 +41,9 @@ var _inv_at := -1.0
 var _tree_at := -1.0
 var _class_at := -1.0
 var _heart_at := -1.0
+var peddler: Peddler = null
+var writ: Writ = null
+var pad_cursor := Vector2(800, 450)   # virtual cursor for menus on a controller
 var _rift_log := 0.0
 var _near_boss_level := 0
 
@@ -207,7 +210,19 @@ func build_zone() -> void:
 		l.position = b
 		l.set_script(load("res://scripts/fx/flicker.gd"))
 		light_root.add_child(l)
+	# Ashen Peddler beside the start
+	peddler = null
+	var floor_set := {}
+	for fc in zone.floor_cells:
+		floor_set[fc] = true
+	for off in [Vector2i(2, -1), Vector2i(-2, -1), Vector2i(2, 1), Vector2i(-2, 1), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(0, 2), Vector2i(0, -2), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+		if floor_set.has(zone.start_cell + off):
+			peddler = Peddler.new()
+			peddler.position = zone.cell_center(zone.start_cell + off)
+			fx_node.add_child(peddler)
+			break
 	# Hollow Rift seal in about a third of zones
+	var has_rift := false
 	var force_rift := OS.get_cmdline_user_args().has("--rift")
 	if force_rift or rng.randf() < 0.35:
 		for t in 200:
@@ -217,15 +232,57 @@ func build_zone() -> void:
 				var seal := Rift.Seal.new()
 				seal.position = zone.cell_center(c2)
 				fx_node.add_child(seal)
+				has_rift = true
 				break
 	for c in zone.chest_cells:
 		var ch := Chest.new()
 		ch.position = zone.cell_center(c)
 		world_layer.add_child(ch)
+	# Reliquaries (2-3) and a Bound Ember (about half of zones)
+	var n_reliq := rng.randi_range(2, 3)
+	var force_mech := OS.get_cmdline_user_args().has("--mechanics")
+	for i in n_reliq:
+		var rq := Reliquary.new()
+		rq.roll(rng, depth)
+		rq.position = _open_spot(8.0 if (force_mech and i == 0) else 14.0)
+		world_layer.add_child(rq)
+	var has_ember := force_mech or rng.randf() < 0.5
+	if has_ember:
+		var be := BoundEmber.new()
+		be.roll(rng, depth)
+		be.position = _open_spot(10.0 if force_mech else 16.0)
+		world_layer.add_child(be)
 	_spawn_packs()
 	_spawn_boss()
+	writ = Writ.roll(rng, has_rift, n_reliq, has_ember, enemies.size())
+	if OS.get_cmdline_user_args().has("--writ-rares"):
+		writ = Writ.new()
+		writ.kind = "rares"
+		writ.goal = 3
 	inv_ui.refresh()
 	save_game()
+
+## A floor point at least min_start cells from the start and away from the boss.
+func _open_spot(min_start: float) -> Vector2:
+	for t in 300:
+		var c: Vector2i = zone.floor_cells[rng.randi() % zone.floor_cells.size()]
+		if Vector2(c - zone.start_cell).length() > min_start and Vector2(c - zone.boss_cell).length() > 10.0:
+			return zone.cell_center(c)
+	return zone.cell_center(zone.floor_cells[rng.randi() % zone.floor_cells.size()])
+
+func writ_event(ev: String) -> void:
+	if writ == null or not writ.event(ev):
+		return
+	hud.show_message("WRIT FULFILLED", Writ.TEXT[writ.kind])
+	FX.sound("levelup", null, -4.0, 0.0)
+	var pos := player.global_position
+	drop_currency("ember_shards", int(50 * (1.0 + depth * 0.3)), pos)
+	for i in 2:
+		drop_currency(CurrencyDB.CRAFTING[rng.randi() % CurrencyDB.CRAFTING.size()], 1, pos)
+	if rng.randf() < (0.3 if writ.kind in ["boss_noflask", "rift", "clear"] else 0.15):
+		drop_item(Loot.make_item(area_level() + 1, rng, "unique"), pos)
+	else:
+		drop_item(Loot.make_item(area_level() + 1, rng, "rare"), pos)
 
 func _spawn_packs() -> void:
 	var cells: Array = zone.floor_cells.duplicate()
@@ -333,6 +390,14 @@ func _on_enemy_died(a: Actor) -> void:
 	var e := a as Enemy
 	enemies.erase(e)
 	kills += 1
+	writ_event("kill")
+	if e.rarity == "rare":
+		writ_event("rare")
+	if e.has_meta("essence"):
+		drop_currency(e.get_meta("essence"), 1, e.global_position)
+		if bot:
+			print("TEST essence dropped ", e.get_meta("essence"))
+		writ_event("ember")
 	var mult := 1.0
 	var drops := 0
 	var rarity_bonus := 0.0
@@ -396,6 +461,7 @@ func _on_enemy_died(a: Actor) -> void:
 			it = Loot.make_item(e.level, rng, "rare" if rng.randf() > 0.35 else "unique")
 		drop_item(it, e.global_position)
 	if e.type_id == "regent":
+		writ_event("boss")
 		print("BOSS killed at t=%.1f" % _clock)
 		hud.show_message("THE ASHEN REGENT FALLS", "A way down has opened.")
 		var portal := Portal.new()
@@ -574,6 +640,8 @@ func _pad_menus(delta: float) -> void:
 			hud.class_ui.toggle()
 		elif hud.passives.visible:
 			hud.passives.toggle()
+		elif inv_ui.craft_sel != "":
+			inv_ui.craft_sel = ""   # B first drops the held currency
 		else:
 			inv_ui.toggle()
 		return
@@ -583,9 +651,9 @@ func _pad_menus(delta: float) -> void:
 	var stick := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if stick.length() > 0.0:
 		var speed := 1100.0 * (0.35 + 0.65 * stick.length())
-		var m := vp.get_mouse_position() + stick * speed * delta
+		var m := pad_cursor + stick * speed * delta
 		var vs := vp.get_visible_rect().size
-		vp.warp_mouse(Vector2(clampf(m.x, 0, vs.x), clampf(m.y, 0, vs.y)))
+		set_pad_cursor(Vector2(clampf(m.x, 0, vs.x), clampf(m.y, 0, vs.y)))
 	if hud.passives.visible:
 		var rs := Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
 		hud.passives.offset -= rs * 700.0 * delta
@@ -598,8 +666,18 @@ func _pad_menus(delta: float) -> void:
 	if Input.is_action_just_pressed("pad_alt_click"):
 		_click(MOUSE_BUTTON_RIGHT)
 
+func set_pad_cursor(p: Vector2) -> void:
+	pad_cursor = p
+	get_viewport().warp_mouse(p)
+
+## Where menus should treat the pointer: the pad cursor on a controller, else the mouse.
+static func pointer() -> Vector2:
+	if PlayerInput.using_pad and instance:
+		return instance.pad_cursor
+	return instance.get_viewport().get_mouse_position() if instance else Vector2.ZERO
+
 func _click(button: int) -> void:
-	var pos := get_viewport().get_mouse_position()
+	var pos := pad_cursor
 	for pressed in [true, false]:
 		var e := InputEventMouseButton.new()
 		e.button_index = button
@@ -618,21 +696,30 @@ func _testing_hooks() -> void:
 		_rift_log += get_process_delta_time()
 		if _rift_log > 10.0:
 			_rift_log = 0.0
+			if writ:
+				print("TEST ", writ.text())
 			for c in fx_node.get_children():
 				if c is Rift:
 					print("TEST rift r=%.0f age=%.0f lord=%s enemies=%d splinters=%d" % [c.radius, c.age, c.lord_mode, enemies.size(), int(player.currency.get("rift_splinter", 0))])
 	if _class_at > 0.0 and _clock >= _class_at and state == "play":
 		_class_at = -1.0
 		hud.class_ui.toggle()
-		get_viewport().warp_mouse(Vector2(1000, 230))
+		set_pad_cursor(Vector2(1000, 230))
 	if _tree_at > 0.0 and _clock >= _tree_at and state == "play":
 		_tree_at = -1.0
 		hud.passives.toggle()
 		hud.passives._summary_before = {}
 	if _inv_at > 0.0 and _clock >= _inv_at and state == "play":
 		_inv_at = -1.0
+		if OS.get_cmdline_user_args().has("--rich"):
+			for cid in ["kindling_shard", "coal_ascension", "ash_salt", "hollow_ember", "crown_fragment"]:
+				player.add_currency(cid, 3)
+			player.add_currency("ember_shards", 500)
+			player.add_currency("ash_dust", 60)
+			if peddler:
+				player.global_position = peddler.global_position + Vector2(60, 30)
 		inv_ui.toggle()
-		Input.warp_mouse(Vector2(1180, 470))
+		set_pad_cursor(Vector2(1180, 470))
 	if shot_dir != "" and _shot_i < _shot_times.size() and _clock >= _shot_times[_shot_i]:
 		var img := get_viewport().get_texture().get_image()
 		DirAccess.make_dir_recursive_absolute(shot_dir)
@@ -640,5 +727,6 @@ func _testing_hooks() -> void:
 		print("SHOT ", _shot_i, " t=", _clock)
 		_shot_i += 1
 	if quit_after > 0.0 and _clock >= quit_after:
+		print("PURSE ", player.currency)
 		print("STATS deaths=%d depth=%d level=%d kills=%d life=%d/%d enemies=%d" % [deaths, depth, player.level if player else 0, kills, player.life if player else 0, player.max_life if player else 0, enemies.size()])
 		get_tree().quit()

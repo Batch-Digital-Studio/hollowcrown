@@ -33,8 +33,8 @@ func add_currency(id: String, n: int) -> void:
 		FX.sound("drop_unique", null, -4.0, 0.0)
 		if game() and game().hud:
 			game().hud.show_message("A RIFT HEART FORMS", "Open it from the inventory to face the Rift Lord.")
-	elif CurrencyDB.CURRENCY.has(id) and id != "ember_shards":
-		FX.text(global_position, "+%d %s" % [n, CurrencyDB.CURRENCY[id].name], CurrencyDB.CURRENCY[id].color, 15)
+	elif id != "ember_shards":
+		FX.text(global_position, "+%d %s" % [n, CurrencyDB.info(id).name], CurrencyDB.info(id).color, 15)
 var _combat_t := 0.0
 var _oath_fx := 0.0
 var _dash_cb := Callable()
@@ -510,6 +510,8 @@ func _physics_process(delta: float) -> void:
 	if input.flask and flask_charges >= 1.0 and life < max_life:
 		flask_charges -= 1.0
 		_flask_heal += max_life * 0.6
+		if game():
+			game().writ_event("flask")
 		FX.sound("flask", null, -3.0)
 		FX.ring(global_position, 70.0, Color(1.0, 0.3, 0.35), 0.35)
 		FX.burst(global_position, Color(1.0, 0.3, 0.35), 18, 160.0, 7.0, 0.5)

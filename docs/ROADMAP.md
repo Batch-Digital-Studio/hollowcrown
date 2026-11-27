@@ -48,3 +48,12 @@
 - [x] Rift Lord "The Hand That Wore the Crown" (3-skill boss) drops the 3 rift-only uniques
 - [x] Currency system: Ember Shards + 5 crafting currencies + Ash Dust drop as magnetized pickups; purse panel in the inventory
 - [ ] Crafting currencies are collected but not usable yet (stage F)
+
+## Stage F — Economy (done 2026-11-27)
+- [x] Crafting: Kindling Shard, Coal of Ascension, Ash Salt, Hollow Ember, Crown Fragment (select in purse, apply to item; held for repeats)
+- [x] Essences: 8 types x 4 tiers (Whispering..Searing) from Bound Embers; guarantee a modifier while making a rare
+- [x] Ashen Peddler next to every zone start: 6 items for Ember Shards, currencies for Ash Dust; shatter near him to sell
+- [x] Reliquaries (2-3 per zone): Ambushed, Gilded, Volatile, Cursed, Echoing, Arcane; stand beside for 1 s to open
+- [x] Bound Embers (~half of zones): empowered rare breaks out of a crystal, drops an Essence
+- [x] Writs of the Hollow King: one objective per zone on the HUD, pays shards + currency + rare/unique
+- [ ] Peddler stock is per zone and doesn't persist through save/load (regenerates)

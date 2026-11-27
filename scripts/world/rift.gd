@@ -53,6 +53,8 @@ func _process(delta: float) -> void:
 	if g == null:
 		return
 	age += delta
+	if not lord_mode and not closing and age >= 45.0 and age - delta < 45.0:
+		g.writ_event("rift45")
 	if closing:
 		radius -= 600.0 * delta
 		if radius <= 10.0:

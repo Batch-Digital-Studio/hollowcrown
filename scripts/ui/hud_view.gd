@@ -105,6 +105,9 @@ func _draw() -> void:
 	# Zone label
 	_text_left(f, Vector2(24, 36), g.zone_title(), 20, Color(1.0, 0.82, 0.45))
 	_text_left(f, Vector2(24, 60), "Area Level %d   ·   Slain %d   ·   Remaining %d" % [g.area_level(), g.kills, g.enemies.size()], 14, Color(0.7, 0.68, 0.65))
+	if g.writ:
+		var wc := Color(0.5, 0.95, 0.6) if g.writ.done else (Color(0.8, 0.4, 0.35) if g.writ.failed else Color(0.95, 0.8, 0.5))
+		_text_left(f, Vector2(24, 84), g.writ.text(), 14, wc)
 	_text_left(f, Vector2(vs.x - Zone.W * 3.0 - 20, 40), "View — Inventory   ·   D-pad ↑ — Tree" if PlayerInput.using_pad else "I / Tab — Inventory   ·   P — Tree", 14, Color(0.6, 0.58, 0.55))
 	if p.passive_points() > 0:
 		var a := 0.6 + 0.4 * sin(_t * 4.0)

@@ -155,5 +155,65 @@ func _process(delta: float) -> void:
 		18:
 			if t > 9.30:
 				check("Menu closes pause", not get_tree().paused)
+				# set up: stand by the Peddler with a magic item and currency
+				g.player.add_currency("kindling_shard", 2)
+				g.player.add_currency("ember_shards", 999)
+				g.player.add_currency("ash_dust", 40)
+				g.player.inventory[0] = Loot.make_item(10, g.rng, "magic")
+				g.player.global_position = g.peddler.global_position + Vector2(40, 20)
+				tap(JOY_BUTTON_BACK)
+				step = 19
+		19:
+			if t > 9.70:
+				check("inventory beside the Peddler shows the shop", g.inv_ui.visible and g.inv_ui.shop_open())
+				g.set_pad_cursor(g.inv_ui._purse_rects["kindling_shard"].get_center())
+				step = 20
+		20:
+			if t > 9.90:
+				tap(JOY_BUTTON_A)
+				step = 21
+		21:
+			if t > 10.20:
+				check("A on Kindling Shard picks it up", g.inv_ui.craft_sel == "kindling_shard")
+				tap(JOY_BUTTON_B)
+				step = 22
+		22:
+			if t > 10.50:
+				check("B drops the held currency but keeps the inventory open", g.inv_ui.craft_sel == "" and g.inv_ui.visible)
+				g.set_pad_cursor(g.inv_ui._purse_rects["kindling_shard"].get_center())
+				step = 23
+		23:
+			if t > 10.70:
+				tap(JOY_BUTTON_A)
+				step = 24
+		24:
+			if t > 11.00:
+				g.set_pad_cursor(g.inv_ui._bag_rect(0).get_center())
+				step = 25
+		25:
+			if t > 11.20:
+				mana0 = g.player.currency.kindling_shard
+				tap(JOY_BUTTON_A)
+				step = 26
+		26:
+			if t > 11.50:
+				check("A on a magic item applies Kindling (%d -> %d)" % [int(mana0), int(g.player.currency.kindling_shard)], int(g.player.currency.kindling_shard) == int(mana0) - 1 and g.player.inventory[0] != null and g.player.inventory[0].rarity == "magic")
+				check("currency stays held for repeat crafting", g.inv_ui.craft_sel == "kindling_shard")
+				tap(JOY_BUTTON_B)
+				g.set_pad_cursor(g.inv_ui._shop_item_rect(0).get_center())
+				step = 27
+		27:
+			if t > 11.70:
+				mana0 = g.player.currency.ember_shards
+				tap(JOY_BUTTON_A)
+				step = 28
+		28:
+			if t > 12.00:
+				check("A on a shop item buys it (shards %d -> %d)" % [int(mana0), int(g.player.currency.ember_shards)], int(g.player.currency.ember_shards) < int(mana0) and g.peddler.stock[0] == null)
+				tap(JOY_BUTTON_B)
+				step = 29
+		29:
+			if t > 12.30:
+				check("B closes the shop", not g.inv_ui.visible)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

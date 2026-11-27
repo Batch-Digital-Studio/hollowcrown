@@ -80,6 +80,12 @@ static func _add_affixes(it: Item, count: int, rng: RandomNumberGenerator) -> vo
 	var used := {}
 	var np := 0
 	var ns := 0
+	for a0 in it.affixes:
+		used[a0.id] = true
+		if ItemsDB.AFFIXES[a0.id].type == "prefix":
+			np += 1
+		else:
+			ns += 1
 	var tries := 0
 	while it.affixes.size() < count and tries < 60:
 		tries += 1

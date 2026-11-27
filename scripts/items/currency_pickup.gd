@@ -32,7 +32,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	var c: Color = CurrencyDB.CURRENCY[id].color
+	var c: Color = CurrencyDB.info(id).color
 	var bob := sin(_t * 5.0) * 2.0
 	if id == "ember_shards":
 		var tex := Art.tex("coin_anim", int(_t * 8.0) % 4)

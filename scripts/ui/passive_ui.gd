@@ -29,7 +29,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_t += delta
-	var m := get_viewport().get_mouse_position()
+	var m := Game.pointer()
 	_hover = ""
 	var tree := PassivesDB.nodes()
 	for id in tree:
@@ -151,7 +151,7 @@ func _draw() -> void:
 		draw_string(f, Vector2(24, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.4, 1.0, 0.5) if d > 0 else Color(1.0, 0.4, 0.4))
 		y += 22
 	if PlayerInput.using_pad:
-		var mp := get_viewport().get_mouse_position()
+		var mp := Game.pointer()
 		draw_arc(mp, 11, 0, TAU, 20, Color(1.0, 0.82, 0.45), 2.0, true)
 	if _hover != "":
 		_tooltip(tree[_hover], p)
@@ -169,7 +169,7 @@ func _tooltip(n: Dictionary, p: Player) -> void:
 		w = maxf(w, f.get_string_size(l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x)
 	w += 28
 	var h := lines.size() * 21 + 16
-	var m := get_viewport().get_mouse_position() + Vector2(18, 14)
+	var m := Game.pointer() + Vector2(18, 14)
 	var vs := get_viewport_rect().size
 	m.x = minf(m.x, vs.x - w - 10)
 	m.y = minf(m.y, vs.y - h - 10)

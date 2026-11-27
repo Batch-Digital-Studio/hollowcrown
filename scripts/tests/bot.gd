@@ -60,6 +60,15 @@ func drive(p: Player, g: Game) -> void:
 		if c is Rift.Seal and c.global_position.distance_to(p.global_position) * 1.3 < best:
 			target = c
 			best = c.global_position.distance_to(p.global_position) * 1.3
+	for c in g.world_layer.get_children():
+		if (c is Reliquary and not c.opened and c._fuse <= 0.0) or c is BoundEmber:
+			var dd: float = c.global_position.distance_to(p.global_position) * 1.2
+			if dd < best:
+				target = c
+				best = dd
+	if target is Reliquary and target.global_position.distance_to(p.global_position) < 60.0:
+		inp.move = Vector2.ZERO   # stand still to open it
+		return
 	if target == null:
 		for c in g.fx_node.get_children():
 			if c is Portal:

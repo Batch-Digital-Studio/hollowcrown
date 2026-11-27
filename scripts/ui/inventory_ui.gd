@@ -24,7 +24,17 @@ var _hover_slot := ""
 var _hover_bag := -1
 var _compare_cache := {}
 var _shatter_idx := -1
-var _heart_rect := Rect2()
+var _purse_rects := {}     # currency id -> Rect2
+var craft_sel := ""         # currency held on the cursor
+var _shop_rects := []       # [Rect2, kind, index]
+
+func shop_open() -> bool:
+	var g := Game.instance
+	return g != null and g.peddler != null and is_instance_valid(g.peddler) and g.peddler.near(g.player)
+
+func _shop_item_rect(i: int) -> Rect2:
+	var sr := sheet_rect()
+	return Rect2(sr.position.x + 24 + (i % 3) * 104, sr.position.y + 60 + (i / 3) * 96, 64, 64)
 var _shatter_t := 0
 
 func _ready() -> void:
@@ -32,6 +42,7 @@ func _ready() -> void:
 
 func toggle() -> void:
 	visible = not visible
+	craft_sel = ""
 	if visible:
 		refresh()
 
@@ -51,8 +62,8 @@ func sheet_rect() -> Rect2:
 	return Rect2(20, 90, 340, 460)
 
 func mouse_over_panel() -> bool:
-	var m := get_viewport().get_mouse_position()
-	return panel_rect().has_point(m) or sheet_rect().has_point(m) or Rect2(sheet_rect().position.x, sheet_rect().end.y, sheet_rect().size.x, 270).has_point(m)
+	var m := Game.pointer()
+	return panel_rect().has_point(m) or sheet_rect().has_point(m) or Rect2(sheet_rect().position.x, sheet_rect().end.y, sheet_rect().size.x, 330).has_point(m)
 
 func _bag_rect(i: int) -> Rect2:
 	var p := panel_rect().position + BAG_ORIGIN
@@ -65,7 +76,7 @@ func _slot_rect(slot: String) -> Rect2:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
-	var m := get_viewport().get_mouse_position()
+	var m := Game.pointer()
 	var g := Game.instance
 	_hover_item = null
 	_hover_slot = ""
@@ -75,6 +86,11 @@ func _process(_delta: float) -> void:
 			if _bag_rect(i).has_point(m):
 				_hover_bag = i
 				_hover_item = g.player.inventory[i]
+		if shop_open():
+			var st: Array = g.peddler.stock
+			for i in st.size():
+				if st[i] and _shop_item_rect(i).has_point(m):
+					_hover_item = st[i]
 		for s in SLOT_RECTS:
 			if _slot_rect(s).has_point(m):
 				_hover_slot = s
@@ -85,16 +101,28 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventMouseButton and event.pressed:
-		if _heart_rect.size.x > 0.0 and _heart_rect.has_point(get_viewport().get_mouse_position()) and event.button_index == MOUSE_BUTTON_LEFT:
-			get_viewport().set_input_as_handled()
-			toggle()
-			Game.instance.open_rift_heart()
-			return
 		if not mouse_over_panel():
 			return
 		get_viewport().set_input_as_handled()
 		var p := Game.instance.player
+		var mpos := Game.pointer()
+		if event.button_index == MOUSE_BUTTON_RIGHT and craft_sel != "":
+			craft_sel = ""
+			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			for cid in _purse_rects:
+				if _purse_rects[cid].has_point(mpos) and cid == "rift_heart":
+					toggle()
+					Game.instance.open_rift_heart()
+					return
+				if _purse_rects[cid].has_point(mpos) and CurrencyDB.is_crafting(cid):
+					craft_sel = "" if craft_sel == cid else cid
+					return
+			if craft_sel != "":
+				_try_craft(p)
+				return
+			if shop_open() and _shop_click(p, mpos):
+				return
 			if _hover_bag >= 0 and p.inventory[_hover_bag]:
 				p.equip_from_bag(_hover_bag)
 				refresh()
@@ -109,12 +137,37 @@ func _input(event: InputEvent) -> void:
 					p.inventory[_hover_bag] = null
 					FX.text(p.global_position, "Shattered " + it.name, Color(0.7, 0.7, 0.7), 16)
 					p.add_currency("ash_dust", {"normal": 1, "magic": 3, "rare": 8, "unique": 20}.get(it.rarity, 1))
+					if shop_open():
+						p.add_currency("ember_shards", Peddler.sell_value(it))
+						FX.text(p.global_position + Vector2(0, -24), "+%d shards" % Peddler.sell_value(it), Color(1.0, 0.78, 0.3), 16)
 					FX.sound("die", null, -6.0)
 					_shatter_idx = -1
 					refresh()
 				else:
 					_shatter_idx = _hover_bag
 					_shatter_t = now
+
+func _try_craft(p: Player) -> void:
+	var it: Item = _hover_item
+	if it == null:
+		return
+	if int(p.currency.get(craft_sel, 0)) <= 0:
+		craft_sel = ""
+		return
+	var why := Crafting.apply(craft_sel, it, Game.instance.rng)
+	if why != "":
+		FX.text(p.global_position, why, Color(1.0, 0.5, 0.4), 16)
+		FX.sound("hurt", null, -14.0, 0.0)
+		return
+	p.currency[craft_sel] -= 1
+	FX.text(p.global_position, CurrencyDB.info(craft_sel).name + ": " + it.name, CurrencyDB.info(craft_sel).color, 18)
+	FX.sound("drop_rare", null, -8.0, 0.1)
+	if int(p.currency[craft_sel]) <= 0:
+		craft_sel = ""
+	p.recalc_stats()
+	_compare_cache.clear()
+	refresh()
+	Game.instance.save_game()
 
 func _draw() -> void:
 	var g := Game.instance
@@ -139,10 +192,28 @@ func _draw() -> void:
 		var sr0 := _bag_rect(_shatter_idx)
 		draw_rect(sr0.grow(3), Color(1.0, 0.3, 0.2), false, 3.0)
 		_t(f, sr0.position + Vector2(sr0.size.x / 2, -6), "Again to shatter", 13, Color(1.0, 0.45, 0.35), true)
-	# Character sheet
+	# Character sheet / shop
 	var sr := sheet_rect()
 	_box(sr)
-	_t(f, sr.position + Vector2(20, 34), "THE KINDLED  ·  Level %d" % p.level, 18, Color(1.0, 0.82, 0.45), false)
+	if shop_open():
+		_draw_shop(p, sr, f)
+	else:
+		_draw_sheet(sr, f)
+	_draw_purse(p, sr, f)
+	if _hover_item:
+		_tooltip(_hover_item)
+	if craft_sel != "":
+		var mp2 := Game.pointer()
+		var cc2: Color = CurrencyDB.info(craft_sel).color
+		draw_colored_polygon(PackedVector2Array([mp2 + Vector2(14, 4), mp2 + Vector2(21, 12), mp2 + Vector2(14, 20), mp2 + Vector2(7, 12)]), cc2)
+	if PlayerInput.using_pad:
+		var mp := Game.pointer()
+		draw_circle(mp, 9, Color(1.0, 0.82, 0.45, 0.35))
+		draw_arc(mp, 9, 0, TAU, 20, Color(1.0, 0.82, 0.45), 2.0, true)
+
+
+func _draw_sheet(sr: Rect2, f: Font) -> void:
+	_t(f, sr.position + Vector2(20, 34), "THE KINDLED  ·  Level %d" % Game.instance.player.level, 18, Color(1.0, 0.82, 0.45), false)
 	var y := sr.position.y + 66
 	for k in _summary:
 		var v: float = _summary[k]
@@ -154,34 +225,105 @@ func _draw() -> void:
 		var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 		_t(f, Vector2(sr.end.x - 20 - w, y), txt, 15, col, false)
 		y += 26
+
+func _draw_shop(p: Player, sr: Rect2, f: Font) -> void:
+	var pd: Peddler = Game.instance.peddler
+	_t(f, sr.position + Vector2(20, 34), "ASHEN PEDDLER", 18, Color(1.0, 0.75, 0.4), false)
+	_shop_rects.clear()
+	var shards := int(p.currency.get("ember_shards", 0))
+	for i in pd.stock.size():
+		var r := _shop_item_rect(i)
+		var it: Item = pd.stock[i]
+		_cell(r, it, it != null and it == _hover_item)
+		if it:
+			var pr := Peddler.price(it)
+			_t(f, r.position + Vector2(r.size.x / 2, r.size.y + 16), "%d shards" % pr, 12, Color(1.0, 0.78, 0.3) if shards >= pr else Color(0.6, 0.35, 0.3), true)
+			_shop_rects.append([r, "item", i])
+		else:
+			_t(f, r.get_center() + Vector2(0, 5), "sold", 12, Color(0.4, 0.38, 0.36), true)
+	var y := sr.position.y + 290
+	_t(f, Vector2(sr.position.x + 20, y), "Trade Ash Dust", 14, Color(0.75, 0.72, 0.68), false)
+	var dust := int(p.currency.get("ash_dust", 0))
+	var mp := Game.pointer()
+	for k in Peddler.OFFERS.size():
+		var o: Dictionary = Peddler.OFFERS[k]
+		var rr := Rect2(sr.position.x + 16, y + 10 + k * 26, sr.size.x - 32, 24)
+		if rr.has_point(mp):
+			draw_rect(rr, Color(1, 1, 1, 0.07))
+		var cc: Color = CurrencyDB.info(o.id).color
+		_t(f, rr.position + Vector2(8, 17), CurrencyDB.info(o.id).name, 13, cc, false)
+		var cs := "%d dust" % o.dust
+		_t(f, Vector2(rr.end.x - 8 - f.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x, rr.position.y + 17), cs, 13, Color(0.75, 0.73, 0.7) if dust >= o.dust else Color(0.5, 0.35, 0.3), false)
+		_shop_rects.append([rr, "offer", k])
+	_t(f, Vector2(sr.position.x + 20, sr.end.y - 14), "%s buys  ·  shatter here to sell" % ("A" if PlayerInput.using_pad else "Click"), 12, Color(0.6, 0.58, 0.55), false)
+
+func _shop_click(p: Player, mpos: Vector2) -> bool:
+	var pd: Peddler = Game.instance.peddler
+	for e in _shop_rects:
+		if not e[0].has_point(mpos):
+			continue
+		if e[1] == "item":
+			var it: Item = pd.stock[e[2]]
+			var pr := Peddler.price(it)
+			if int(p.currency.get("ember_shards", 0)) < pr:
+				FX.text(p.global_position, "Not enough shards", Color(1.0, 0.5, 0.4), 16)
+			elif not p.add_to_inventory(it):
+				FX.text(p.global_position, "Bag is full", Color(1.0, 0.5, 0.4), 16)
+			else:
+				p.currency.ember_shards -= pr
+				pd.stock[e[2]] = null
+				FX.sound("pickup", null, -6.0, 0.0)
+				refresh()
+		else:
+			var o: Dictionary = Peddler.OFFERS[e[2]]
+			if int(p.currency.get("ash_dust", 0)) < o.dust:
+				FX.text(p.global_position, "Not enough Ash Dust", Color(1.0, 0.5, 0.4), 16)
+			else:
+				p.currency.ash_dust -= o.dust
+				p.add_currency(o.id, 1)
+				FX.sound("pickup", null, -6.0, 0.0)
+		return true
+	return false
+
+func _draw_purse(p: Player, sr: Rect2, f: Font) -> void:
 	# Currency purse
 	var cy := sr.end.y + 30
-	_box(Rect2(sr.position.x, sr.end.y + 10, sr.size.x, 250))
+	var nrows := (CurrencyDB.ordered(p.currency).size() + 1) / 2
+	_box(Rect2(sr.position.x, sr.end.y + 10, sr.size.x, maxf(196.0, 70.0 + nrows * 21)))
 	_t(f, Vector2(sr.position.x + 20, cy + 10), "PURSE", 16, Color(1.0, 0.82, 0.45), false)
 	var row := 0
-	for cid in CurrencyDB.CURRENCY:
+	_purse_rects.clear()
+	var colw := (sr.size.x - 30) / 2.0
+	for cid in CurrencyDB.ordered(p.currency):
 		var n := int(p.currency.get(cid, 0))
-		if n <= 0 and cid != "ember_shards":
-			continue
-		var cc: Color = CurrencyDB.CURRENCY[cid].color
-		var yy := cy + 36 + row * 22
-		draw_circle(Vector2(sr.position.x + 28, yy - 5), 5, cc)
-		_t(f, Vector2(sr.position.x + 40, yy), CurrencyDB.CURRENCY[cid].name, 14, cc, false)
+		var cc: Color = CurrencyDB.info(cid).color
+		var x0 := sr.position.x + 15 + (row % 2) * colw
+		var yy := cy + 38 + (row / 2) * 21
+		var rr := Rect2(x0, yy - 15, colw - 6, 20)
+		_purse_rects[cid] = rr
+		var craftable: bool = CurrencyDB.is_crafting(cid) or cid == "rift_heart"
+		if craft_sel == cid:
+			draw_rect(rr, Color(cc.r, cc.g, cc.b, 0.25))
+			draw_rect(rr, cc, false, 2.0)
+		elif craftable and rr.has_point(Game.pointer()):
+			draw_rect(rr, Color(1, 1, 1, 0.06))
+		draw_circle(Vector2(x0 + 10, yy - 5), 5, cc)
+		var nm: String = CurrencyDB.info(cid).name
+		if cid.begins_with("ess_"):
+			var pe := CurrencyDB.parse_essence(cid)
+			nm = "%s %s" % [CurrencyDB.ESSENCE_TIERS[pe[1] - 1].substr(0, 5) + ".", CurrencyDB.ESSENCES[pe[0]].name.trim_prefix("the ")]
+		_t(f, Vector2(x0 + 20, yy), nm, 12, cc, false)
 		var ns := str(n)
-		_t(f, Vector2(sr.end.x - 20 - f.get_string_size(ns, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, yy), ns, 14, Color(0.9, 0.9, 0.9), false)
+		_t(f, Vector2(rr.end.x - 6 - f.get_string_size(ns, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x, yy), ns, 13, Color(0.9, 0.9, 0.9), false)
 		row += 1
-	_heart_rect = Rect2()
-	if int(p.currency.get("rift_heart", 0)) > 0:
-		_heart_rect = Rect2(sr.position.x + 20, sr.end.y + 214, sr.size.x - 40, 36)
-		draw_rect(_heart_rect, Color(0.2, 0.1, 0.3))
-		draw_rect(_heart_rect, Color(0.85, 0.55, 1.0), false, 2.0)
-		_t(f, _heart_rect.position + Vector2(_heart_rect.size.x / 2, 24), "Open a Rift Heart (face the Rift Lord)", 14, Color(0.9, 0.75, 1.0), true)
-	if _hover_item:
-		_tooltip(_hover_item)
-	if PlayerInput.using_pad:
-		var mp := get_viewport().get_mouse_position()
-		draw_circle(mp, 9, Color(1.0, 0.82, 0.45, 0.35))
-		draw_arc(mp, 9, 0, TAU, 20, Color(1.0, 0.82, 0.45), 2.0, true)
+	var hint2 := ""
+	if craft_sel != "":
+		hint2 = "%s: %s  ·  %s cancels" % [CurrencyDB.info(craft_sel).name, CurrencyDB.info(craft_sel).desc, "B" if PlayerInput.using_pad else "Right-click"]
+	else:
+		hint2 = "%s a crafting currency, then an item" % ("A on" if PlayerInput.using_pad else "Click")
+		if int(p.currency.get("rift_heart", 0)) > 0:
+			hint2 = "Select the Rift Heart to face the Rift Lord"
+	_t(f, Vector2(sr.position.x + 20, maxf(sr.end.y + 192, cy + 50 + nrows * 21)), hint2, 12, Color(0.6, 0.58, 0.55), false)
 
 func _fmt(k: String, v: float) -> String:
 	if k.ends_with("Res"):
@@ -273,7 +415,7 @@ func _tooltip(it: Item) -> void:
 		w = maxf(w, f.get_string_size(l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x)
 	w += 30
 	var h := lines.size() * 21 + 20
-	var m := get_viewport().get_mouse_position()
+	var m := Game.pointer()
 	var pos := m + Vector2(-w - 18, 10)
 	if pos.x < 10:
 		pos.x = m.x + 18
