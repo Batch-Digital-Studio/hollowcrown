@@ -516,11 +516,11 @@ func _on_enemy_died(a: Actor) -> void:
 		writ_event("boss")
 		print("BOSS killed at t=%.1f" % _clock)
 		hud.show_message("THE ASHEN REGENT FALLS", "A way down has opened.")
-		var away := (player.global_position - e.global_position).normalized() if player else Vector2.LEFT
-		_maybe_trial(player.global_position + away * 120.0 if player else e.global_position)
 		var portal := Portal.new()
 		set_meta("boss_pos", e.global_position)
 		portal.global_position = _portal_spot(e.global_position)
+		# Trial seal: clear of the loot pile, the portal and the player's feet
+		_maybe_trial(_spot_near(e.global_position, [e.global_position, portal.global_position], 300.0))
 		portal.entered.connect(_descend)
 		fx_node.add_child(portal)
 		var pl := FX.make_light(Color(0.7, 0.5, 1.0), 420.0, 1.4)
@@ -668,6 +668,26 @@ func nav_path(a: Vector2, b: Vector2) -> PackedVector2Array:
 		return PackedVector2Array()
 	return nav.get_point_path(ca, cb)
 
+## A walkable spot 4-6 cells from centre, at least min_sep from every point in avoid
+## (and from the player), reachable in a straight line from centre.
+func _spot_near(center: Vector2, avoid: Array, min_sep: float) -> Vector2:
+	var pts: Array = avoid.duplicate()
+	if player:
+		pts.append(player.global_position)
+	for ring in [4.5, 5.5, 3.5, 6.5]:
+		for k in 24:
+			var p: Vector2 = center + Vector2.RIGHT.rotated(k * TAU / 24.0) * Zone.CELL * float(ring)
+			if is_wall(p) or not clear_walk(center, p, 20.0):
+				continue
+			var ok := true
+			for q in pts:
+				if p.distance_to(q) < min_sep:
+					ok = false
+					break
+			if ok:
+				return p
+	return center + Vector2(Zone.CELL * 3, Zone.CELL * 3)
+
 ## Portal spot: 4-5 cells from the boss's loot pile, toward the player if possible.
 func _portal_spot(boss_pos: Vector2) -> Vector2:
 	var away := Vector2.RIGHT
@@ -804,6 +824,12 @@ func _testing_hooks() -> void:
 					set_meta("pt_logged", true)
 					print("PORTAL spawned %.0f px from the boss loot pile" % c.global_position.distance_to(get_meta("boss_pos", c.global_position)))
 				player.global_position = c.global_position
+		for c2 in fx_node.get_children():
+			if c2 is Trial.Seal and not has_meta("pt_seal"):
+				set_meta("pt_seal", true)
+				for c3 in fx_node.get_children():
+					if c3 is Portal:
+						print("PORTAL trial seal %.0f px from portal, %.0f px from loot" % [c2.global_position.distance_to(c3.global_position), c2.global_position.distance_to(get_meta("boss_pos"))])
 		if depth >= 2 and not has_meta("pt_done"):
 			set_meta("pt_done", true)
 			print("PORTAL descended to depth %d at t=%.1f" % [depth, _clock])

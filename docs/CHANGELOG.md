@@ -96,3 +96,4 @@
 - Boss portal no longer sits on the loot pile: it spawns about 4.5 cells away, and you stand in it for 1 second to descend (ring shows progress), so you can't fall through while looting.
 - Minions path around walls (A* over the zone grid, `Game.nav_path`) instead of walking straight into obstacles; a minion stuck for 2 s hops back to you. New `--nav-probe` test (husk behind a wall must reach and hit its target): passes on 3 maps.
 - Known, not fixed yet: a Reliquary guardian can spawn inside a wall where it can't be hit.
+- Ascension Trial seal and the boss portal could spawn on top of each other. The seal is now placed 3.5-6.5 cells from the boss, at least 300 px from the portal, the loot pile and the player (checked on 3 maps: ~350 px apart).
