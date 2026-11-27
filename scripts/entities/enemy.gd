@@ -258,22 +258,26 @@ func _expire_corpse() -> void:
 func _draw() -> void:
 	if dead:
 		return
-	draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.38))
-	draw_circle(Vector2.ZERO, radius * 1.15, Color(0, 0, 0, 0.5))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var iso := IsoView.active   # 3D view: models replace the upright 2D bits; ground rings stay
+	if not iso:
+		draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.38))
+		draw_circle(Vector2.ZERO, radius * 1.15, Color(0, 0, 0, 0.5))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if ignite_time > 0.0:
 		draw_arc(Vector2(0, 2), radius * 1.2, 0, TAU, 24, Color(1, 0.45, 0.1, 0.8), 2.0, true)
-	if frozen_time > 0.0:
+	if frozen_time > 0.0 and not iso:
 		var h := sprite_height() + 12.0
 		var w := radius * 1.25
 		var ice := PackedVector2Array([Vector2(-w, 6), Vector2(-w * 1.1, -h * 0.55), Vector2(-w * 0.4, -h - 6), Vector2(w * 0.5, -h), Vector2(w * 1.1, -h * 0.5), Vector2(w, 6)])
 		draw_colored_polygon(ice, Color(0.6, 0.85, 1.0, 0.35))
 		draw_polyline(ice + PackedVector2Array([ice[0]]), Color(0.85, 0.97, 1.0, 0.9), 2.5, true)
-	elif chill_time > 0.0:
+	elif chill_time > 0.0 or frozen_time > 0.0:
 		draw_arc(Vector2(0, 2), radius * 1.2, 0, TAU, 24, Color(0.6, 0.9, 1.0, 0.7), 2.0, true)
 	if not poisons.is_empty():
 		draw_arc(Vector2(0, 2), radius * 1.05, 0, TAU, 24, Color(0.45, 0.95, 0.25, 0.6), 2.0, true)
-	if curse_time > 0.0:
+	if curse_time > 0.0 and iso:
+		draw_arc(Vector2.ZERO, radius * 1.5, 0, TAU, 24, Color(0.7, 0.4, 0.95, 0.7), 2.0, true)
+	elif curse_time > 0.0:
 		var cc := Color(0.7, 0.4, 0.95, 0.8)
 		draw_arc(Vector2(0, -sprite_height() - 14), 9, 0, TAU, 12, cc, 2.0, true)
 		draw_line(Vector2(-6, -sprite_height() - 14), Vector2(6, -sprite_height() - 14), cc, 2.0)
@@ -281,12 +285,12 @@ func _draw() -> void:
 		var c := Color(1.0, 0.8, 0.3, 0.6) if rarity == "rare" else Color(0.45, 0.6, 1.0, 0.5)
 		draw_arc(Vector2(0, 2), radius * 1.35, _anim, _anim + PI * 1.5, 24, c, 2.0, true)
 	if brain and brain.shielded():
-		draw_arc(Vector2(0, -sprite_height() * 0.45), radius * 1.6, 0, TAU, 48, Color(0.75, 0.5, 1.0, 0.5 + 0.3 * sin(_anim * 6.0)), 5.0, true)
-	if brain and brain.stagger > 0.0:
+		draw_arc(Vector2(0, 0 if iso else -sprite_height() * 0.45), radius * 1.6, 0, TAU, 48, Color(0.75, 0.5, 1.0, 0.5 + 0.3 * sin(_anim * 6.0)), 5.0, true)
+	if brain and brain.stagger > 0.0 and not iso:
 		for i in 3:
 			var a := _anim * 4.0 + i * TAU / 3.0
 			draw_circle(Vector2(cos(a) * 30.0, -sprite_height() - 20.0 + sin(a) * 8.0), 5.0, Color(1.0, 0.9, 0.4))
-	if is_boss():
+	if is_boss() and not iso:
 		var crown_c := Color(1.0, 0.75, 0.3) if _boss_phase == 1 else Color(1.0, 0.35, 0.1)
 		if def.get("rift", false):
 			crown_c = Color(0.75, 0.5, 1.0)

@@ -39,6 +39,8 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, 10.0 * grow, Color(0.85, 0.75, 1.0, 0.8))
 	if _hold > 0.0 and not _used:
 		draw_arc(Vector2.ZERO, 70.0, -PI / 2, -PI / 2 + TAU * _hold / HOLD, 40, Color(0.9, 0.8, 1.0), 4.0, true)
+	if IsoView.active:   # 3D view: label stands upright
+		draw_set_transform_matrix(Transform2D(IsoView.up_x, IsoView.up_y, Vector2.ZERO))
 	var f := ThemeDB.fallback_font
 	var s := "Descend (stand here)"
 	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x

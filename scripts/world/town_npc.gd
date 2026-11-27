@@ -87,6 +87,8 @@ class ReturnPortal extends Node2D:
 		draw_arc(Vector2.ZERO, 44.0 + sin(_t * 3.0) * 4.0, 0, TAU, 48, c, 4.0, true)
 		if _hold > 0.0:
 			draw_arc(Vector2.ZERO, 64.0, -PI / 2, -PI / 2 + TAU * _hold, 40, Color(0.9, 0.8, 1.0), 4.0, true)
+		if IsoView.active:   # 3D view: label stands upright
+			draw_set_transform_matrix(Transform2D(IsoView.up_x, IsoView.up_y, Vector2.ZERO))
 		var g := Game.instance
 		var f := ThemeDB.fallback_font
 		var s := "Return to Depth %d · %s (stand here)" % [g.depth, WorldDB.zone_name(g.depth)] if g else ""

@@ -424,5 +424,28 @@ func _process(delta: float) -> void:
 		164:
 			if t > 22.10:
 				check("A on Continue travels back to the dungeon", not g.in_town and not g.hud.world_map.visible)
+				mem["iso0"] = IsoView.active
+				tap(JOY_BUTTON_START)
+				mem["downs"] = 0
+				step = 165
+		165:
+			# walk the pause menu with the D-pad until the View toggle has focus
+			if t > 22.5 + 0.25 * int(mem.downs):
+				var f := get_viewport().gui_get_focus_owner()
+				if f is Button and (f as Button).text.begins_with("View"):
+					check("D-pad reaches the View toggle in the pause menu", true)
+					tap(JOY_BUTTON_A)
+					step = 166
+				elif int(mem.downs) > 8:
+					check("D-pad reaches the View toggle in the pause menu", false)
+					step = 166
+				else:
+					tap(JOY_BUTTON_DPAD_DOWN)
+					mem.downs = int(mem.downs) + 1
+		166:
+			if t > 26.0:
+				check("A on View switches between isometric 3D and classic 2D", IsoView.active != bool(mem.iso0) and not get_tree().paused)
+				if IsoView.active != bool(mem.iso0):
+					g.set_view_3d(bool(mem.iso0))   # leave the setting as it was
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

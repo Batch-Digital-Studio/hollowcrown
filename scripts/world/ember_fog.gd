@@ -98,6 +98,8 @@ func _draw() -> void:
 		return
 	var c := Color(1.0, 0.7, 0.4)
 	var pulse := 0.6 + 0.4 * sin(_anim * 3.0)
+	if IsoView.active:   # 3D view: stand the marker up
+		draw_set_transform_matrix(Transform2D(IsoView.up_x, IsoView.up_y, Vector2.ZERO))
 	draw_line(Vector2(0, 0), Vector2(0, -60), Color(0.3, 0.28, 0.25), 4.0)
 	draw_rect(Rect2(-12, -84, 24, 26), Color(0.15, 0.13, 0.12))
 	draw_circle(Vector2(0, -71), 8, Color(c.r, c.g, c.b, pulse))

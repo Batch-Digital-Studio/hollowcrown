@@ -23,6 +23,7 @@ const CHORD_MS := 110   # msec timestamp of the last tap per skill
 const BUFFER_MS := 300
 
 static var using_pad := false    # last input came from a controller
+static var view_inv := Transform2D.IDENTITY   # screen dir -> world dir (isometric view)
 static var ignore_mouse_until := 0  # ms: mouse motion caused by the pad cursor warping the OS pointer
 const SYNTHETIC := -77              # device id of mouse clicks the pad cursor generates
 
@@ -152,6 +153,8 @@ static func labels() -> Array:
 ## ui_blocking: a menu is under the cursor / open (skills that share the click are suppressed).
 func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> void:
 	move = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if move.length() > 0.001:
+		move = view_inv.basis_xform(move).normalized() * move.length()   # screen-relative movement
 	if using_pad and me != null:
 		aim = _pad_aim(me)
 	else:
@@ -197,7 +200,7 @@ func _pad_aim(me: Actor) -> Vector2:
 	var rs := Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
 	var origin := me.global_position
 	if rs.length() > 0.3:
-		return origin + rs.normalized() * 360.0
+		return origin + view_inv.basis_xform(rs).normalized() * 360.0
 	var g := me.game()
 	var dir := move.normalized() if move.length() > 0.2 else me.facing
 	var best: Actor = null

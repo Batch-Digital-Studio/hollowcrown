@@ -27,6 +27,12 @@ var _ignite_fx := 0.0
 var knock := Vector2.ZERO
 var hit_flash := 0.0
 var facing := Vector2.RIGHT
+# Presentation events (read by the 3D view; no gameplay effect)
+var act_serial := 0
+var last_act := ""
+var last_act_kind := ""
+var last_act_behavior := ""
+var last_act_fx := ""
 var busy_time := 0.0   # time until the actor can act again (attack/cast animation lock)
 var cooldowns := {}
 var cast_stats: StatBlock      # stats used for the Rite being cast (base stats + that Rite's specialization)

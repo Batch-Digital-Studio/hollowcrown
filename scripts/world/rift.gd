@@ -159,6 +159,8 @@ class Seal extends Node2D:
 			draw_line(base, tip, Color(0.3, 0.22, 0.42), 6.0, true)
 			draw_circle(tip, 3, Color(c.r, c.g, c.b, pulse))
 		draw_arc(Vector2(0, -20), 30, 0, TAU, 24, Color(c.r, c.g, c.b, 0.5 * pulse), 2.0, true)
+		if IsoView.active:   # 3D view: stand the marker up
+			draw_set_transform_matrix(Transform2D(IsoView.up_x, IsoView.up_y, Vector2.ZERO))
 		var f := ThemeDB.fallback_font
 		var s := "Rift Seal"
 		var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x

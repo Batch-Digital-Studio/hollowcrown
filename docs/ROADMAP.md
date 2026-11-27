@@ -91,4 +91,20 @@
 - [x] Loot filter (rarity + category, show hidden); hidden drops are invisible and never auto-picked up
 - [x] Rite list on the class screen scrolls (right stick / wheel)
 - [ ] Biome-specific monsters (all regions still use the same monster pool)
-- [ ] Full isometric art conversion (Jason's choice, 2026-11-27) and the visual pass from his creative brief
+- [x] Full isometric art conversion: done as real-time 3D, see Stage J
+
+## Stage J — Isometric 3D visual pass (first playable, 2026-11-27)
+Jason's creative brief + choice "Real-time 3D, KayKit". The simulation is unchanged (still 2D); `scripts/view3d/` draws it in 3D.
+- [x] Fixed isometric orthographic camera (45 deg, 52 deg elevation) following the hero with the old aim lead and screen shake
+- [x] 2D ground effects (telegraphs, novas, rings, pickups' beams) sit exactly on the 3D floor: the canvas uses the camera's ground projection; mouse aim and screen-relative stick/WASD movement follow it
+- [x] KayKit (CC0) models: class heroes (Mage, Knight, Rogue, Barbarian), skeleton monsters with weapons, minions, bosses scaled up; idle / run / attack / cast / hit / death animations from gameplay state and cast events
+- [x] Ember Bolt upgraded: hand flare on cast, glowing bolt with moving light and ember trail, impact sparks + shock ring + light flash + scorch mark (`scripts/view3d/spell_fx3d.gd`); every other projectile gets a 3D glow bolt
+- [x] Ashfall Crypt mood pass: KayKit dungeon tiles and walls (camera-side walls cut low), torches with flame particles, coffins / skull candles / bones / gravestones, a mausoleum landmark behind the Regent's arena, a candle shrine at the entrance, falling ash, dark fog, real shadows
+- [x] 2D lights (braziers, spell flashes, the hero's light) mirrored as 3D lights
+- [x] Pause menu: View: Isometric 3D / Classic 2D (saved in user://settings.cfg); `--2d` / `--3d` flags
+- [x] Tests: `--iso-probe` (16 checks: projection matches Camera3D, aim inverse, move-up goes up the screen, models, Ember Bolt bolt + impact, death animation, view toggle); pad test checks the View toggle with the D-pad
+- [ ] Not verified on Jason's PC (frame rate, look on his monitor). Screenshots were taken with software rendering.
+- [ ] Other regions only get tinted KayKit tiles (forest/swamp: dead trees for walls). Their own models and props come next, region by region
+- [ ] Monster models are all KayKit skeletons (by role); proper models per monster family later
+- [ ] Props, chests, NPCs, portals and loot are still the 2D sprites standing upright in the 3D world; convert to models
+- [ ] Gathering/crafting foreshadowing not done yet (no ore/herb assets in the packs used)

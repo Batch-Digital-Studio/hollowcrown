@@ -56,6 +56,8 @@ var recent_kills: Array = []   # type ids killed in this zone (Blood Altars rais
 var pad_cursor := Vector2(800, 450)   # virtual cursor for menus on a controller
 var _rift_log := 0.0
 var _near_boss_level := 0
+var iso_view: IsoView
+const SETTINGS_PATH := "user://settings.cfg"
 
 func _ready() -> void:
 	instance = self
@@ -90,10 +92,22 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 	FX.camera = camera
+	iso_view = IsoView.new()
+	iso_view.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(iso_view)
 	hud = HUD.new()
 	add_child(hud)
 	inv_ui = hud.inventory
 	_parse_args()
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	var want_3d: bool = cfg.get_value("view", "iso", true)
+	var args := OS.get_cmdline_user_args()
+	if args.has("--2d"):
+		want_3d = false
+	elif args.has("--3d"):
+		want_3d = true
+	iso_view.set_active(want_3d)
 
 func _parse_args() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -115,6 +129,8 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--iso-probe":
+			add_child(load("res://scripts/tests/iso_probe.gd").new())
 		elif a == "--nav-probe":
 			add_child(load("res://scripts/tests/nav_probe.gd").new())
 		elif a == "--ttk":
@@ -158,6 +174,20 @@ func _parse_args() -> void:
 			player.global_position = zone.cell_center(zone.boss_cell) + Vector2(-420, 0)
 			if zone.is_wall_at(player.global_position):
 				player.global_position = zone.cell_center(zone.boss_cell) + Vector2(0, 300)
+
+## Switch between the isometric 3D view and the classic 2D view (saved as a setting).
+func set_view_3d(on: bool) -> void:
+	iso_view.set_active(on)
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("view", "iso", on)
+	cfg.save(SETTINGS_PATH)
+
+## World point at the centre of the screen (either view).
+func view_center() -> Vector2:
+	if IsoView.active and iso_view:
+		return iso_view.center_world()
+	return camera.get_screen_center_position()
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
@@ -230,6 +260,7 @@ func build_zone() -> void:
 	zone.generate(rng.randi(), depth, "town" if in_town else "")
 	ambient.color = zone.biome.ambient
 	_build_nav()
+	iso_view.build(zone)
 	town_npcs.clear()
 	if player.get_parent() == null:
 		world_layer.add_child(player)

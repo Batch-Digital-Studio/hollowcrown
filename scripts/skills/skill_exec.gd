@@ -33,6 +33,11 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 		dir = user.facing
 	dir = dir.normalized()
 	user.facing = dir
+	user.last_act = skill_id
+	user.last_act_kind = String(s.get("kind", ""))
+	user.last_act_behavior = String(s.get("behavior", ""))
+	user.last_act_fx = String(s.get("fx3d", ""))
+	user.act_serial += 1
 	if user.has_method("on_skill_used"):
 		user.on_skill_used(s)
 	_behave(s, user, origin, dir, target_pos)

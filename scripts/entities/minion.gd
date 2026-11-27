@@ -224,6 +224,10 @@ func _update_visuals() -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if IsoView.active:   # 3D view: model / wisp + a ground ring
+		if kind != "hawk":
+			draw_arc(Vector2.ZERO, radius * 1.15, 0, TAU, 20, Color(0.5, 1.0, 0.45, 0.5), 1.5, true)
+		return
 	if kind == "hawk":
 		var y := -70.0 + sin(_anim * 6.0) * 6.0
 		draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.38))

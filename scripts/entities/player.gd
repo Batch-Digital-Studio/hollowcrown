@@ -724,12 +724,13 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	# shadow
-	draw_set_transform(Vector2(0, radius * 0.7), 0.0, Vector2(1.0, 0.38))
-	draw_circle(Vector2.ZERO, radius * 1.4, Color(0, 0, 0, 0.5))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var feet := Vector2.ZERO if IsoView.active else Vector2(0, radius * 0.7)
+	if not IsoView.active:   # shadow (the 3D view casts real ones)
+		draw_set_transform(feet, 0.0, Vector2(1.0, 0.38))
+		draw_circle(Vector2.ZERO, radius * 1.4, Color(0, 0, 0, 0.5))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if ignite_time > 0.0:
-		draw_arc(Vector2(0, radius * 0.7), radius * 1.5, 0, TAU, 24, Color(1, 0.45, 0.1, 0.7), 2.0, true)
+		draw_arc(feet, radius * 1.5, 0, TAU, 24, Color(1, 0.45, 0.1, 0.7), 2.0, true)
 
 # ---------- visuals ----------
 

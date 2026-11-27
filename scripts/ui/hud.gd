@@ -240,6 +240,10 @@ func toggle_pause() -> void:
 		box.add_child(_button("World Map", func():
 			hide_overlays()
 			show_world_map()))
+	if g:
+		box.add_child(_button("View: Isometric 3D" if IsoView.active else "View: Classic 2D", func():
+			g.set_view_3d(not IsoView.active)
+			hide_overlays()))
 	box.add_child(_button("Save & Quit", func():
 		Game.instance.save_game()
 		get_tree().quit()))

@@ -122,20 +122,23 @@ func _fire(target: Actor) -> void:
 	FX.flash(origin, skill.color, 30.0, 0.12)
 
 func _draw() -> void:
-	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.4))
-	draw_circle(Vector2.ZERO, 34, Color(0, 0, 0, 0.5))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var iso := IsoView.active
+	if not iso:
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.4))
+		draw_circle(Vector2.ZERO, 34, Color(0, 0, 0, 0.5))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var c: Color = skill.color
 	var k := 1.0 - _t / duration
 	if skill.get("banner", false):
-		draw_line(Vector2(0, 0), Vector2(0, -130), Color(0.45, 0.35, 0.25), 5.0)
-		draw_circle(Vector2(0, -132), 5, Color(1.0, 0.8, 0.4))
+		if not iso:
+			draw_line(Vector2(0, 0), Vector2(0, -130), Color(0.45, 0.35, 0.25), 5.0)
+			draw_circle(Vector2(0, -132), 5, Color(1.0, 0.8, 0.4))
 		var rb: float = float(skill.radius) * owner_actor.stats.inc_mult(["inc_area"]) if is_instance_valid(owner_actor) else 240.0
 		draw_arc(Vector2.ZERO, rb, 0, TAU, 64, Color(c.r, c.g, c.b, 0.35), 2.0, true)
 		draw_arc(Vector2(0, 4), 24, -PI / 2, -PI / 2 + TAU * k, 24, Color(c.r, c.g, c.b, 0.7), 3.0, true)
 		return
 	# glowing runes climbing the pillar
-	for i in 3:
+	for i in (0 if iso else 3):
 		var y := -30.0 - i * 34.0
 		var a := 0.35 + 0.35 * sin(_t * 4.0 + i)
 		draw_rect(Rect2(-6, y - 6, 12, 12), Color(c.r, c.g, c.b, a))

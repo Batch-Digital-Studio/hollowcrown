@@ -113,6 +113,8 @@ class Seal extends Node2D:
 		var c := Color(1.0, 0.85, 0.45)
 		var pulse := 0.6 + 0.4 * sin(_t * 3.0)
 		draw_circle(Vector2(0, 4), 36, Color(0.15, 0.1, 0.03, 0.6))
+		if IsoView.active:   # 3D view: stand the marker up
+			draw_set_transform_matrix(Transform2D(IsoView.up_x, IsoView.up_y, Vector2.ZERO))
 		var pts := PackedVector2Array([Vector2(-26, 0), Vector2(-26, -26), Vector2(-13, -12), Vector2(0, -34), Vector2(13, -12), Vector2(26, -26), Vector2(26, 0)])
 		draw_colored_polygon(pts, Color(c.r, c.g, c.b, 0.35 + 0.3 * pulse))
 		draw_polyline(pts + PackedVector2Array([pts[0]]), c, 2.5, true)

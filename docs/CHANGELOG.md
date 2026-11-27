@@ -115,3 +115,9 @@
 - See ROADMAP "Stage I". Save now also stores max depth, town state, the stash and the loot filter.
 - Tests: pad test 45 checks (adds stash in/out, loot filter toggle, bulk salvage, Waystone -> world map -> travel). Probe adds loot-filter pickup checks and no longer depends on random block/evade or bolt lifetimes. Every biome run with the bot: no script errors.
 - Not verified on Jason's PC.
+
+## 2026-11-27 — Isometric 3D visual pass (KayKit)
+- See ROADMAP "Stage J". New: `scripts/view3d/` (IsoView, Puppet, Level3D, SpellFx3D), `scripts/data/models_db.gd`, `assets/kaykit/` (CC0, credits in `assets/kaykit/CREDITS.md`).
+- Gameplay untouched apart from presentation-event fields on Actor (act_serial, last_act...) set by SkillExec, and screen-relative movement input in the 3D view.
+- Tests: all existing tests pass; new `--iso-probe` 16/16; pad test now also toggles the view from the pause menu.
+- Not verified on Jason's PC.

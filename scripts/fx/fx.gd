@@ -44,6 +44,7 @@ func make_light(color: Color, radius: float, energy: float = 1.0) -> PointLight2
 	l.color = color
 	l.energy = energy
 	l.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	l.add_to_group("light2d")   # mirrored as 3D lights by IsoView
 	return l
 
 ## Short burst of real light (explosions, crits, level up).

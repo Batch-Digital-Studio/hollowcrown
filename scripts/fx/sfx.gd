@@ -26,7 +26,7 @@ func play(name: String, volume_db: float = 0.0, pitch_var: float = 0.08, world_p
 	_last[name] = now
 	var vol := volume_db
 	if world_pos != null and FX.camera:
-		var d: float = (world_pos as Vector2).distance_to(FX.camera.get_screen_center_position())
+		var d: float = (world_pos as Vector2).distance_to(Game.instance.view_center() if Game.instance else FX.camera.get_screen_center_position())
 		vol -= clampf((d - 300.0) / 40.0, 0.0, 30.0)
 		if vol < -40.0:
 			return

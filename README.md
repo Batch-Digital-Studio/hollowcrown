@@ -6,7 +6,9 @@ A co-op dark-fantasy ARPG prototype, built in Godot 4.7. Built with Claude, one 
 1. Open Godot 4.7.2 → **Import** → pick this folder's `project.godot` → **Import & Edit**.
 2. Press **F5** (or the ▶ Play button, top right).
 
-The first import takes a few seconds while Godot scans the files.
+The first import takes longer now (about a minute): Godot imports the 3D models in `assets/kaykit/`.
+
+The game starts in the isometric 3D view. Pause → **View** switches to the classic 2D view and back (remembered).
 
 ## Controls (Xbox controller)
 | Button | Action |
@@ -21,7 +23,7 @@ The first import takes a few seconds while Godot scans the files.
 | D-pad Up | Ember Constellation (A allocate, A again on a Mastery to switch it, X refund, right stick pan, LB/RB zoom, B close) |
 | D-pad Down | Class screen: class tree, Rite specializations, skill bar, Ascension tab (A take, X refund, B close) |
 | View | Inventory + purse (A equip / pick up currency / buy, X twice shatter or sell next to the Peddler, B drop currency or close) |
-| Menu | Pause menu: Return to Emberhold, World Map, Save & Quit |
+| Menu | Pause menu: Return to Emberhold, World Map, View (Isometric 3D / Classic 2D), Save & Quit |
 
 Taps are buffered for 0.3 s, so pressing a skill during another cast still fires it. Rumble on hits, slams, level-ups, uniques, boss kill.
 Walk onto seals to use them (Rift Seal, Ascension Trial). Stand next to a Reliquary for one second to open it.
@@ -41,7 +43,7 @@ In Emberhold, open the inventory next to the Ember Vault (stash), Grimm the Smel
 | P | Ember Constellation |
 | K | Class screen |
 | H | Return to town (Emberhold) |
-| Esc | Pause (World Map is in the pause menu) |
+| Esc | Pause (World Map and the 3D / 2D view switch are in the pause menu) |
 
 ## What's in it
 - Four classes (Bog Shaman, Ember Magus, Oathsworn, Hollow Ranger), each with a resource, a Special, a 3-branch class tree and its Rites with specialization trees. Pick a second class at level 10.
@@ -65,4 +67,5 @@ In Emberhold, open the inventory next to the Ember Vault (stash), Grimm the Smel
   - Minion pathing probe: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=3 --class=shaman --nav-probe`
   - Class time-to-kill benchmark: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --ttk`
   - Ascension / keystone probe: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --asc-probe`
+  - Isometric 3D view probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --iso-probe`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

@@ -10,7 +10,7 @@ const SKILLS := {
 		"desc": "Hurl a bolt of ember-fire that ignites what it strikes.",
 		"base_damage": {"fire": [11, 18]}, "crit": 7.0, "time": 0.42, "cost": 5,
 		"ignite_chance": 25.0, "tags": ["projectile"], "speed": 820.0, "radius": 12.0,
-		"color": Color(1.0, 0.5, 0.15), "range": 900.0,
+		"color": Color(1.0, 0.5, 0.15), "range": 900.0, "fx3d": "ember",
 	},
 	"cleave": {"class": "oath", 
 		"name": "Ashen Cleave", "kind": "attack", "behavior": "melee_arc",
