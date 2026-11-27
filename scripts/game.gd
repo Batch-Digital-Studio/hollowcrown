@@ -57,6 +57,7 @@ var pad_cursor := Vector2(800, 450)   # virtual cursor for menus on a controller
 var _rift_log := 0.0
 var _near_boss_level := 0
 var iso_view: IsoView
+var _menu_block := false
 const SETTINGS_PATH := "user://settings.cfg"
 
 func _ready() -> void:
@@ -129,6 +130,8 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--menu-probe":
+			add_child(load("res://scripts/tests/menu_probe.gd").new())
 		elif a == "--iso-probe":
 			add_child(load("res://scripts/tests/iso_probe.gd").new())
 		elif a == "--nav-probe":
@@ -840,12 +843,20 @@ func has_line_of_sight(a: Vector2, b: Vector2) -> bool:
 func _process(delta: float) -> void:
 	_clock += delta / maxf(Engine.time_scale, 0.04)
 	var paused := get_tree().paused
+	# Blocking menus (inventory and NPC panels, pause, tree, class screen, world map) take all
+	# input: the hero stops, and held buttons don't carry over when the menu closes.
+	var menu_block := inv_ui.visible or paused
+	if player and menu_block != _menu_block:
+		_menu_block = menu_block
+		player.input.latch()
 	if state == "play" and player and not player.dead and not paused:
-		var over_ui := (inv_ui.visible and inv_ui.mouse_over_panel()) or hud.passives.visible or hud.class_ui.visible
 		if bot:
 			bot.drive(player, self)
+		elif inv_ui.visible:
+			player.input.latch()          # keeps move and skills at rest while the bag is open
+			player.input.aim = get_global_mouse_position() if not PlayerInput.using_pad else player.input.aim
 		else:
-			player.input.poll_local(get_global_mouse_position(), over_ui or (PlayerInput.using_pad and inv_ui.visible), player)
+			player.input.poll_local(get_global_mouse_position(), false, player)
 		camera.global_position = player.global_position + (player.input.aim - player.global_position).limit_length(220.0) * 0.18
 		minimap.update(player.global_position, delta)
 		_save_t += delta

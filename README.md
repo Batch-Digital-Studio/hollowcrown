@@ -68,4 +68,5 @@ In Emberhold, open the inventory next to the Ember Vault (stash), Grimm the Smel
   - Class time-to-kill benchmark: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --ttk`
   - Ascension / keystone probe: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --asc-probe`
   - Isometric 3D view probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --iso-probe`
+  - Menu input probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --menu-probe`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

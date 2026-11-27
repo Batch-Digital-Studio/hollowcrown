@@ -149,6 +149,31 @@ static func note_event(event: InputEvent) -> void:
 static func labels() -> Array:
 	return PAD_LABELS if using_pad else KEY_LABELS
 
+var _latched := false   # a blocking menu just closed: ignore held input until it is released
+
+## A blocking menu opened or closed: drop buffered presses and ignore anything still held
+## until it has been let go, so closing a menu never replays earlier input.
+func latch() -> void:
+	_latched = true
+	for i in _buffered.size():
+		_buffered[i] = 0
+	_lb_at = -1
+	_rb_at = -1
+	move = Vector2.ZERO
+	dodge = false
+	flask = false
+	special = false
+	for i in skill_held.size():
+		skill_held[i] = false
+
+func _any_held() -> bool:
+	if Input.get_vector("move_left", "move_right", "move_up", "move_down").length() > 0.2:
+		return true
+	for a in SKILL_ACTIONS:
+		if Input.is_action_pressed(a):
+			return true
+	return Input.is_action_pressed("pad_lb") or Input.is_action_pressed("pad_rb") or Input.is_action_pressed("dodge")
+
 ## Poll local devices.
 ## ui_blocking: a menu is under the cursor / open (skills that share the click are suppressed).
 func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> void:
@@ -159,6 +184,16 @@ func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> vo
 		aim = _pad_aim(me)
 	else:
 		aim = world_mouse
+	if _latched:
+		if _any_held():
+			move = Vector2.ZERO
+			for i in skill_held.size():
+				skill_held[i] = false
+			dodge = false
+			flask = false
+			special = false
+			return
+		_latched = false
 	var now := int(Game.instance._clock * 1000.0) if Game.instance else Time.get_ticks_msec()
 	for i in SKILL_ACTIONS.size():
 		var blocked := ui_blocking and (using_pad or i < 2)
