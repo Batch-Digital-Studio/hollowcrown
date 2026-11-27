@@ -1,0 +1,144 @@
+class_name ItemsDB
+extends RefCounted
+## Base items, affixes and uniques.
+## Affix tiers: [min_item_level, low, high]. Higher tiers listed last.
+## "range" affixes roll v, then give min = v * min_ratio, max = v.
+
+const SLOTS := ["weapon", "helm", "body", "gloves", "boots", "ring1", "ring2", "amulet"]
+const SLOT_NAMES := {"weapon": "Weapon", "helm": "Helm", "body": "Body", "gloves": "Gloves",
+	"boots": "Boots", "ring1": "Ring", "ring2": "Ring", "amulet": "Amulet"}
+
+const BASES := {
+	# Weapons
+	"rusted_blade": {"name": "Rusted Blade", "slot": "weapon", "req": 1, "phys": [6, 12]},
+	"ember_wand": {"name": "Ember Wand", "slot": "weapon", "req": 1, "phys": [3, 6], "implicit": {"inc_spell_damage": 15}},
+	"war_maul": {"name": "War Maul", "slot": "weapon", "req": 3, "phys": [13, 24], "implicit": {"inc_attack_speed": -12}},
+	"tempered_blade": {"name": "Tempered Blade", "slot": "weapon", "req": 9, "phys": [15, 28]},
+	"kindled_wand": {"name": "Kindled Wand", "slot": "weapon", "req": 9, "phys": [6, 11], "implicit": {"inc_spell_damage": 28}},
+	"grave_maul": {"name": "Grave Maul", "slot": "weapon", "req": 12, "phys": [28, 48], "implicit": {"inc_attack_speed": -12}},
+	# Armour
+	"iron_cap": {"name": "Iron Cap", "slot": "helm", "req": 1, "armour": 22},
+	"hollow_helm": {"name": "Hollow Helm", "slot": "helm", "req": 9, "armour": 60},
+	"ragged_coat": {"name": "Ragged Coat", "slot": "body", "req": 1, "armour": 35},
+	"plated_vest": {"name": "Plated Vest", "slot": "body", "req": 9, "armour": 100},
+	"cloth_wraps": {"name": "Cloth Wraps", "slot": "gloves", "req": 1, "armour": 12},
+	"iron_gauntlets": {"name": "Iron Gauntlets", "slot": "gloves", "req": 9, "armour": 38},
+	"worn_boots": {"name": "Worn Boots", "slot": "boots", "req": 1, "armour": 12, "implicit": {"inc_move_speed": 4}},
+	"ember_treads": {"name": "Ember Treads", "slot": "boots", "req": 9, "armour": 34, "implicit": {"inc_move_speed": 8}},
+	# Jewellery
+	"ember_ring": {"name": "Ember Ring", "slot": "ring", "req": 1, "implicit": {"res_fire": 15}},
+	"rime_ring": {"name": "Rime Ring", "slot": "ring", "req": 1, "implicit": {"res_cold": 15}},
+	"storm_ring": {"name": "Storm Ring", "slot": "ring", "req": 1, "implicit": {"res_lightning": 15}},
+	"coil_ring": {"name": "Coil Ring", "slot": "ring", "req": 4, "implicit": {"mana_flat": 25}},
+	"ash_pendant": {"name": "Ash Pendant", "slot": "amulet", "req": 1, "implicit": {"inc_damage": 10}},
+	"crown_shard": {"name": "Crown Shard", "slot": "amulet", "req": 6, "implicit": {"res_fire": 8, "res_cold": 8, "res_lightning": 8}},
+}
+
+const ARMOUR_SLOTS := ["helm", "body", "gloves", "boots"]
+const JEWEL_SLOTS := ["ring", "amulet"]
+
+const AFFIXES := {
+	# ---- Prefixes ----
+	"life": {"type": "prefix", "label": "Hale", "stat": "life_flat", "text": "+%d to maximum Life",
+		"slots": ["helm", "body", "gloves", "boots", "ring", "amulet"],
+		"tiers": [[1, 8, 15], [6, 16, 26], [12, 27, 40], [20, 41, 60]]},
+	"mana": {"type": "prefix", "label": "Lucid", "stat": "mana_flat", "text": "+%d to maximum Mana",
+		"slots": ["helm", "ring", "amulet", "weapon"], "tiers": [[1, 10, 20], [8, 21, 35], [16, 36, 55]]},
+	"armour_flat": {"type": "prefix", "label": "Plated", "stat": "armour", "text": "+%d to Armour",
+		"slots": ["helm", "body", "gloves", "boots"], "tiers": [[1, 10, 22], [6, 23, 50], [14, 51, 100]]},
+	"armour_pct": {"type": "prefix", "label": "Reinforced", "stat": "inc_local_armour", "text": "%d%% increased Armour",
+		"slots": ["helm", "body", "gloves", "boots"], "tiers": [[1, 15, 30], [8, 31, 55], [16, 56, 90]]},
+	"added_phys": {"type": "prefix", "label": "Jagged", "range": "physical", "min_ratio": 0.5,
+		"slots": ["weapon", "ring", "gloves", "amulet"], "tiers": [[1, 3, 6], [5, 7, 12], [10, 13, 20], [18, 21, 32]]},
+	"added_fire": {"type": "prefix", "label": "Smouldering", "range": "fire", "min_ratio": 0.55,
+		"slots": ["weapon", "ring", "gloves", "amulet"], "tiers": [[1, 3, 7], [5, 8, 14], [10, 15, 24], [18, 25, 38]]},
+	"added_cold": {"type": "prefix", "label": "Frosted", "range": "cold", "min_ratio": 0.55,
+		"slots": ["weapon", "ring", "gloves", "amulet"], "tiers": [[1, 3, 7], [5, 8, 14], [10, 15, 24], [18, 25, 38]]},
+	"added_lightning": {"type": "prefix", "label": "Crackling", "range": "lightning", "min_ratio": 0.08,
+		"slots": ["weapon", "ring", "gloves", "amulet"], "tiers": [[1, 6, 12], [5, 13, 24], [10, 25, 40], [18, 41, 62]]},
+	"inc_phys_local": {"type": "prefix", "label": "Heavy", "stat": "inc_local_physical", "text": "%d%% increased Physical Damage",
+		"slots": ["weapon"], "tiers": [[1, 20, 40], [6, 41, 70], [14, 71, 110]]},
+	"inc_spell": {"type": "prefix", "label": "Runic", "stat": "inc_spell_damage", "text": "%d%% increased Spell Damage",
+		"slots": ["weapon", "amulet"], "tiers": [[1, 10, 20], [7, 21, 35], [15, 36, 55]]},
+	"inc_fire": {"type": "prefix", "label": "Blazing", "stat": "inc_fire_damage", "text": "%d%% increased Fire Damage",
+		"slots": ["weapon", "ring", "amulet"], "tiers": [[1, 8, 15], [8, 16, 28], [16, 29, 42]]},
+	"inc_cold": {"type": "prefix", "label": "Wintry", "stat": "inc_cold_damage", "text": "%d%% increased Cold Damage",
+		"slots": ["weapon", "ring", "amulet"], "tiers": [[1, 8, 15], [8, 16, 28], [16, 29, 42]]},
+	"inc_lightning": {"type": "prefix", "label": "Charged", "stat": "inc_lightning_damage", "text": "%d%% increased Lightning Damage",
+		"slots": ["weapon", "ring", "amulet"], "tiers": [[1, 8, 15], [8, 16, 28], [16, 29, 42]]},
+	# ---- Suffixes ----
+	"res_fire": {"type": "suffix", "label": "of the Kiln", "stat": "res_fire", "text": "+%d%% to Fire Resistance",
+		"slots": ["helm", "body", "gloves", "boots", "ring", "amulet"], "tiers": [[1, 6, 12], [6, 13, 22], [12, 23, 32], [20, 33, 42]]},
+	"res_cold": {"type": "suffix", "label": "of the Thaw", "stat": "res_cold", "text": "+%d%% to Cold Resistance",
+		"slots": ["helm", "body", "gloves", "boots", "ring", "amulet"], "tiers": [[1, 6, 12], [6, 13, 22], [12, 23, 32], [20, 33, 42]]},
+	"res_lightning": {"type": "suffix", "label": "of Grounding", "stat": "res_lightning", "text": "+%d%% to Lightning Resistance",
+		"slots": ["helm", "body", "gloves", "boots", "ring", "amulet"], "tiers": [[1, 6, 12], [6, 13, 22], [12, 23, 32], [20, 33, 42]]},
+	"crit_chance": {"type": "suffix", "label": "of Precision", "stat": "inc_crit_chance", "text": "%d%% increased Critical Strike Chance",
+		"slots": ["weapon", "ring", "amulet", "gloves"], "tiers": [[1, 10, 20], [8, 21, 35], [16, 36, 55]]},
+	"crit_multi": {"type": "suffix", "label": "of Ruin", "stat": "crit_multi", "text": "+%d%% to Critical Strike Multiplier",
+		"slots": ["weapon", "amulet", "gloves"], "tiers": [[1, 8, 14], [9, 15, 24], [18, 25, 35]]},
+	"attack_speed": {"type": "suffix", "label": "of Fury", "stat": "inc_attack_speed", "text": "%d%% increased Attack Speed",
+		"slots": ["weapon", "gloves"], "tiers": [[1, 5, 8], [8, 9, 13], [16, 14, 18]]},
+	"cast_speed": {"type": "suffix", "label": "of Haste", "stat": "inc_cast_speed", "text": "%d%% increased Cast Speed",
+		"slots": ["weapon", "amulet", "ring"], "tiers": [[1, 5, 8], [8, 9, 13], [16, 14, 18]]},
+	"move_speed": {"type": "suffix", "label": "of the Courier", "stat": "inc_move_speed", "text": "%d%% increased Movement Speed",
+		"slots": ["boots"], "tiers": [[1, 6, 10], [8, 11, 18], [16, 19, 25]]},
+	"mana_regen": {"type": "suffix", "label": "of Clarity", "stat": "inc_mana_regen", "text": "%d%% increased Mana Regeneration",
+		"slots": ["ring", "amulet", "helm", "weapon"], "tiers": [[1, 15, 30], [8, 31, 55], [16, 56, 80]]},
+	"life_regen": {"type": "suffix", "label": "of Mending", "stat": "life_regen", "text": "Regenerate %d Life per second",
+		"slots": ["body", "helm", "ring", "amulet"], "tiers": [[1, 1, 3], [8, 3, 6], [16, 6, 10]]},
+	"ignite": {"type": "suffix", "label": "of Kindling", "stat": "ignite_chance", "text": "%d%% chance to Ignite",
+		"slots": ["weapon", "gloves", "amulet"], "tiers": [[1, 6, 12], [10, 13, 20]]},
+	"chill": {"type": "suffix", "label": "of Rime", "stat": "chill_chance", "text": "%d%% chance to Chill",
+		"slots": ["weapon", "gloves", "amulet"], "tiers": [[1, 8, 15], [10, 16, 25]]},
+	"shock": {"type": "suffix", "label": "of Static", "stat": "shock_chance", "text": "%d%% chance to Shock",
+		"slots": ["weapon", "gloves", "amulet"], "tiers": [[1, 6, 12], [10, 13, 20]]},
+	"life_on_hit": {"type": "suffix", "label": "of the Leech", "stat": "life_on_hit", "text": "Gain %d Life per enemy Hit",
+		"slots": ["weapon", "gloves", "ring"], "tiers": [[1, 1, 3], [8, 3, 6], [16, 6, 10]]},
+}
+
+## Uniques: fixed base + fixed mod list (value ranges rolled).
+const UNIQUES := {
+	"kindling_crown": {"name": "Kindling of the Hollow King", "base": "rusted_blade", "req": 4,
+		"lore": "The last king's sword still remembers the fire.",
+		"mods": [["conv_physical_to_fire", 100, 100, "%d%% of Physical Damage Converted to Fire"],
+			["inc_fire_damage", 30, 50, "%d%% increased Fire Damage"],
+			["ignite_chance", 20, 30, "%d%% chance to Ignite"],
+			["inc_local_physical", 60, 90, "%d%% increased Physical Damage"]]},
+	"stormglass": {"name": "Stormglass Band", "base": "storm_ring", "req": 5,
+		"lore": "Lightning caught in ice never stops trying to leave.",
+		"mods": [["conv_lightning_to_cold", 50, 50, "%d%% of Lightning Damage Converted to Cold"],
+			["inc_cold_damage", 20, 30, "%d%% increased Cold Damage"],
+			["chill_chance", 20, 30, "%d%% chance to Chill"],
+			["inc_cast_speed", 6, 10, "%d%% increased Cast Speed"]]},
+	"ashveil": {"name": "Ashveil", "base": "ragged_coat", "req": 6,
+		"lore": "Woven from the shrouds of the first Hollowed.",
+		"mods": [["life_flat", 40, 60, "+%d to maximum Life"],
+			["more_fire_damage", 15, 15, "%d%% more Fire Damage"],
+			["res_fire", 25, 35, "+%d%% to Fire Resistance"],
+			["res_cold", -15, -15, "%d%% to Cold Resistance"]]},
+	"pale_courier": {"name": "Treads of the Pale Courier", "base": "worn_boots", "req": 3,
+		"lore": "He delivered the news of the king's death to every village. He never stopped running.",
+		"mods": [["inc_move_speed", 25, 30, "%d%% increased Movement Speed"],
+			["inc_cast_speed", 8, 12, "%d%% increased Cast Speed"],
+			["inc_attack_speed", 8, 12, "%d%% increased Attack Speed"],
+			["life_flat", -20, -20, "%d to maximum Life"]]},
+	"regents_eye": {"name": "The Regent's Eye", "base": "crown_shard", "req": 8,
+		"lore": "It saw the crown go hollow. It has not blinked since.",
+		"mods": [["inc_crit_chance", 60, 90, "%d%% increased Critical Strike Chance"],
+			["crit_multi", 25, 40, "+%d%% to Critical Strike Multiplier"],
+			["shock_chance", 15, 25, "%d%% chance to Shock"],
+			["life_flat", -15, -15, "%d to maximum Life"]]},
+}
+
+const RARE_A := ["Grim", "Ash", "Pyre", "Hollow", "Dusk", "Ember", "Rime", "Storm", "Bone", "Gloom",
+	"Crown", "Ruin", "Wraith", "Cinder", "Vael", "Pale", "Soot", "Grave", "Dread", "Kiln"]
+const RARE_B := {
+	"weapon": ["Bite", "Edge", "Brand", "Song", "Fang", "Reaver", "Thirst"],
+	"helm": ["Crest", "Visage", "Brow", "Cowl", "Halo"],
+	"body": ["Shroud", "Ward", "Carapace", "Veil", "Hide"],
+	"gloves": ["Grip", "Clutch", "Fist", "Touch", "Hold"],
+	"boots": ["Stride", "Track", "Trail", "Spur", "Pace"],
+	"ring": ["Coil", "Loop", "Knot", "Band", "Circle"],
+	"amulet": ["Charm", "Talisman", "Star", "Locket", "Heart"],
+}

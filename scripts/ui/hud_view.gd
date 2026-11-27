@@ -1,0 +1,131 @@
+class_name HudView
+extends Control
+
+var message := ""
+var sub_message := ""
+var message_t := 0.0
+var _t := 0.0
+
+func _process(delta: float) -> void:
+	_t += delta
+	message_t = maxf(0.0, message_t - delta)
+	queue_redraw()
+
+func _draw() -> void:
+	var g := Game.instance
+	if g == null or g.player == null or g.state == "title":
+		return
+	var p := g.player
+	var vs := get_viewport_rect().size
+	var f := ThemeDB.fallback_font
+	# Orbs
+	_orb(Vector2(110, vs.y - 110), 78.0, p.life / p.max_life, Color(0.75, 0.08, 0.1), "%d / %d" % [int(ceil(p.life)), int(p.max_life)])
+	_orb(Vector2(vs.x - 110, vs.y - 110), 78.0, p.mana / maxf(1.0, p.max_mana), Color(0.15, 0.3, 0.85), "%d / %d" % [int(p.mana), int(p.max_mana)])
+	# Flask
+	var fx := Vector2(220, vs.y - 92)
+	draw_rect(Rect2(fx.x, fx.y, 38, 70), Color(0.05, 0.04, 0.05, 0.85))
+	var fill := p.flask_charges / float(p.flask_max)
+	draw_rect(Rect2(fx.x + 4, fx.y + 4 + 62 * (1.0 - fill), 30, 62 * fill), Color(0.8, 0.15, 0.2))
+	draw_rect(Rect2(fx.x, fx.y, 38, 70), Color(0.6, 0.42, 0.22), false, 2.0)
+	_text(f, Vector2(fx.x + 19, fx.y + 88), "1", 14, Color(0.8, 0.8, 0.8))
+	_text(f, Vector2(fx.x + 19, fx.y - 6), "%d" % int(p.flask_charges), 14, Color(1, 0.6, 0.6))
+	# Skill bar
+	var n := p.bar.size()
+	var size := 66.0
+	var gap := 8.0
+	var total := n * size + (n - 1) * gap
+	var x0 := vs.x / 2.0 - total / 2.0
+	var y0 := vs.y - size - 26.0
+	for i in n:
+		var sid: String = p.bar[i]
+		var s: Dictionary = SkillsDB.SKILLS[sid]
+		var r := Rect2(x0 + i * (size + gap), y0, size, size)
+		draw_rect(r, Color(0.05, 0.045, 0.06, 0.92))
+		_skill_icon(r, sid, s)
+		var cd: float = p.cooldowns.get(sid, 0.0)
+		if cd > 0.0:
+			var k := cd / float(s.get("cooldown", 1.0))
+			draw_rect(Rect2(r.position.x, r.position.y + r.size.y * (1.0 - k), r.size.x, r.size.y * k), Color(0, 0, 0, 0.65))
+			_text(f, r.get_center() + Vector2(0, 8), "%.1f" % cd, 18, Color.WHITE)
+		if p.mana < float(s.get("cost", 0)):
+			draw_rect(r, Color(0.1, 0.15, 0.6, 0.45))
+		var held: bool = p.input.skill_held[i]
+		draw_rect(r, Color(1.0, 0.82, 0.45) if held else Color(0.55, 0.4, 0.22), false, 2.0)
+		_text(f, Vector2(r.position.x + 12, r.position.y + 14), SkillsDB.BAR_KEYS[i], 12, Color(0.9, 0.9, 0.9))
+	# XP bar
+	var need := Player.xp_to_next(p.level)
+	var xw := total + 140.0
+	var xr := Rect2(vs.x / 2.0 - xw / 2.0, vs.y - 14, xw, 7)
+	draw_rect(xr, Color(0, 0, 0, 0.8))
+	draw_rect(Rect2(xr.position, Vector2(xr.size.x * float(p.xp) / need, xr.size.y)), Color(0.9, 0.7, 0.3))
+	_text(f, Vector2(vs.x / 2.0, y0 - 10), "Level %d" % p.level, 15, Color(0.85, 0.78, 0.6))
+	# Zone label
+	_text_left(f, Vector2(24, 36), g.zone_title(), 20, Color(1.0, 0.82, 0.45))
+	_text_left(f, Vector2(24, 60), "Area Level %d   ·   Slain %d   ·   Remaining %d" % [g.area_level(), g.kills, g.enemies.size()], 14, Color(0.7, 0.68, 0.65))
+	_text_left(f, Vector2(vs.x - 260, 36), "I / Tab — Inventory", 14, Color(0.6, 0.58, 0.55))
+	# Boss bar
+	if g.boss and is_instance_valid(g.boss) and not g.boss.dead and g.boss.aggro:
+		var bw := 640.0
+		var br := Rect2(vs.x / 2 - bw / 2, 34, bw, 18)
+		draw_rect(br.grow(3), Color(0, 0, 0, 0.85))
+		draw_rect(Rect2(br.position, Vector2(bw * g.boss.life / g.boss.max_life, 18)), Color(0.8, 0.3, 0.1))
+		draw_rect(br.grow(3), Color(1.0, 0.7, 0.3), false, 2.0)
+		_text(f, Vector2(vs.x / 2, 26), "THE ASHEN REGENT", 18, Color(1.0, 0.78, 0.4))
+	# Message
+	if message_t > 0.0:
+		var a := minf(1.0, message_t) * minf(1.0, (3.5 - message_t) * 3.0)
+		_text(f, Vector2(vs.x / 2, vs.y * 0.28), message, 46, Color(1.0, 0.82, 0.45, a))
+		if sub_message != "":
+			_text(f, Vector2(vs.x / 2, vs.y * 0.28 + 40), sub_message, 20, Color(0.85, 0.8, 0.75, a))
+
+func _orb(c: Vector2, r: float, frac: float, col: Color, label: String) -> void:
+	frac = clampf(frac, 0.0, 1.0)
+	draw_circle(c, r + 6, Color(0.03, 0.03, 0.04, 0.95))
+	draw_circle(c, r, col.darkened(0.8))
+	# liquid: draw horizontal slices below the fill line
+	var top := c.y + r - 2.0 * r * frac
+	var step := 3.0
+	var y := top
+	while y < c.y + r:
+		var dy := y - c.y
+		var hw := sqrt(maxf(0.0, r * r - dy * dy))
+		var wave := sin(_t * 3.0 + y * 0.05) * 2.0 if y - top < 6 else 0.0
+		draw_rect(Rect2(c.x - hw, y + wave, hw * 2, step + 0.5), col.lerp(col.darkened(0.5), (y - top) / (2 * r)))
+		y += step
+	draw_circle(c + Vector2(-r * 0.35, -r * 0.4), r * 0.25, Color(1, 1, 1, 0.08))
+	draw_arc(c, r + 3, 0, TAU, 64, Color(0.6, 0.42, 0.22), 3.0, true)
+	_text(ThemeDB.fallback_font, c + Vector2(0, 6), label, 15, Color.WHITE)
+
+func _skill_icon(r: Rect2, sid: String, s: Dictionary) -> void:
+	var c: Color = s.color
+	var m := r.get_center()
+	match s.behavior:
+		"projectile":
+			draw_line(m + Vector2(-18, 14), m + Vector2(10, -10), c.darkened(0.2), 6.0, true)
+			draw_circle(m + Vector2(12, -12), 9, c)
+			draw_circle(m + Vector2(12, -12), 4, Color(1, 1, 0.9))
+		"melee_arc":
+			draw_arc(m + Vector2(-8, 10), 26, -PI * 0.9, -PI * 0.1, 16, c, 5.0, true)
+			draw_line(m + Vector2(-14, 14), m + Vector2(14, -14), Color(0.8, 0.78, 0.75), 4.0, true)
+		"nova":
+			for i in 3:
+				draw_arc(m, 8 + i * 8, 0, TAU, 24, Color(c.r, c.g, c.b, 1.0 - i * 0.25), 3.0, true)
+		"chain":
+			var pts := PackedVector2Array([m + Vector2(-20, 14), m + Vector2(-6, -2), m + Vector2(2, 8), m + Vector2(20, -16)])
+			draw_polyline(pts, c, 4.0, true)
+			for pt in pts:
+				draw_circle(pt, 3, Color.WHITE)
+		"ground":
+			draw_circle(m + Vector2(0, 8), 20, Color(c.r, c.g, c.b, 0.35))
+			for i in 5:
+				var x := -16 + i * 8
+				draw_line(m + Vector2(x + 6, -20), m + Vector2(x, 4), c, 3.0, true)
+
+func _text(f: Font, pos: Vector2, s: String, size: int, c: Color) -> void:
+	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	draw_string_outline(f, Vector2(pos.x - w / 2, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 5, Color(0, 0, 0, c.a * 0.9))
+	draw_string(f, Vector2(pos.x - w / 2, pos.y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, c)
+
+func _text_left(f: Font, pos: Vector2, s: String, size: int, c: Color) -> void:
+	draw_string_outline(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 5, Color(0, 0, 0, 0.9))
+	draw_string(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, c)
