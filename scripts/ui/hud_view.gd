@@ -39,9 +39,13 @@ func _draw() -> void:
 	var y0 := vs.y - size - 26.0
 	for i in n:
 		var sid: String = p.bar[i]
-		var s: Dictionary = SkillsDB.SKILLS[sid]
 		var r := Rect2(x0 + i * (size + gap), y0, size, size)
 		draw_rect(r, Color(0.05, 0.045, 0.06, 0.92))
+		if sid == "":
+			draw_rect(r, Color(0.3, 0.28, 0.26), false, 1.0)
+			_pad_glyph(f, Vector2(r.position.x + 13, r.position.y + 13), PlayerInput.labels()[i])
+			continue
+		var s: Dictionary = SkillsDB.SKILLS[sid]
 		_skill_icon(r, sid, s)
 		var cd: float = p.cooldowns.get(sid, 0.0)
 		if cd > 0.0:
@@ -53,6 +57,23 @@ func _draw() -> void:
 		var held: bool = p.input.skill_held[i]
 		draw_rect(r, Color(1.0, 0.82, 0.45) if held else Color(0.55, 0.4, 0.22), false, 2.0)
 		_pad_glyph(f, Vector2(r.position.x + 13, r.position.y + 13), PlayerInput.labels()[i])
+	# Spirit (Bog Shaman resource) + Special
+	if p.max_spirit() > 0.0:
+		var sx := x0 + total + 18.0
+		var sr := Rect2(sx, y0 - 4, 16, size + 8)
+		draw_rect(sr, Color(0.03, 0.05, 0.03, 0.9))
+		var fr := p.spirit / p.max_spirit()
+		draw_rect(Rect2(sx + 2, sr.end.y - 2 - (sr.size.y - 4) * fr, 12, (sr.size.y - 4) * fr), Color(0.45, 0.9, 0.35))
+		draw_rect(sr, Color(0.4, 0.6, 0.3), false, 1.5)
+		var spid: String = ClassesDB.class_def(p.class_id).get("special", "")
+		if spid != "":
+			var ready := p.spirit >= float(SkillsDB.SKILLS[spid].get("spirit_cost", 100))
+			var a := 0.6 + 0.4 * sin(_t * 5.0) if ready else 0.5
+			_text_left(f, Vector2(sx + 24, y0 + 22), SkillsDB.SKILLS[spid].name, 14, Color(0.6, 1.0, 0.5, a) if ready else Color(0.5, 0.55, 0.5, a))
+			_text_left(f, Vector2(sx + 24, y0 + 42), ("LB+RB" if PlayerInput.using_pad else "T") + "  %d / 100" % int(p.spirit), 12, Color(0.7, 0.7, 0.7))
+	if p.class_points() > 0 or p.rite_points() > 0:
+		var a2 := 0.6 + 0.4 * sin(_t * 4.0)
+		_text(f, Vector2(vs.x / 2.0, y0 - 52), "%s: %d Class, %d Rite point(s) to spend" % ["D-pad ↓" if PlayerInput.using_pad else "K", p.class_points(), p.rite_points()], 15, Color(0.6, 1.0, 0.5, a2))
 	# XP bar
 	var need := Player.xp_to_next(p.level)
 	var xw := total + 140.0
@@ -140,6 +161,27 @@ func _skill_icon(r: Rect2, sid: String, s: Dictionary) -> void:
 			draw_polyline(pts, c, 4.0, true)
 			for pt in pts:
 				draw_circle(pt, 3, Color.WHITE)
+		"raise", "grand_rite":
+			draw_circle(m + Vector2(0, -6), 10, c)
+			draw_rect(Rect2(m + Vector2(-12, 4), Vector2(24, 14)), c.darkened(0.4))
+			draw_line(m + Vector2(-16, 20), m + Vector2(16, 20), c, 3.0)
+		"curse":
+			draw_arc(m, 16, 0, TAU, 20, c, 3.0, true)
+			draw_line(m + Vector2(-11, 0), m + Vector2(11, 0), c, 3.0)
+			draw_line(m + Vector2(0, -11), m + Vector2(0, 11), c, 3.0)
+		"totem":
+			draw_rect(Rect2(m + Vector2(-8, -20), Vector2(16, 40)), Color(0.5, 0.48, 0.42))
+			draw_rect(Rect2(m + Vector2(-4, -8), Vector2(8, 8)), c)
+		"beam":
+			draw_line(m + Vector2(-20, 14), m + Vector2(18, -14), c, 4.0, true)
+			draw_circle(m + Vector2(18, -14), 6, c.lightened(0.3))
+		"eruption":
+			for k in 4:
+				draw_line(m + Vector2(-15 + k * 10, 20), m + Vector2(-12 + k * 10 + sin(k) * 4, -14 + (k % 2) * 6), c, 4.0, true)
+		"corpse_burst":
+			draw_circle(m, 12, c)
+			for k in 8:
+				draw_line(m, m + Vector2.RIGHT.rotated(k * TAU / 8.0) * 22, c.lightened(0.2), 2.0)
 		"ground":
 			draw_circle(m + Vector2(0, 8), 20, Color(c.r, c.g, c.b, 0.35))
 			for i in 5:

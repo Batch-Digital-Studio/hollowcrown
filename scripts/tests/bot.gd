@@ -29,8 +29,19 @@ func drive(p: Player, g: Game) -> void:
 		_build(g.zone)
 		_path = PackedVector2Array()
 	var inp := p.input
-	for i in 5:
+	for i in 6:
 		inp.skill_held[i] = false
+	inp.special = p.max_spirit() > 0.0 and p.spirit >= 100.0
+	_spend_class_points(p)
+	_dbg_t += dt
+	if _dbg_t > 30.0 and p.max_spirit() > 0.0:
+		_dbg_t = 0.0
+		var husks := 0
+		var totems := 0
+		for a in g.allies:
+			if a is Minion: husks += 1
+			elif a is Totem: totems += 1
+		print("BOT shaman t=%.0f lvl=%d husks=%d totems=%d spirit=%.0f corpses=%d life=%.0f/%.0f" % [_t, p.level, husks, totems, p.spirit, g.corpses.size(), p.life, p.max_life])
 	inp.dodge = false
 	inp.flask = p.life < p.max_life * 0.5
 	# target
@@ -59,15 +70,16 @@ func drive(p: Player, g: Game) -> void:
 			inp.move += to.normalized() * 0.6
 		elif dist < 150.0:
 			inp.move -= to.normalized() * 0.6
-		var phase := int(_t * 2.0) % 5
-		inp.skill_held[0] = true
-		if dist < 150.0:
+		var phase := int(_t * 2.0) % 6
+		var main := 0
+		for i in p.bar.size():
+			if p.bar[i] != "" and SkillsDB.SKILLS[p.bar[i]].behavior in ["projectile", "beam"]:
+				main = i
+				break
+		inp.skill_held[main] = true
+		inp.skill_held[phase] = true
+		if dist < 150.0 and p.class_id == "classic":
 			inp.skill_held[1] = true
-			inp.skill_held[2] = true
-		if phase == 2:
-			inp.skill_held[3] = true
-		if phase == 4:
-			inp.skill_held[4] = true
 		if p.life < p.max_life * 0.35 and randf() < 0.05:
 			inp.dodge = true
 	else:
@@ -103,3 +115,37 @@ func drive(p: Player, g: Game) -> void:
 				p.equip_from_bag(i)
 				print("BOT equipped ", it.name, " (", it.rarity, ")")
 				break
+
+
+var _node_rot := 0
+var _dbg_t := 0.0
+
+func _spend_class_points(p: Player) -> void:
+	var cdef := ClassesDB.class_def(p.class_id)
+	var branches: Array = cdef.get("branches", [])
+	if p.class_points() > 0 and not branches.is_empty():
+		for k in branches.size():
+			var bi := (_node_rot + k) % branches.size()
+			for ni in branches[bi].nodes.size():
+				if p.can_take_node(p.class_id, bi, ni):
+					p.take_node(p.class_id, bi, ni)
+					print("BOT class node ", branches[bi].nodes[ni].name)
+					_node_rot += 1
+					break
+			if p.class_points() <= 0:
+				break
+	# put every unlocked Rite on the bar
+	for r in p.unlocked_rites():
+		if not p.bar.has(r):
+			var e := p.bar.find("")
+			if e >= 0:
+				p.bar[e] = r
+				print("BOT bar ", r)
+	if p.rite_points() > 0:
+		for r in p.bar:
+			if r == "":
+				continue
+			for sp in ClassesDB.SPECS.get(r, []):
+				if p.add_spec(r, sp.id):
+					print("BOT spec ", r, "/", sp.id)
+					return

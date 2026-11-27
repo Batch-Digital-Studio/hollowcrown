@@ -18,14 +18,14 @@ var _glow: Sprite2D
 func setup(s: Dictionary, u: Actor, pos: Vector2, dir: Vector2) -> void:
 	skill = s
 	user = u
-	user_stats = u.stats
+	user_stats = u.cast_stats if u.cast_stats != null else u.stats
 	faction = u.faction
 	position = pos
-	var speed: float = s.get("speed", 600.0) * u.stats.inc_mult(["inc_projectile_speed"])
+	var speed: float = s.get("speed", 600.0) * (u.cast_stats if u.cast_stats != null else u.stats).inc_mult(["inc_projectile_speed"])
 	vel = dir * speed
 	radius = s.get("radius", 10.0)
 	max_range = s.get("range", 800.0)
-	pierce = int(u.stats.get_stat("pierce_add"))
+	pierce = int(user_stats.get_stat("pierce_add")) + int(s.get("pierce", 0))
 	color = s.color
 	z_index = 8
 
@@ -54,6 +54,12 @@ func _physics_process(delta: float) -> void:
 		hit[t] = true
 		var res := Damage.roll_hit(skill, user_stats, g.rng)
 		t.take_hit(res, user if is_instance_valid(user) else null, vel, 110.0)
+		if skill.has("splash"):
+			var sr: float = float(skill.splash) * user_stats.inc_mult(["inc_area"])
+			for o in g.targets_in_circle(faction, position, sr):
+				if o != t:
+					o.take_hit(Damage.roll_hit(skill, user_stats, g.rng), user if is_instance_valid(user) else null, o.global_position - position, 60.0)
+			FX.ring(position, sr, color, 0.3, 5.0)
 		if faction == "player":
 			FX.shake(2.0)
 		if pierce <= 0:

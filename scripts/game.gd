@@ -15,6 +15,8 @@ var light_root: Node2D
 var ambient: CanvasModulate
 var player: Player
 var enemies: Array = []
+var allies: Array = []         # player-side minions and totems
+var corpses: Array = []        # [{pos, level, life, node}]
 var packs := {}          # enemy -> pack id
 var pack_members := {}   # pack id -> Array
 var camera: Camera2D
@@ -37,6 +39,7 @@ var _clock := 0.0
 var quit_after := -1.0
 var _inv_at := -1.0
 var _tree_at := -1.0
+var _class_at := -1.0
 var _near_boss_level := 0
 
 func _ready() -> void:
@@ -44,6 +47,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	rng.randomize()
 	PlayerInput.setup_input_map()
+	if OS.get_cmdline_user_args().has("--fresh"):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 	world_layer = Node2D.new()
 	world_layer.y_sort_enabled = true
 	add_child(world_layer)
@@ -95,15 +100,24 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--totem-probe":
+			add_child(load("res://scripts/tests/totem_probe.gd").new())
 		elif a == "--pad-test":
 			add_child(load("res://scripts/tests/pad_test.gd").new())
+		elif a.begins_with("--class-at="):
+			_class_at = float(a.substr(11))
 		elif a == "--fresh":
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
 			depth = int(a.substr(8))
 	if bot:
 		hud.hide_overlays()
-		start_game(false, Art.HEROES[rng.randi() % Art.HEROES.size()])
+		var bot_class: String = OS.get_environment("HC_CLASS") if OS.get_environment("HC_CLASS") != "" else "classic"
+		for a2 in OS.get_cmdline_user_args():
+			if a2.begins_with("--class="):
+				bot_class = a2.substr(8)
+		var heroes: Array = ClassesDB.class_def(bot_class).heroes
+		start_game(false, heroes[rng.randi() % heroes.size()], bot_class)
 		if _near_boss_level > 0:
 			player.level = _near_boss_level
 			for i in 6:
@@ -123,10 +137,12 @@ func _parse_args() -> void:
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
-func start_game(continue_save: bool, hero: String = "") -> void:
+func start_game(continue_save: bool, hero: String = "", class_id: String = "classic") -> void:
+	if OS.get_environment("HC_DEBUG") != "": print("DBG start_game cont=", continue_save, " hero=", hero, " class=", class_id)
 	player = Player.new()
 	if hero != "":
 		player.hero = hero
+	player.set_class(class_id)
 	if continue_save and has_save():
 		var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 		var d = JSON.parse_string(f.get_as_text())
@@ -151,6 +167,8 @@ func build_zone() -> void:
 		if is_instance_valid(e):
 			e.queue_free()
 	enemies.clear()
+	allies.clear()
+	corpses.clear()
 	packs.clear()
 	pack_members.clear()
 	boss = null
@@ -325,6 +343,10 @@ func _on_enemy_died(a: Actor) -> void:
 	if e.has_meta("minion"):
 		mult *= 0.25
 		drops = 0
+	add_corpse(e)
+	if player and not player.dead and player.max_spirit() > 0.0 and e.global_position.distance_to(player.global_position) < 800.0:
+		var gain: float = {"normal": 2.0, "magic": 5.0, "rare": 12.0, "boss": 40.0}.get(e.rarity, 2.0)
+		player.spirit = minf(player.max_spirit(), player.spirit + gain)
 	var xp := int(round(e.def.xp * pow(1.12, e.level - 1) * mult))
 	if player and not player.dead:
 		player.gain_xp(xp)
@@ -391,7 +413,34 @@ func targets_in_circle(attacker_faction: String, pos: Vector2, r: float) -> Arra
 	else:
 		if player and not player.dead and player.global_position.distance_to(pos) <= r + player.radius:
 			out.append(player)
+		for a in allies:
+			if is_instance_valid(a) and not a.dead and a.global_position.distance_to(pos) <= r + a.radius:
+				out.append(a)
 	return out
+
+# ---------- corpses ----------
+
+func add_corpse(e: Enemy) -> void:
+	if e.is_boss() or e.has_meta("minion"):
+		return
+	corpses.append({"pos": e.global_position, "level": e.level, "life": e.max_life, "node": e})
+	while corpses.size() > 60:
+		consume_corpse(corpses[0], false)
+
+func corpses_near(pos: Vector2, r: float, n: int) -> Array:
+	var list: Array = []
+	for c in corpses:
+		if c.pos.distance_to(pos) <= r:
+			list.append(c)
+	list.sort_custom(func(a, b): return a.pos.distance_to(pos) < b.pos.distance_to(pos))
+	return list.slice(0, n)
+
+func consume_corpse(c: Dictionary, fx: bool = true) -> void:
+	corpses.erase(c)
+	if is_instance_valid(c.node):
+		c.node.queue_free()
+	if fx:
+		FX.burst(c.pos, Color(0.45, 0.4, 0.35), 12, 140.0, 7.0, 0.4)
 
 func enemies_near(pos: Vector2, r: float) -> Array:
 	var out: Array = []
@@ -418,7 +467,7 @@ func _process(delta: float) -> void:
 	_clock += delta / maxf(Engine.time_scale, 0.04)
 	var paused := get_tree().paused
 	if state == "play" and player and not player.dead and not paused:
-		var over_ui := (inv_ui.visible and inv_ui.mouse_over_panel()) or hud.passives.visible
+		var over_ui := (inv_ui.visible and inv_ui.mouse_over_panel()) or hud.passives.visible or hud.class_ui.visible
 		if bot:
 			bot.drive(player, self)
 		else:
@@ -431,11 +480,15 @@ func _process(delta: float) -> void:
 			save_game()
 	if Input.is_action_just_pressed("passives") and state == "play" and (not paused or hud.passives.visible):
 		hud.passives.toggle()
+	if Input.is_action_just_pressed("class_screen") and state == "play" and (not paused or hud.class_ui.visible):
+		hud.class_ui.toggle()
 	if Input.is_action_just_pressed("inventory") and state == "play" and not paused:
 		inv_ui.toggle()
 	if Input.is_action_just_pressed("pause") and state == "play":
 		if hud.passives.visible:
 			hud.passives.toggle()
+		elif hud.class_ui.visible:
+			hud.class_ui.toggle()
 		elif inv_ui.visible:
 			inv_ui.toggle()
 		else:
@@ -455,11 +508,13 @@ func _input(event: InputEvent) -> void:
 ## Controller in the inventory / passive tree: left stick drives a virtual cursor,
 ## A = click, X = right-click, B = close, right stick pans the tree, LB/RB zoom.
 func _pad_menus(delta: float) -> void:
-	var menu_open := inv_ui.visible or hud.passives.visible
+	var menu_open := inv_ui.visible or hud.passives.visible or hud.class_ui.visible
 	if not menu_open:
 		return
 	if Input.is_action_just_pressed("pad_close"):
-		if hud.passives.visible:
+		if hud.class_ui.visible:
+			hud.class_ui.toggle()
+		elif hud.passives.visible:
 			hud.passives.toggle()
 		else:
 			inv_ui.toggle()
@@ -497,6 +552,10 @@ func _click(button: int) -> void:
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
+	if _class_at > 0.0 and _clock >= _class_at and state == "play":
+		_class_at = -1.0
+		hud.class_ui.toggle()
+		get_viewport().warp_mouse(Vector2(1000, 230))
 	if _tree_at > 0.0 and _clock >= _tree_at and state == "play":
 		_tree_at = -1.0
 		hud.passives.toggle()

@@ -121,4 +121,14 @@ static func describe(stat: String, v: float) -> String:
 		"ignite_chance": return "%d%% chance to Ignite" % n
 		"chill_chance": return "%d%% chance to Chill" % n
 		"shock_chance": return "%d%% chance to Shock" % n
+		"poison_chance": return "%d%% chance to Poison" % n
+		"minion_max_add": return "+%d maximum husk%s" % [n, "s" if n > 1 else ""]
+		"totem_max_add": return "+%d maximum totem%s" % [n, "s" if n > 1 else ""]
+		"minion_attack_speed": return "Minions attack %d%% faster" % n
+		"minion_move": return "Minions move %d%% faster" % n
+		"minion_fire": return "Minions convert %d%% of damage to fire" % n
+		"totem_cast_speed": return "Totems cast %d%% faster" % n
+		"hex_spread": return "Hexes spread when the cursed enemy dies"
+		"husk_brute": return "Husks are twice as strong, 2 fewer maximum"
+		"husk_explode": return "Husks explode in fire when they die"
 	return "%s %s%d" % [stat, sign, n]

@@ -5,6 +5,7 @@ extends CanvasLayer
 var view: HudView
 var inventory: InventoryUI
 var passives: PassiveUI
+var class_ui: ClassUI
 var _overlay: Control
 var _title: Control
 var _vignette: TextureRect
@@ -32,6 +33,10 @@ func _ready() -> void:
 	passives.set_anchors_preset(Control.PRESET_FULL_RECT)
 	passives.visible = false
 	add_child(passives)
+	class_ui = ClassUI.new()
+	class_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	class_ui.visible = false
+	add_child(class_ui)
 	_show_title()
 
 func _make_vignette() -> Texture2D:
@@ -148,26 +153,49 @@ func _show_title() -> void:
 	box.add_child(_label(PAD_CONTROLS, 16, Color(0.55, 0.7, 0.55)))
 	_focus_first.call_deferred()
 
-const CONTROLS := "WASD move  ·  Mouse aim  ·  LMB Ember Bolt  ·  RMB Ashen Cleave\nQ Rimeburst  ·  E Stormthread  ·  R Cinderfall  ·  Space dodge  ·  1 flask\nI / Tab inventory  ·  P passive tree  ·  Esc pause"
-const PAD_CONTROLS := "Xbox: L-stick move  ·  R-stick aim (auto-targets)  ·  A/RT Ember Bolt  ·  X Cleave  ·  B Rimeburst  ·  Y Stormthread\nRB Cinderfall  ·  LT dodge  ·  LB flask  ·  View inventory  ·  D-pad ↑ tree  ·  Menu pause"
+const CONTROLS := "WASD move  ·  Mouse aim  ·  Rites on LMB, RMB, Q, E, R, F  ·  T Special\nSpace dodge  ·  1 flask  ·  I / Tab inventory  ·  P Constellation  ·  K class screen  ·  Esc pause"
+const PAD_CONTROLS := "Xbox: L-stick move  ·  R-stick aim (auto-targets)  ·  Rites on RT, A, X, B, Y, RB  ·  LB+RB Special\nLT dodge  ·  LB flask  ·  View inventory  ·  D-pad ↑ Constellation  ·  D-pad ↓ class screen  ·  Menu pause"
 
 func _start(cont: bool) -> void:
 	hide_overlays()
 	if cont:
 		Game.instance.start_game(true)
 	else:
-		_show_hero_select()
+		_show_class_select()
 
-func _show_hero_select() -> void:
+func _show_class_select() -> void:
 	var box := _centered_box()
 	(_overlay.get_child(0) as ColorRect).color = Color(0.02, 0.02, 0.03, 0.97)
-	box.add_child(_label("CHOOSE YOUR KINDLED", 48, GOLD))
-	box.add_child(_label("Appearance only. Every Kindled can walk any path of the Constellation.", 18, Color(0.7, 0.65, 0.6)))
+	box.add_child(_label("CHOOSE YOUR CLASS", 48, GOLD))
+	box.add_child(_label("Pick a second class at level 10. More classes arrive in stage B.", 18, Color(0.7, 0.65, 0.6)))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	for cid in ["shaman", "classic", "magus", "oath", "ranger"]:
+		var d: Dictionary = ClassesDB.CLASSES[cid]
+		var b := _button(d.name + ("" if d.built else "  (stage B)"), func(): _show_hero_select(cid))
+		b.custom_minimum_size = Vector2(330, 64)
+		b.disabled = not d.built
+		b.tooltip_text = d.desc
+		grid.add_child(b)
+	box.add_child(grid)
+	box.add_child(_label(ClassesDB.CLASSES.shaman.desc + "  Raise husks, plant Grim Pillars, poison and hex.", 15, Color(0.56, 0.86, 0.42)))
+	_focus_first.call_deferred()
+
+func _show_hero_select(class_id: String = "classic") -> void:
+	hide_overlays()
+	var box := _centered_box()
+	(_overlay.get_child(0) as ColorRect).color = Color(0.02, 0.02, 0.03, 0.97)
+	box.add_child(_label("CHOOSE YOUR LOOK", 48, GOLD))
+	box.add_child(_label(ClassesDB.CLASSES[class_id].name, 20, ClassesDB.CLASSES[class_id].color))
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 14)
-	for h in Art.HEROES:
+	var heroes: Array = ClassesDB.CLASSES[class_id].heroes
+	grid.columns = mini(4, heroes.size())
+	for h in heroes:
 		var card := HeroCard.new()
 		card.hero = h
 		card.custom_minimum_size = Vector2(190, 230)
@@ -182,7 +210,7 @@ func _show_hero_select() -> void:
 		card.pressed.connect(func():
 			hide_overlays()
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(Game.SAVE_PATH))
-			Game.instance.start_game(false, h))
+			Game.instance.start_game(false, h, class_id))
 		grid.add_child(card)
 	box.add_child(grid)
 	_focus_first.call_deferred()

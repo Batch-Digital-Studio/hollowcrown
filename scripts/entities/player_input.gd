@@ -5,22 +5,28 @@ extends RefCounted
 ##
 ## Xbox controller layout (Jason plays on controller; every feature must work on it):
 ##   Left stick move · Right stick aim (auto-targets nearest foe when released)
-##   A / RT Ember Bolt · X Ashen Cleave · B Rimeburst · Y Stormthread · RB Cinderfall
-##   LT dodge · LB flask · View inventory · Menu pause · D-pad Up passive tree
+##   Rite slots: RT, A, X, B, Y, RB (keyboard LMB, RMB, Q, E, R, F)
+##   LB + RB together = class Special (keyboard T) · LT dodge · LB flask
+##   View inventory · Menu pause · D-pad Up passive tree · D-pad Down class screen
 
 var move := Vector2.ZERO
 var aim := Vector2.ZERO          # world position
-var skill_held := [false, false, false, false, false]
+var skill_held := [false, false, false, false, false, false]
+var special := false
 var dodge := false
 var flask := false
-var _buffered := [0, 0, 0, 0, 0]   # msec timestamp of the last tap per skill
+var _buffered := [0, 0, 0, 0, 0, 0]
+var _lb_at := -1
+var _rb_at := -1
+var _chord_lock := false
+const CHORD_MS := 110   # msec timestamp of the last tap per skill
 const BUFFER_MS := 300
 
 static var using_pad := false    # last input came from a controller
 
-const SKILL_ACTIONS := ["skill_1", "skill_2", "skill_3", "skill_4", "skill_5"]
-const KEY_LABELS := ["LMB", "RMB", "Q", "E", "R"]
-const PAD_LABELS := ["A", "X", "B", "Y", "RB"]
+const SKILL_ACTIONS := ["skill_1", "skill_2", "skill_3", "skill_4", "skill_5", "skill_6"]
+const KEY_LABELS := ["LMB", "RMB", "Q", "E", "R", "F"]
+const PAD_LABELS := ["RT", "A", "X", "B", "Y", "RB"]
 const DEADZONE := 0.22
 
 static func setup_input_map() -> void:
@@ -33,6 +39,9 @@ static func setup_input_map() -> void:
 	_key("skill_3", [KEY_Q])
 	_key("skill_4", [KEY_E])
 	_key("skill_5", [KEY_R])
+	_key("skill_6", [KEY_F])
+	_key("special", [KEY_T])
+	_key("class_screen", [KEY_K])
 	_key("inventory", [KEY_I, KEY_TAB])
 	_key("pause", [KEY_ESCAPE])
 	_key("passives", [KEY_P])
@@ -48,14 +57,15 @@ static func setup_input_map() -> void:
 	_axis("aim_right", JOY_AXIS_RIGHT_X, 1.0)
 	_axis("aim_up", JOY_AXIS_RIGHT_Y, -1.0)
 	_axis("aim_down", JOY_AXIS_RIGHT_Y, 1.0)
-	_button("skill_1", JOY_BUTTON_A)
 	_axis("skill_1", JOY_AXIS_TRIGGER_RIGHT, 1.0)
-	_button("skill_2", JOY_BUTTON_X)
-	_button("skill_3", JOY_BUTTON_B)
-	_button("skill_4", JOY_BUTTON_Y)
-	_button("skill_5", JOY_BUTTON_RIGHT_SHOULDER)
+	_button("skill_2", JOY_BUTTON_A)
+	_button("skill_3", JOY_BUTTON_X)
+	_button("skill_4", JOY_BUTTON_B)
+	_button("skill_5", JOY_BUTTON_Y)
+	_button("pad_rb", JOY_BUTTON_RIGHT_SHOULDER)
+	_button("pad_lb", JOY_BUTTON_LEFT_SHOULDER)
 	_axis("dodge", JOY_AXIS_TRIGGER_LEFT, 1.0)
-	_button("flask", JOY_BUTTON_LEFT_SHOULDER)
+	_button("class_screen", JOY_BUTTON_DPAD_DOWN)
 	_button("inventory", JOY_BUTTON_BACK)
 	_button("pause", JOY_BUTTON_START)
 	_button("passives", JOY_BUTTON_DPAD_UP)
@@ -136,7 +146,7 @@ func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> vo
 		aim = _pad_aim(me)
 	else:
 		aim = world_mouse
-	var now := Time.get_ticks_msec()
+	var now := int(Game.instance._clock * 1000.0) if Game.instance else Time.get_ticks_msec()
 	for i in SKILL_ACTIONS.size():
 		var blocked := ui_blocking and (using_pad or i < 2)
 		if Input.is_action_just_pressed(SKILL_ACTIONS[i]) and not blocked:
@@ -145,6 +155,28 @@ func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> vo
 		skill_held[i] = (Input.is_action_pressed(SKILL_ACTIONS[i]) or buffered) and not blocked
 	dodge = Input.is_action_just_pressed("dodge")
 	flask = Input.is_action_just_pressed("flask")
+	special = Input.is_action_just_pressed("special") and not ui_blocking
+	# LB / RB: LB = flask, RB = slot 6, both together = Special.
+	if Input.is_action_just_pressed("pad_lb"):
+		_lb_at = now
+	if Input.is_action_just_pressed("pad_rb"):
+		_rb_at = now
+	var lb := Input.is_action_pressed("pad_lb")
+	var rb := Input.is_action_pressed("pad_rb")
+	if not lb and not rb:
+		_chord_lock = false
+	if not _chord_lock and _lb_at >= 0 and _rb_at >= 0 and absi(_lb_at - _rb_at) <= CHORD_MS:
+		special = not ui_blocking
+		_chord_lock = true
+		_lb_at = -1
+		_rb_at = -1
+	if not _chord_lock and _lb_at >= 0 and now - _lb_at > CHORD_MS:
+		flask = true
+		_lb_at = -1
+	if _rb_at >= 0 and now - _rb_at > CHORD_MS:
+		_rb_at = -1
+	if rb and not _chord_lock and _rb_at < 0 and not ui_blocking:
+		skill_held[5] = true
 
 ## A buffered tap was used; don't fire it twice.
 func consume(i: int) -> void:

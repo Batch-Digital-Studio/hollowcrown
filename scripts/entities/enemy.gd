@@ -68,21 +68,29 @@ func _physics_process(delta: float) -> void:
 		return
 	_anim += delta
 	var g := game()
-	var p: Player = g.player
-	if p == null or p.dead:
+	var pl: Player = g.player
+	if pl == null or pl.dead:
 		velocity = knock
 		move_and_slide()
 		queue_redraw()
 		return
-	var to_p := p.global_position - global_position
-	var dist := to_p.length()
-	if not aggro and dist > AGGRO_RANGE and life >= max_life:
+	var pdist := pl.global_position.distance_to(global_position)
+	if not aggro and pdist > AGGRO_RANGE and life >= max_life:
 		if ignite_time > 0.0 or hit_flash > 0.0:
 			queue_redraw()
 		return
-	if not aggro and (dist < AGGRO_RANGE or life < max_life):
-		aggro = true
-		g.alert_pack(self)
+	if not aggro:
+		var near_ally := false
+		for a in g.allies:
+			if is_instance_valid(a) and a.global_position.distance_to(global_position) < AGGRO_RANGE * 0.6:
+				near_ally = true
+				break
+		if pdist < AGGRO_RANGE or life < max_life or near_ally:
+			aggro = true
+			g.alert_pack(self)
+	var p: Actor = _pick_target(g, pl, delta)
+	var to_p := p.global_position - global_position
+	var dist := to_p.length()
 	var move := Vector2.ZERO
 	if aggro and busy_time <= 0.0:
 		facing = to_p.normalized()
@@ -105,14 +113,33 @@ func _physics_process(delta: float) -> void:
 	_update_visuals()
 	queue_redraw()
 
-func _ai_melee(p: Player, to_p: Vector2, dist: float) -> Vector2:
+var _target: Actor = null
+var _retarget := 0.0
+
+## Fight the player, or whichever minion/totem is much closer.
+func _pick_target(g: Game, pl: Player, delta: float) -> Actor:
+	_retarget -= delta
+	if _retarget > 0.0 and _target != null and is_instance_valid(_target) and not _target.dead:
+		return _target
+	_retarget = 0.6
+	_target = pl
+	var best := pl.global_position.distance_to(global_position) * 0.75
+	for a in g.allies:
+		if is_instance_valid(a) and not a.dead and not a.invulnerable:
+			var d: float = a.global_position.distance_to(global_position)
+			if d < best:
+				best = d
+				_target = a
+	return _target
+
+func _ai_melee(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	var sid: String = def.skills[0]
 	if dist <= def.range + p.radius:
 		SkillExec.use(sid, self, p.global_position)
 		return Vector2.ZERO
 	return to_p.normalized()
 
-func _ai_ranged(p: Player, to_p: Vector2, dist: float) -> Vector2:
+func _ai_ranged(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	var sid: String = def.skills[0]
 	if dist < def.range and game().has_line_of_sight(global_position, p.global_position):
 		SkillExec.use(sid, self, p.global_position + p.velocity * 0.25)
@@ -122,7 +149,7 @@ func _ai_ranged(p: Player, to_p: Vector2, dist: float) -> Vector2:
 		return to_p.normalized()
 	return to_p.normalized().orthogonal() * _strafe * 0.6
 
-func _ai_summoner(p: Player, to_p: Vector2, dist: float) -> Vector2:
+func _ai_summoner(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	if dist < def.range and can_use("raise_dead"):
 		SkillExec.use("raise_dead", self, p.global_position)
 		return Vector2.ZERO
@@ -132,7 +159,7 @@ func _ai_summoner(p: Player, to_p: Vector2, dist: float) -> Vector2:
 		return to_p.normalized()
 	return to_p.normalized().orthogonal() * _strafe * 0.5
 
-func _ai_boss(p: Player, to_p: Vector2, dist: float, delta: float) -> Vector2:
+func _ai_boss(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 	if _boss_phase == 1 and life < max_life * 0.5:
 		_boss_phase = 2
 		stats.add("inc_attack_speed", 30)
@@ -186,15 +213,38 @@ func die(killer: Actor) -> void:
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "rotation", (PI / 2.0) * (-1.0 if facing.x > 0 else 1.0), 0.25)
-	tw.tween_property(self, "modulate:a", 0.0, 0.6).set_delay(0.25)
-	tw.chain().tween_callback(queue_free)
+	if is_boss() or has_meta("minion"):
+		tw.tween_property(self, "modulate:a", 0.0, 0.6).set_delay(0.25)
+		tw.chain().tween_callback(queue_free)
+	else:
+		# leave a corpse for the Shaman; it fades after a while
+		tw.tween_property(self, "modulate", Color(0.55, 0.5, 0.5, 0.75), 0.4).set_delay(0.25)
+		tw.chain().tween_interval(25.0)
+		tw.chain().tween_property(self, "modulate:a", 0.0, 1.0)
+		tw.chain().tween_callback(_expire_corpse)
+	z_index = -1
+
+func _expire_corpse() -> void:
+	var g := game()
+	if g:
+		for c in g.corpses:
+			if c.node == self:
+				g.corpses.erase(c)
+				break
+	queue_free()
 
 func _draw() -> void:
+	if dead:
+		return
 	draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.38))
 	draw_circle(Vector2.ZERO, radius * 1.15, Color(0, 0, 0, 0.5))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if ignite_time > 0.0:
 		draw_arc(Vector2(0, 2), radius * 1.2, 0, TAU, 24, Color(1, 0.45, 0.1, 0.8), 2.0, true)
+	if curse_time > 0.0:
+		var cc := Color(0.7, 0.4, 0.95, 0.8)
+		draw_arc(Vector2(0, -sprite_height() - 14), 9, 0, TAU, 12, cc, 2.0, true)
+		draw_line(Vector2(-6, -sprite_height() - 14), Vector2(6, -sprite_height() - 14), cc, 2.0)
 	if rarity == "rare" or rarity == "magic":
 		var c := Color(1.0, 0.8, 0.3, 0.6) if rarity == "rare" else Color(0.45, 0.6, 1.0, 0.5)
 		draw_arc(Vector2(0, 2), radius * 1.35, _anim, _anim + PI * 1.5, 24, c, 2.0, true)

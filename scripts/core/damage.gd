@@ -110,9 +110,10 @@ static func roll_hit(skill: Dictionary, stats: StatBlock, rng: RandomNumberGener
 		"ignite": stats.get_stat("ignite_chance") + float(skill.get("ignite_chance", 0.0)),
 		"chill": stats.get_stat("chill_chance") + float(skill.get("chill_chance", 0.0)),
 		"shock": stats.get_stat("shock_chance") + float(skill.get("shock_chance", 0.0)),
+		"poison": stats.get_stat("poison_chance") + float(skill.get("poison_chance", 0.0)),
 	}
 	if crit:
-		for a in ail:
+		for a in ["ignite", "chill", "shock"]:
 			ail[a] = 100.0
 	return {"damage": out, "crit": crit, "ailments": ail}
 

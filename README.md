@@ -55,5 +55,5 @@ Taps are buffered for 0.3 s, so pressing a skill during another cast still fires
 - Tests:
   - `godot --headless --path . -s res://scripts/tests/test_damage.gd`
   - `godot --headless --path . res://scenes/test_items.tscn`
-  - Controller test: `godot --headless --path . --fixed-fps 60 -- --fresh --pad-test`
+  - Controller test: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --pad-test`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

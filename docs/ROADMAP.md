@@ -27,3 +27,11 @@
 
 ## Milestone 3+
 - More zones/acts, uniques, crafting, endgame loop
+
+## Stage A — Class framework + Bog Shaman (done 2026-11-26)
+- [x] Class select, 6-slot bar, Class / Rite / Ember points from level, respec free until 20
+- [x] Class screen (K / D-pad Down): 3-branch class tree, Rite specializations, bar assignment
+- [x] Bog Shaman: Spirit resource, Grand Rite Special (LB+RB / T), 10 Rites, 24-node class tree, spec trees
+- [x] Systems: permanent minions, Grim Pillar totems, poison stacks + chaos resistance, curses, roots, ward aura, corpses
+- [x] Dual-class hook at level 10 (activates when stage B classes exist)
+- [ ] Balance pass from Jason's playtesting (Shaman vs boss especially)

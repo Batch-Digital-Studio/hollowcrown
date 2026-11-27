@@ -16,11 +16,11 @@ var _ember_t := 0.0
 func setup(s: Dictionary, u: Actor, pos: Vector2) -> void:
 	skill = s
 	user = u
-	user_stats = u.stats
+	user_stats = u.cast_stats if u.cast_stats != null else u.stats
 	faction = u.faction
 	position = pos
-	radius = float(s.radius) * u.stats.inc_mult(["inc_area"])
-	duration = float(s.duration) * u.stats.inc_mult(["inc_duration"])
+	radius = float(s.radius) * user_stats.inc_mult(["inc_area"])
+	duration = float(s.duration) * user_stats.inc_mult(["inc_duration"])
 	tick = float(s.tick)
 	z_index = 1
 

@@ -29,6 +29,23 @@ var hit_flash := 0.0
 var facing := Vector2.RIGHT
 var busy_time := 0.0   # time until the actor can act again (attack/cast animation lock)
 var cooldowns := {}
+var cast_stats: StatBlock      # stats used for the Rite being cast (base stats + that Rite's specialization)
+
+# Poison / curse / root / ward
+var poisons: Array = []        # [[dps, time_left], ...]
+var curse_time := 0.0
+var curse_taken := 0.0         # extra damage taken while cursed (fraction)
+var curse_dot := 0.0           # chaos damage per second
+var curse_spread := false
+var curse_src: Actor = null
+var root_time := 0.0
+var ward_time := 0.0
+var ward_reduction := 0.0
+var ward_regen := 0.0
+var _poison_fx := 0.0
+const POISON_DURATION := 2.0
+const POISON_RATIO := 0.3      # of physical + chaos hit, per second
+const MAX_POISON := 40
 
 const CHILL_SLOW := 0.3
 const SHOCK_TAKEN := 1.25
@@ -46,6 +63,8 @@ func move_speed() -> float:
 	var m := stats.inc_mult(["inc_move_speed"])
 	if is_chilled():
 		m *= 1.0 - CHILL_SLOW
+	if root_time > 0.0:
+		m *= 0.15
 	return base * m
 
 func action_speed(kind: String) -> float:
@@ -59,7 +78,25 @@ func use_time(skill: Dictionary) -> float:
 	return float(skill.time) / action_speed(skill.get("kind", "spell"))
 
 func damage_taken_mult() -> float:
-	return SHOCK_TAKEN if shock_time > 0.0 else 1.0
+	var m := SHOCK_TAKEN if shock_time > 0.0 else 1.0
+	if curse_time > 0.0:
+		m *= 1.0 + curse_taken
+	if ward_time > 0.0:
+		m *= 1.0 - ward_reduction
+	return m
+
+func poison_dps() -> float:
+	var t := 0.0
+	for p in poisons:
+		t += p[0]
+	return t
+
+func apply_curse(src: Actor, taken: float, dot: float, duration: float, spread: bool) -> void:
+	curse_src = src
+	curse_taken = maxf(curse_taken if curse_time > 0.0 else 0.0, taken)
+	curse_dot = maxf(curse_dot if curse_time > 0.0 else 0.0, dot)
+	curse_time = maxf(curse_time, duration)
+	curse_spread = curse_spread or spread
 
 ## Apply a rolled hit. Returns life actually lost.
 func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO, knock_force: float = 0.0) -> float:
@@ -85,6 +122,13 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 		chill_time = 2.0
 	if dmg.get("lightning", 0.0) > 0.0 and rng.randf() * 100.0 < ail.get("shock", 0.0):
 		shock_time = 4.0
+	var pc: float = dmg.get("physical", 0.0) + dmg.get("chaos", 0.0)
+	if pc > 0.0 and rng.randf() * 100.0 < ail.get("poison", 0.0):
+		var inc := 1.0 + (source.stats.get_stat("inc_poison_damage") if source else 0.0) / 100.0
+		var resist := 1.0 - minf(stats.get_stat("res_chaos"), Damage.RES_CAP) / 100.0
+		if poisons.size() >= MAX_POISON:
+			poisons.pop_front()
+		poisons.append([pc * POISON_RATIO * inc * resist, POISON_DURATION])
 	# Leech / life on hit for the attacker
 	if source and not source.dead:
 		var gain := source.stats.get_stat("life_on_hit") + amount * source.stats.get_stat("life_leech") / 100.0
@@ -125,6 +169,11 @@ func die(_killer: Actor) -> void:
 	if dead:
 		return
 	dead = true
+	if curse_spread and curse_time > 0.0 and game():
+		for t in game().targets_in_circle("player" if faction != "player" else "enemy", global_position, 200.0):
+			if t != self and t.curse_time <= 0.0:
+				t.apply_curse(curse_src, curse_taken, curse_dot, 4.0, true)
+				FX.ring(t.global_position, 40.0, Color(0.7, 0.4, 0.95), 0.4)
 	died.emit(self)
 
 func tick_common(delta: float) -> void:
@@ -153,6 +202,27 @@ func tick_common(delta: float) -> void:
 	if regen > 0.0 and not dead:
 		heal(regen * delta)
 	knock = knock.move_toward(Vector2.ZERO, 2200.0 * delta)
+	root_time = maxf(0.0, root_time - delta)
+	if ward_time > 0.0:
+		ward_time -= delta
+		heal(max_life * ward_regen / 100.0 * delta)
+	if not poisons.is_empty():
+		var dps := 0.0
+		for i in range(poisons.size() - 1, -1, -1):
+			dps += poisons[i][0]
+			poisons[i][1] -= delta
+			if poisons[i][1] <= 0.0:
+				poisons.remove_at(i)
+		take_dot(dps * delta)
+		_poison_fx -= delta
+		if _poison_fx <= 0.0:
+			_poison_fx = 0.5
+			FX.burst(global_position + Vector2(0, -radius), Color(0.5, 0.95, 0.3), 3, 50.0, 5.0, 0.5)
+			if faction != "player":
+				FX.number(global_position, dps * 0.5, Color(0.55, 0.95, 0.35), false)
+	if curse_time > 0.0:
+		curse_time -= delta
+		take_dot(curse_dot * max_life * delta * 0.25 + curse_dot * 20.0 * delta)
 
 ## Tint for status, used by subclasses when drawing.
 func status_tint(base: Color) -> Color:
@@ -161,6 +231,8 @@ func status_tint(base: Color) -> Color:
 		c = c.lerp(Color(0.55, 0.85, 1.0), 0.45)
 	if shock_time > 0.0:
 		c = c.lerp(Color(1.0, 0.95, 0.5), 0.25)
+	if not poisons.is_empty():
+		c = c.lerp(Color(0.5, 0.95, 0.35), 0.3)
 	if hit_flash > 0.0:
 		c = c.lerp(Color.WHITE, clampf(0.55 * 16.0 / radius, 0.15, 0.6))
 	return c

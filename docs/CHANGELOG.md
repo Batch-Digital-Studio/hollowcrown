@@ -25,3 +25,11 @@
 - Button glyphs switch automatically between keyboard and controller; rumble feedback.
 - Input buffering (0.3 s) so tapped skills aren't dropped mid-cast. Shatter now needs a second press.
 - Automated controller test (`--pad-test`): 14 checks, all passing.
+
+## 2026-11-26: Stage A — class framework and the Bog Shaman
+- Class select at New Kindled (Bog Shaman, or Kindled classic). Classic characters and old saves keep working.
+- Bog Shaman: Raise Husk, Bone Spear, Venom Spit, Hex of Rot, Plague Cloud, Spirit Totem, Soul Siphon, Swampcall, Corpse Burst, Ancestral Ward; Grand Rite Special.
+- New systems: minions that follow/leash/fight, enemies that target minions and totems, corpses, Spirit, poison stacks, chaos res, curses, roots, ward totems.
+- 6-slot skill bar (RT A X B Y RB / LMB RMB Q E R F), LB+RB Special chord, buffered Special.
+- Fixed: husks and totems spawned with 1 life (a shadowed variable). Input timing now uses game time.
+- Controller test now covers the Shaman flow; run it with --seed=3 for a deterministic map.

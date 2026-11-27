@@ -145,10 +145,10 @@ static func _name_item(it: Item, rng: RandomNumberGenerator) -> void:
 			var b: Array = ItemsDB.RARE_B[it.slot_group()]
 			it.name = ItemsDB.RARE_A[rng.randi() % ItemsDB.RARE_A.size()] + " " + b[rng.randi() % b.size()]
 
-static func starter_weapon() -> Item:
+static func starter_weapon(base_id: String = "rusted_blade") -> Item:
 	var it := Item.new()
-	it.base_id = "rusted_blade"
+	it.base_id = base_id
 	it.rarity = "normal"
 	it.ilvl = 1
-	it.name = "Rusted Blade"
+	it.name = ItemsDB.BASES[base_id].name
 	return it

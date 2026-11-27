@@ -11,6 +11,17 @@ const DODGE_CD := 0.85
 
 var input := PlayerInput.new()
 var bar: Array = SkillsDB.PLAYER_BAR.duplicate()
+
+# ---- class system ----
+var class_id := "classic"
+var class2_id := ""              # second class (dual-class, level 10)
+var class_nodes := {}            # "class_id/branch:index" -> true
+var rite_specs := {}             # "skill_id/spec_id" -> ranks
+var spirit := 0.0
+var _special_buffer := 0.0
+var _spec_cache := {}
+const DUAL_CLASS_LEVEL := 10
+const FREE_RESPEC_LEVEL := 20
 var equipment := {}
 var passives := {"start": true}
 var inventory: Array = []
@@ -40,7 +51,7 @@ func _ready() -> void:
 	add_child(shape)
 	_build_visuals()
 	if equipment.is_empty():
-		equipment["weapon"] = Loot.starter_weapon()
+		equipment["weapon"] = Loot.starter_weapon(ClassesDB.class_def(class_id).get("starter_weapon", "rusted_blade"))
 	recalc_stats(true)
 
 func build_stats(eq: Dictionary) -> StatBlock:
@@ -58,7 +69,145 @@ func build_stats(eq: Dictionary) -> StatBlock:
 	for id in passives:
 		if tree.has(id):
 			s.add_mods(tree[id].stats)
+	s.add_mods(ClassesDB.class_def(class_id).get("base", {}))
+	for key in class_nodes:
+		var parts: PackedStringArray = key.split("/")
+		var n := ClassesDB.node(parts[0], parts[1])
+		if not n.is_empty():
+			s.add_mods(n.stats)
 	return s
+
+# ---------- classes ----------
+
+func classes() -> Array:
+	return [class_id] if class2_id == "" else [class_id, class2_id]
+
+func max_spirit() -> float:
+	for c in classes():
+		if ClassesDB.class_def(c).get("resource", "") == "spirit":
+			return 100.0
+	return 0.0
+
+func class_points() -> int:
+	return (level - 1) - class_nodes.size()
+
+func rite_points() -> int:
+	var used := 0
+	for k in rite_specs:
+		used += int(rite_specs[k])
+	return (level - 1) - used
+
+func can_respec() -> bool:
+	return level < FREE_RESPEC_LEVEL
+
+## Rites you can put on the bar: starting Rites of your classes + Rites unlocked in class trees.
+func unlocked_rites() -> Array:
+	var out: Array = []
+	for c in classes():
+		for r in ClassesDB.class_def(c).get("starting_rites", []):
+			if not out.has(r):
+				out.append(r)
+	for key in class_nodes:
+		var parts: PackedStringArray = key.split("/")
+		var n := ClassesDB.node(parts[0], parts[1])
+		if n.get("type", "") == "rite" and not out.has(n.rite):
+			out.append(n.rite)
+	return out
+
+func node_taken(c: String, b: int, i: int) -> bool:
+	return class_nodes.has("%s/%d:%d" % [c, b, i])
+
+func can_take_node(c: String, b: int, i: int) -> bool:
+	if class_points() <= 0 or node_taken(c, b, i) or not classes().has(c):
+		return false
+	return i == 0 or node_taken(c, b, i - 1)
+
+func take_node(c: String, b: int, i: int) -> bool:
+	if not can_take_node(c, b, i):
+		return false
+	class_nodes["%s/%d:%d" % [c, b, i]] = true
+	_after_build_change()
+	return true
+
+func refund_node(c: String, b: int, i: int) -> bool:
+	if not can_respec() or not node_taken(c, b, i) or node_taken(c, b, i + 1):
+		return false
+	var n := ClassesDB.node(c, "%d:%d" % [b, i])
+	class_nodes.erase("%s/%d:%d" % [c, b, i])
+	if n.get("type", "") == "rite":
+		var idx := bar.find(n.rite)
+		if idx >= 0:
+			bar[idx] = ""
+	_after_build_change()
+	return true
+
+func spec_rank(skill_id: String, spec_id: String) -> int:
+	return int(rite_specs.get("%s/%s" % [skill_id, spec_id], 0))
+
+func add_spec(skill_id: String, spec_id: String) -> bool:
+	var specs: Array = ClassesDB.SPECS.get(skill_id, [])
+	for sp in specs:
+		if sp.id == spec_id and spec_rank(skill_id, spec_id) < int(sp.max) and rite_points() > 0:
+			rite_specs["%s/%s" % [skill_id, spec_id]] = spec_rank(skill_id, spec_id) + 1
+			_after_build_change()
+			return true
+	return false
+
+func remove_spec(skill_id: String, spec_id: String) -> bool:
+	if not can_respec() or spec_rank(skill_id, spec_id) <= 0:
+		return false
+	var k := "%s/%s" % [skill_id, spec_id]
+	rite_specs[k] = spec_rank(skill_id, spec_id) - 1
+	if rite_specs[k] <= 0:
+		rite_specs.erase(k)
+	_after_build_change()
+	return true
+
+func choose_second_class(c: String) -> bool:
+	if level < DUAL_CLASS_LEVEL or class2_id != "" or c == class_id or not ClassesDB.class_def(c).get("built", false):
+		return false
+	class2_id = c
+	_after_build_change()
+	return true
+
+func _after_build_change() -> void:
+	_spec_cache.clear()
+	recalc_stats()
+	inventory_changed.emit()
+
+## Skill definition with this player's Rite specializations folded in.
+func skill_def(skill_id: String) -> Dictionary:
+	var base: Dictionary = SkillsDB.SKILLS[skill_id]
+	var specs: Array = ClassesDB.SPECS.get(skill_id, [])
+	if specs.is_empty():
+		return base
+	var s := base.duplicate()
+	for sp in specs:
+		var r := spec_rank(skill_id, sp.id)
+		if r > 0 and sp.has("skill"):
+			for k in sp.skill:
+				s[k] = float(s.get(k, 0.0)) + float(sp.skill[k]) * r
+	return s
+
+## Stats used when casting this Rite: character stats plus that Rite's specialization.
+func stats_for(skill_id: String) -> StatBlock:
+	if _spec_cache.has(skill_id):
+		return _spec_cache[skill_id]
+	var specs: Array = ClassesDB.SPECS.get(skill_id, [])
+	var st := stats
+	var extra := StatBlock.new()
+	var any := false
+	for sp in specs:
+		var r := spec_rank(skill_id, sp.id)
+		if r > 0 and sp.has("stats"):
+			for k in sp.stats:
+				for i in r:
+					extra.add(k, float(sp.stats[k]))
+			any = true
+	if any:
+		st = stats.merged_with(extra)
+	_spec_cache[skill_id] = st
+	return st
 
 func passive_points() -> int:
 	return (level - 1) - (passives.size() - 1)
@@ -117,12 +266,16 @@ func summary(eq: Dictionary) -> Dictionary:
 	}
 	var rng := RandomNumberGenerator.new()
 	for sid in bar:
-		var sk: Dictionary = SkillsDB.SKILLS[sid]
+		if sid == "":
+			continue
+		var sk: Dictionary = skill_def(sid)
+		if sk.get("base_damage", {}).is_empty() or not ["projectile", "melee_arc", "nova", "chain", "ground", "beam", "eruption"].has(sk.behavior):
+			continue
 		rng.seed = 12345
 		var total := 0.0
 		var n := 120
 		for i in n:
-			total += Damage.total(Damage.roll_hit(sk, s, rng).damage)
+			total += Damage.total(Damage.roll_hit(sk, s.merged_with(_spec_extra(sid)), rng).damage)
 		var avg := total / n
 		var speed := s.inc_mult(["inc_attack_speed" if sk.kind == "attack" else "inc_cast_speed"])
 		var period := maxf(float(sk.time) / speed, float(sk.get("cooldown", 0.0)))
@@ -134,6 +287,16 @@ func summary(eq: Dictionary) -> Dictionary:
 			out[sk.name + " DPS"] = avg / period
 	return out
 
+func _spec_extra(skill_id: String) -> StatBlock:
+	var extra := StatBlock.new()
+	for sp in ClassesDB.SPECS.get(skill_id, []):
+		var r := spec_rank(skill_id, sp.id)
+		if r > 0 and sp.has("stats"):
+			for k in sp.stats:
+				for i in r:
+					extra.add(k, float(sp.stats[k]))
+	return extra
+
 static func xp_to_next(lvl: int) -> int:
 	return int(round(70.0 * pow(lvl, 1.55)))
 
@@ -141,6 +304,7 @@ func recalc_stats(refill: bool = false) -> void:
 	var life_frac := life / max_life if max_life > 0.0 else 1.0
 	var mana_frac := mana / max_mana if max_mana > 0.0 else 1.0
 	stats = build_stats(equipment)
+	_spec_cache.clear()
 	max_life = calc_max_life(stats)
 	max_mana = maxf(0.0, stats.get_stat("mana_flat"))
 	if refill:
@@ -162,7 +326,10 @@ func gain_xp(amount: int) -> void:
 		FX.sound("levelup", null, 0.0, 0.0)
 		FX.rumble(0.4, 0.2, 0.35)
 		if game() and game().hud:
-			game().hud.show_message("LEVEL %d" % level, "+1 Ember Point · press P to open the Constellation")
+			var sub := "+1 Ember Point, +1 Class Point, +1 Rite Point"
+			if level == DUAL_CLASS_LEVEL and class_id != "classic":
+				sub = "Dual-class unlocked: choose a second class in the class screen"
+			game().hud.show_message("LEVEL %d" % level, sub)
 		leveled_up.emit(level)
 
 func add_flask_charge(amount: float) -> void:
@@ -210,8 +377,18 @@ func _physics_process(delta: float) -> void:
 		FX.ring(global_position, 70.0, Color(1.0, 0.3, 0.35), 0.35)
 		FX.burst(global_position, Color(1.0, 0.3, 0.35), 18, 160.0, 7.0, 0.5)
 	# Skills (hold to repeat). Lower index wins when several are held.
+	var sp: String = ClassesDB.class_def(class_id).get("special", "")
+	if input.special and sp != "":
+		if spirit < float(SkillsDB.SKILLS[sp].get("spirit_cost", 0)):
+			FX.text(global_position, "Need %d Spirit" % int(SkillsDB.SKILLS[sp].get("spirit_cost", 0)), Color(0.6, 0.9, 0.5), 16)
+		else:
+			_special_buffer = 0.5   # fire as soon as the current cast ends
+	if _special_buffer > 0.0:
+		_special_buffer -= delta
+		if SkillExec.use(sp, self, input.aim):
+			_special_buffer = 0.0
 	for i in bar.size():
-		if input.skill_held[i]:
+		if bar[i] != "" and input.skill_held[i]:
 			if SkillExec.use(bar[i], self, input.aim):
 				input.consume(i)
 				break
@@ -332,32 +509,57 @@ func _on_hit_fx(dmg: Dictionary, amount: float, crit: bool) -> void:
 
 func to_save() -> Dictionary:
 	var eq := {}
-	for s in equipment:
-		if equipment[s]:
-			eq[s] = equipment[s].to_dict()
+	for sl in equipment:
+		if equipment[sl]:
+			eq[sl] = equipment[sl].to_dict()
 	var inv: Array = []
 	for it in inventory:
 		inv.append(it.to_dict() if it else null)
-	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero}
+	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero,
+		"class": class_id, "class2": class2_id, "class_nodes": class_nodes.keys(), "rite_specs": rite_specs, "bar": bar,
+		"spirit": spirit}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
 	hero = d.get("hero", "knight_m")
+	class_id = d.get("class", "classic")
+	class2_id = d.get("class2", "")
+	class_nodes = {}
+	for k in d.get("class_nodes", []):
+		class_nodes[k] = true
+	rite_specs = {}
+	var rs: Dictionary = d.get("rite_specs", {})
+	for k in rs:
+		rite_specs[k] = int(rs[k])
+	var b: Array = d.get("bar", [])
+	if b.size() > 0:
+		bar = b.duplicate()
+	while bar.size() < SkillsDB.BAR_SIZE:
+		bar.append("")
+	spirit = float(d.get("spirit", 0.0))
 	passives = {"start": true}
 	for id in d.get("passives", []):
 		if PassivesDB.nodes().has(id):
 			passives[id] = true
 	equipment.clear()
-	var eq: Dictionary = d.get("equipment", {})
-	for s in eq:
-		equipment[s] = Item.from_dict(eq[s])
+	var eqd: Dictionary = d.get("equipment", {})
+	for sl in eqd:
+		equipment[sl] = Item.from_dict(eqd[sl])
 	inventory.clear()
 	inventory.resize(INV_SIZE)
 	var inv: Array = d.get("inventory", [])
 	for i in mini(inv.size(), INV_SIZE):
 		if inv[i] != null:
 			inventory[i] = Item.from_dict(inv[i])
+
+## New character of a class: starting Rites on the bar.
+func set_class(c: String) -> void:
+	class_id = c
+	var start: Array = ClassesDB.class_def(c).get("starting_rites", [])
+	bar = []
+	for i in SkillsDB.BAR_SIZE:
+		bar.append(start[i] if i < start.size() else "")
 
 func add_to_inventory(it: Item) -> bool:
 	for i in INV_SIZE:
