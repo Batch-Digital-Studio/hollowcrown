@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollowcrown design guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a game designer's bible: confident, specific, playable.
+   IDEA: the Ember Constellation itself: four classes as stars around a burning crown.
+   PICTURE: the dual-class crown diagram; every edge is a hybrid class.
+   COLOUR and TYPE: night stone ground, ember orange lead, bone text, rift violet accent; Pixelify Sans + Inter.
+   LAYOUT: title band with the crown, sticky tab row, one tab per system, cards in calm grids. */
+:root{color-scheme:dark;--bg:#120f16;--panel:#1b1720;--panel2:#231d29;--line:#3a3040;--ink:#ece4d8;--dim:#a99f95;--ember:#ff6a2b;--gold:#ffc861;--rift:#a97bff;--frost:#7cc8ff;--venom:#8fdc6a}
+:root[data-theme=light]{color-scheme:light;--bg:#f4efe7;--panel:#fffaf2;--panel2:#f1e8db;--line:#d9cbb8;--ink:#211a16;--dim:#6b5f55;--ember:#c8410e;--gold:#9a6a00;--rift:#6a3fd0;--frost:#1a6fb0;--venom:#3c8a1c}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Pixelify Sans",Inter,sans-serif;line-height:1.08;text-wrap:balance;margin:0 0 .4em}
+h1{font-size:clamp(34px,5vw,52px);color:var(--gold)}
+h2{font-size:clamp(26px,3vw,34px);color:var(--gold);margin-top:.2em}
+h3{font-size:21px;color:var(--ink)}
+p{margin:.3em 0 .8em;max-width:70ch}
+.band{padding:clamp(24px,4vw,56px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:32px;align-items:center;background:radial-gradient(ellipse at 70% 50%,#2a1710 0%,var(--bg) 65%)}
+:root[data-theme=light] .hero{background:radial-gradient(ellipse at 70% 50%,#fde2c8 0%,var(--bg) 65%)}
+.hero .lede{font-size:17px;color:var(--dim)}
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px}
+.fact b{color:var(--ember);font-size:18px;margin-right:4px}
+.crown{width:100%;height:auto;display:block}
+nav{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-block:1px solid var(--line)}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px max(5vw,16px);max-width:1240px;margin:0 auto}
+.tabs a{flex:none;color:var(--dim);text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:600;font-size:15px;min-height:44px;display:flex;align-items:center}
+.tabs a[aria-current=page]{background:var(--panel2);color:var(--gold)}
+.tabs a:focus-visible{outline:2px solid var(--gold)}
+section[data-tab]{display:none}section[data-tab].on{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.card h3 small{display:block;font-family:Inter;font-size:13px;color:var(--dim);font-weight:400;margin-top:4px}
+.tag{display:inline-block;font-size:12.5px;padding:2px 8px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);margin:2px 4px 2px 0;color:var(--dim)}
+.k{color:var(--ember);font-weight:600}
+ul{padding-left:1.1em;margin:.3em 0}li{margin:.25em 0}
+.cls{border-top:4px solid var(--c)}
+#classGrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,480px),1fr))}
+.big{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600}
+.scroll{overflow-x:auto}
+.note{border-left:3px solid var(--rift);background:var(--panel);padding:10px 14px;border-radius:4px;margin:12px 0;font-size:15px}
+.warn{border-left-color:var(--ember)}
+.filter{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
+.filter button{font:600 14px Inter;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:10px 16px;min-height:44px;cursor:pointer}
+.filter button[aria-pressed=true]{background:var(--ember);color:#160a04;border-color:var(--ember)}
+.filter button:focus-visible{outline:2px solid var(--gold)}
+.pad{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:10px}
+.btn{display:inline-grid;place-items:center;min-width:34px;height:28px;padding:0 6px;border-radius:14px;font-weight:700;font-size:13px;color:#fff;background:#444;margin-right:8px}
+.A{background:#3a9a33}.B{background:#c9302a}.X{background:#2f62c9}.Y{background:#c9a41f;color:#1b1400}
+footer{color:var(--dim);font-size:14px}
+@media(max-width:860px){.hero,.big{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--dim)}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:no-preference){.pulse{animation:p 3s ease-in-out infinite}@keyframes p{50%{opacity:.55}}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="band hero">
+  <div>
+    <h1>Hollowcrown: classes, trees and the hunt</h1>
+    <p class="lede">Four classes, any two of which can be combined. Twelve ascensions. Forty Rites, each with its own specialization tree. One shared Ember Constellation every class draws from. Five league-style mechanics to hunt in the depths.</p>
+    <p>A draft for Jason to mark up before any of it is built. Names are placeholders; anything here can change.</p>
+    <div class="facts">
+      <span class="fact"><b>4</b>classes</span><span class="fact"><b>6</b>dual-class hybrids</span><span class="fact"><b>12</b>ascensions</span><span class="fact"><b>40</b>Rites</span><span class="fact"><b>~150</b>shared passives</span><span class="fact"><b>5</b>mechanics</span>
+    </div>
+  </div>
+  <svg class="crown" viewBox="0 0 560 440" role="img" aria-label="Four classes at the corners of a diamond around the Ember Constellation; each connecting edge names the dual-class hybrid.">
+    <defs>
+      <radialGradient id="core"><stop offset="0" stop-color="#ffd27a"/><stop offset=".45" stop-color="#ff6a2b"/><stop offset="1" stop-color="#ff6a2b" stop-opacity="0"/></radialGradient>
+      <radialGradient id="star"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    </defs>
+    <g stroke="#5a4660" stroke-width="2" fill="none">
+      <path d="M280 52 L496 220 L280 388 L64 220 Z"/>
+      <path d="M280 52 L280 388 M64 220 L496 220" stroke-dasharray="4 6"/>
+    </g>
+    <circle cx="280" cy="220" r="92" fill="url(#core)" class="pulse"/>
+    <path d="M238 222 l10 -30 l14 18 l18 -26 l18 26 l14 -18 l10 30 z" fill="none" stroke="#2a1306" stroke-width="5" stroke-linejoin="round"/>
+    <text x="280" y="258" text-anchor="middle" font-family="Pixelify Sans" font-size="15" fill="#2a1306">Ember Constellation</text>
+    <g font-family="Pixelify Sans" font-size="13" fill="#c9b8d6" text-anchor="middle">
+      <text x="372" y="124">Spellblade</text><text x="380" y="322">Starshot</text>
+      <text x="170" y="124">Dread Knight</text><text x="178" y="322">Bogstalker</text>
+      <text x="298" y="335" transform="rotate(90 298 335)">Vanguard</text>
+      <text x="420" y="212">Ashwitch</text>
+    </g>
+    <g font-family="Pixelify Sans" text-anchor="middle">
+      <circle cx="280" cy="52" r="26" fill="#2a1d14" stroke="#ff6a2b" stroke-width="3"/><text x="280" y="20" font-size="18" fill="#ffc861">Oathsworn</text><text x="280" y="58" font-size="13" fill="#ff9b6a">Knight</text>
+      <circle cx="496" cy="220" r="26" fill="#161c2a" stroke="#7cc8ff" stroke-width="3"/><text x="496" y="270" font-size="18" fill="#ffc861">Ember Magus</text><text x="496" y="226" font-size="13" fill="#9bd4ff">Wizard</text>
+      <circle cx="280" cy="388" r="26" fill="#1a2214" stroke="#cfe27a" stroke-width="3"/><text x="280" y="434" font-size="18" fill="#ffc861">Hollow Ranger</text><text x="280" y="394" font-size="13" fill="#d8ea9a">Elf</text>
+      <circle cx="64" cy="220" r="26" fill="#151f18" stroke="#8fdc6a" stroke-width="3"/><text x="64" y="270" font-size="18" fill="#ffc861">Bog Shaman</text><text x="64" y="226" font-size="13" fill="#b4ec96">Lizard</text>
+    </g>
+  </svg>
+</header>
+
+<nav aria-label="Guide sections"><div class="tabs" id="tabs"></div></nav>
+
+<main class="band"><div class="wrap">
+
+<section data-tab="overview">
+  <h2>How it all fits together</h2>
+  <div class="big">
+    <div class="card"><h3>Progression per character</h3>
+      <ul>
+        <li><span class="k">Level cap 60</span> for now (raise it as content grows).</li>
+        <li>Every level: <span class="k">1 Class Point</span> (class skill trees) and <span class="k">1 Ember Point</span> (shared Constellation).</li>
+        <li><span class="k">Level 10:</span> choose a second class. You get its skill tree and Rites. Class Points are shared between both trees.</li>
+        <li><span class="k">Ascension Trials</span> at Depths 5, 10, 15, 20 each give 2 Ascension Points (8 total). You pick one ascension of your <i>first</i> class at the first trial.</li>
+        <li><span class="k">Rites level up by use</span> (1 to 20). Each level is a point in that Rite's own specialization tree.</li>
+        <li><span class="k">Specials:</span> each class has an ultimate, charged by its resource. Press LB + RB together (a short chord window stops the flask and slot 6 from also firing).</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Defenses and stats</h3>
+      <ul>
+        <li><span class="k">Armour</span> (Oathsworn): reduces physical hits; weak against big hits (already built).</li>
+        <li><span class="k">Evasion</span> (Ranger): chance to avoid a hit entirely; entropy-based so it can't streak.</li>
+        <li><span class="k">Ember Ward</span> (Magus): a recharging shield on top of life.</li>
+        <li><span class="k">Spirit Barrier</span> (Shaman): damage shared with your minions and totems.</li>
+        <li>Resistances: fire, cold, lightning, and new <span class="k">chaos</span> (for poison and rift damage). Cap 75%.</li>
+        <li>No attribute points. Gear requirements use level only, so any class can wear anything.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">The five Rites already in the game move into classes: Ashen Cleave goes to the Oathsworn; Ember Bolt, Rimeburst, Stormthread and Cinderfall go to the Ember Magus. Existing characters keep working during the transition.</div>
+</section>
+
+<section data-tab="classes"><h2>The four classes</h2><p>Each class has a resource that changes how you play, a Special, a three-branch skill tree and ten Rites. The hero sprite you pick at character creation is your first class.</p><div class="grid" id="classGrid"></div>
+  <h2 style="margin-top:32px">Dual-class hybrids</h2><p>At level 10 you add a second class. Your first class sets your look and your ascension; the second adds its tree and Rites.</p><div class="grid" id="dualGrid"></div></section>
+
+<section data-tab="ascensions"><h2>Ascensions</h2><p>Three per class. Each has six notables; you earn enough points for four, so no two ascended characters need to look alike.</p><div class="filter" id="ascFilter" role="group" aria-label="Filter by class"></div><div class="grid" id="ascGrid"></div></section>
+
+<section data-tab="skills"><h2>Rites (skills)</h2><p>Forty Rites. Six can be on the bar at once (RT, A, X, B, Y, RB). Every Rite levels up as you use it and has its own specialization tree; three worked examples are at the bottom.</p><div class="filter" id="skillFilter" role="group" aria-label="Filter by class"></div>
+  <div class="scroll"><table class="stack" id="skillTable"><thead><tr><th>Rite</th><th>Class · branch</th><th>Tags</th><th>What it does</th></tr></thead><tbody></tbody></table></div>
+  <h2 style="margin-top:32px">Rite specialization trees</h2><p>Each Rite has about 12 modifier nodes and gains up to 20 points from use. Five Rites can be specialized at once; swapping one out keeps its progress.</p><div class="grid" id="specGrid"></div></section>
+
+<section data-tab="constellation"><h2>The Ember Constellation (shared tree)</h2>
+  <p>One tree of about 150 nodes that every class uses. Each class enters at its own star on the outer ring; dual-classing adds a second entry star. Eight regions, each with a <span class="k">Mastery</span> node where you pick one of three effects, plus <span class="k">keystones</span> that rewrite how you play. Six Ember Sockets hold jewels (Hollow Embers) in a later stage.</p>
+  <div class="grid" id="regionGrid"></div>
+  <h2 style="margin-top:32px">Keystones</h2><div class="grid" id="keyGrid"></div></section>
+
+<section data-tab="mechanics"><h2>Mechanics in the depths</h2><p>Original twists on the league mechanics you love. Each zone rolls which ones appear; Writs reward you for engaging with them.</p><div class="grid" id="mechGrid"></div></section>
+
+<section data-tab="crafting"><h2>Currency and crafting</h2><p>Shattering items now gives crafting dust instead of nothing. Currencies drop from monsters, Reliquaries, Writs and the Peddler.</p>
+  <div class="scroll"><table class="stack" id="curTable"><thead><tr><th>Currency</th><th>Effect</th><th>Where it comes from</th></tr></thead><tbody></tbody></table></div></section>
+
+<section data-tab="controller"><h2>Xbox controller layout</h2><p>Everything here must work on the pad; that rule is now in the project's instructions.</p><div class="pad" id="padGrid"></div>
+  <div class="note">D-pad Left and Right swap between two loadouts (weapon plus six Rites), for example a boss setup and a clearing setup.</div></section>
+
+<section data-tab="plan"><h2>Build plan</h2><p>Staged so the game stays playable after every stage. Session counts are my estimates, not promises.</p>
+  <div class="scroll"><table class="stack" id="planTable"><thead><tr><th>Stage</th><th>What gets built</th><th>Sessions</th></tr></thead><tbody></tbody></table></div>
+  <div class="note warn"><b>Art gaps in the pixel pack</b> (no bird, wolf, totem or bow-draw animations): Spirit Hawk is drawn as a glowing spirit in code, the wolf companion becomes a bog beast (the pack's swampy sprite), totems use the pack's stone columns (literal Grim Pillars), and rift monsters are violet-tinted versions of existing demons.</div></section>
+
+<section data-tab="questions"><h2>Questions for you</h2><div class="grid" id="qGrid"></div></section>
+
+<footer style="margin-top:40px">Hollowcrown design guide, draft 1, 26 Nov 2026. Lives in the repo at docs/design_guide.html.</footer>
+</div></main>
+
+<script>
+{
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TABS=[["overview","Overview"],["classes","Classes"],["ascensions","Ascensions"],["skills","Rites"],["constellation","Constellation"],["mechanics","Mechanics"],["crafting","Crafting"],["controller","Controller"],["plan","Build plan"],["questions","Questions"]];
+const CLASSES=[
+ {id:"oath",name:"Oathsworn",sprite:"Knight",c:"#ff6a2b",role:"Melee, shields, fire-blessed steel. Tanks for the party.",res:"Resolve (0 to 100). Gained when you are hit, block, or land melee hits. Decays out of combat. Spent by Oath Rites.",special:"Oathbreaker: spend full Resolve to become an ember colossus for 10 s. Bigger, unstoppable, every swing sends a fire wave.",branches:["Bulwark: block, armour, retaliation","Crusade: melee damage, attack speed, area","Oaths: warcries, banners, fire on attacks"],def:"Armour + block"},
+ {id:"magus",name:"Ember Magus",sprite:"Wizard",c:"#7cc8ff",role:"Elemental spellcaster. Fire, cold and lightning in one kit.",res:"Kindling (0 to 5 charges). Each spell cast adds one. Spender Rites consume all charges for an amplified version (Ember Bolt at 5 becomes a Pyre Lance).",special:"Cataclysm: channel for 6 s while meteors, ice and lightning rain around you.",branches:["Pyre: fire and ignite","Rime: cold, chill and freeze","Storm: lightning, shock and crit"],def:"Ember Ward (recharging shield)"},
+ {id:"ranger",name:"Hollow Ranger",sprite:"Elf",c:"#cfe27a",role:"Bows, traps, speed. Kites and controls the fight.",res:"Focus (0 to 100). Builds while moving and on hits. At full, your next Rite is Empowered: guaranteed crit and pierces everything.",special:"Hunter's Moon: for 8 s you act at double speed while the world moves at half.",branches:["Marksman: projectiles and crit","Wildcraft: traps, poison, nature","Wind: mobility and evasion"],def:"Evasion"},
+ {id:"shaman",name:"Bog Shaman",sprite:"Lizardfolk",c:"#8fdc6a",role:"Minions, totems, poison and curses. Lets the swamp do the work.",res:"Spirit. Drawn from corpses near you. Spent to empower minions and plant totems.",special:"Grand Rite: every corpse on screen rises as a temporary horde for 15 s.",branches:["Grave: minions","Rot: poison, chaos, curses","Totem: totems and wards"],def:"Spirit Barrier (share damage with minions)"}];
+const DUALS=[["Spellblade","Oathsworn + Ember Magus","Fire-soaked melee. Blink into a pack, Cleave, Rimeburst to freeze what's left."],["Vanguard","Oathsworn + Hollow Ranger","Shield in one hand, bow in the other: hold a chokepoint with Caltrops and Bastion."],["Dread Knight","Oathsworn + Bog Shaman","A knight at the head of a husk army, Hex of Rot on everything he hits."],["Starshot","Ember Magus + Hollow Ranger","Elemental arrows. Spell damage and projectile nodes both scale your shots."],["Ashwitch","Ember Magus + Bog Shaman","Curses and elements; Spirit Totems that cast your spells for you."],["Bogstalker","Hollow Ranger + Bog Shaman","Poison traps, a bog beast at your side, and plague on every arrow."]];
+const ASC=[
+ ["oath","Ashguard","The wall the party stands behind.",["Unbreakable: block cap +15%; each block restores 2% life","Ember Retaliation: blocking releases a fire nova (1 s cooldown)","Shieldwall: allies within 6 m take 12% less damage","Last Stand: below 30% life take 40% less damage for 4 s (30 s cooldown)","Stoneblood: gain armour equal to 3x your Resolve","Taunting Presence: Oath of Embers taunts and grants Resolve per enemy"]],
+ ["oath","Pyre Templar","Every swing a sermon of fire.",["Kindled Steel: 50% of attack physical damage converted to fire","Searing Faith: ignites spread to 2 enemies when the target dies","Pyre of Judgment: Judgment Brand leaves burning ground","Martyr's Flame: gain Resolve when ignited enemies die","Holy Brand: ignites deal 30% more to branded enemies","Solar Oath: Oathbreaker lasts 4 s longer and burns everything near you"]],
+ ["oath","Warlord","A general without a king. Best in co-op.",["Raise the Banner: place 2 banners","Sworn Squires: 2 spectral knights fight at your side","Rallying Cry: warcries give allies 20% attack speed","Commander's Will: allies' kills grant you Resolve","Iron Discipline: buffs you place last 50% longer","Shared Oath: Oathbreaker also empowers allies in range"]],
+ ["magus","Pyromancer","Fire that never goes out.",["Everburn: ignites stack up to 3 times","Ashfall Mastery: Cinderfall follows you; +1 active field","Combustion: burning enemies explode for 10% of their life on death","Fire Within: immune to ignite, +30% fire resistance","Wildfire Heart: Ember Bolt always ignites at 5 Kindling","Inferno Crown: Cataclysm meteors leave burning ground"]],
+ ["magus","Rimeweaver","Freeze it, then break it.",["Absolute Zero: chilled enemies below 30% life freeze","Shatter: frozen enemies explode into ice shards on death","Rime Mantle: ice armour, +50% armour, chills attackers","Glacial Echo: Frost Lance fires twice","Winter's Grasp: chill effect +50%","Still Air: frozen enemies take 25% more damage"]],
+ ["magus","Stormcaller","Crits, chains and chaos.",["Overcharge: crits apply double-strength shock","Branching Fate: chains +2","Static Field: an aura zaps a nearby enemy every 0.5 s","Thunderstep: Blink leaves a Ball Lightning behind","Conduit: damage to shocked enemies arcs to one neighbour","Eye of the Storm: +25% crit chance with 3+ enemies near you"]],
+ ["ranger","Deadeye","One shot, many problems.",["Far Shot: projectiles deal up to 40% more with distance travelled","Forking Shafts: projectiles fork once","Marked for Death: hawk-marked enemies take +25% crit chance","Steady Aim: stand still 1 s for +30% damage","Quiver of Ash: +1 projectile","Perfect Focus: Empowered shots return to you"]],
+ ["ranger","Trapwright","The floor is the weapon.",["Trap Throwing: throw traps at range, +1 per throw","Chain Detonation: traps set off other traps","Rigged: traps deal 40% more to rares and bosses","Cluster Caltrops: Caltrops slow by 40%","Quick Hands: trap cooldowns 30% shorter","Smoke Bombs: triggered traps release Smoke Veil"]],
+ ["ranger","Thornwarden","The wood fights with you.",["Bog Beast: a permanent beast companion","Thorned Arrows: attacks have 30% poison chance","Rooted: Thornvine Arrow roots for 2 s","Nature's Gift: companions heal you 1% per hit","Hawk Fury: Spirit Hawk attacks twice as often","Overgrowth: poisoned enemies are slowed 20%"]],
+ ["shaman","Gravebinder","An army that remembers dying.",["Legion: +3 max husks","Bone Armour: 2% less damage taken per minion, up to 20%","Corpse Pact: minions explode on death for 8% of their life","Ember Bones: minions deal fire damage","Undying Will: each minion revives once after 4 s","Lord of the Grave: Grand Rite horde stays until you leave the zone (max 10)"]],
+ ["shaman","Plaguebringer","Rot is patient. So are you.",["Virulence: unlimited poison stacks","Rotting Touch: Hex of Rot spreads when the target dies","Pandemic: Plague Cloud follows you","Toxic Blood: enemies that hit you are poisoned","Chaos Bloom: chaos damage ignores 30% of resistance","Withering: +1% damage taken per poison stack, up to 20%"]],
+ ["shaman","Totem Sage","The Grim Pillars stand again.",["Grim Pillars: +2 max totems","Totem Link: Spirit Totem casts two linked Rites","Ancestral Ward: 15% less damage taken while near a totem","Deep Roots: totems are invulnerable for 3 s after placing","Spirit Conduit: totem kills give Spirit","Pillar of the Crown: allies between totems deal 20% more damage"]]];
+const SK=[
+ ["Ashen Cleave","oath","Crusade","Attack, melee, area","Wide weapon swing. Already in the game."],["Shield Rush","oath","Bulwark","Attack, movement","Charge to a target, stun on impact, gain Resolve."],["Earthsplitter","oath","Crusade","Attack, slam, area","Slam that opens a fissure line ahead of you."],["Oath of Embers","oath","Oaths","Warcry, fire","Shout: allies gain added fire damage, nearby enemies are taunted."],["Bastion","oath","Bulwark","Stance, block","Hold to raise your shield: big block chance, reflect projectiles."],["Judgment Brand","oath","Oaths","Attack, fire","Brand an enemy; the third hit on it detonates the brand."],["Chain Hook","oath","Crusade","Attack, projectile","Hook an enemy and drag it to you."],["Banner of the Last King","oath","Oaths","Banner, aura","Plant a banner: allies in its area gain damage and Resolve."],["Sunder","oath","Crusade","Attack, melee","Spender: consume Resolve for a crushing overhead that breaks armour."],["Iron Will","oath","Bulwark","Buff","Spender: convert Resolve into a temporary life shield."],
+ ["Ember Bolt","magus","Pyre","Spell, projectile, fire","Bolt that ignites. Already in the game; at 5 Kindling becomes a Pyre Lance."],["Rimeburst","magus","Rime","Spell, area, cold","Cold nova that chills. Already in the game."],["Stormthread","magus","Storm","Spell, chain, lightning","Chain lightning. Already in the game."],["Cinderfall","magus","Pyre","Spell, area, duration, fire","Burning ash rain at a target spot. Already in the game."],["Frost Lance","magus","Rime","Spell, projectile, cold","Piercing ice shard; shatters frozen enemies."],["Blink","magus","Storm","Spell, movement","Short teleport toward your aim, leaves an ember behind."],["Flame Wall","magus","Pyre","Spell, wall, fire","Wall of fire; projectiles fired through it gain fire damage."],["Glacial Prison","magus","Rime","Spell, cold","Freeze one target solid for 3 s. Bosses are slowed instead."],["Ball Lightning","magus","Storm","Spell, projectile, lightning","Slow orb that zaps everything it passes."],["Pyre Lance","magus","Pyre","Spell, spender, fire","Spender: beam that scales with Kindling consumed."],
+ ["Split Shot","ranger","Marksman","Attack, projectile, bow","Fire a spread of arrows."],["Rain of Ash","ranger","Marksman","Attack, area, bow","Arrows fall in a target area."],["Pinning Shot","ranger","Marksman","Attack, channel, bow","Hold to charge; release a piercing shot that pins."],["Thornvine Arrow","ranger","Wildcraft","Attack, poison, bow","Arrow that poisons and bursts into vines."],["Caltrops","ranger","Wildcraft","Trap, area","Toss a field of spikes that bleeds and slows."],["Vault Shot","ranger","Wind","Attack, movement, bow","Backflip away while firing."],["Spirit Hawk","ranger","Wildcraft","Companion","A hawk spirit that marks and harries targets."],["Smoke Veil","ranger","Wind","Area, buff","Cloud: you and allies inside gain evasion and stealth."],["Explosive Bolt","ranger","Marksman","Attack, fire, bow","Spender: Focus-powered bolt that explodes in an area."],["Windrunner","ranger","Wind","Buff, movement","Spender: burst of speed; your next three shots fire twice."],
+ ["Raise Husk","shaman","Grave","Minion","Raise up to 4 husks from corpses (or from the ground with Spirit)."],["Bone Spear","shaman","Grave","Spell, projectile","Piercing bone shard; kills leave corpses."],["Venom Spit","shaman","Rot","Spell, projectile, chaos","Poison glob that splashes on impact."],["Hex of Rot","shaman","Rot","Curse","Cursed enemies take more damage and rot over time."],["Plague Cloud","shaman","Rot","Spell, area, chaos","Lingering cloud of chaos damage."],["Spirit Totem","shaman","Totem","Totem","Plant a stone pillar that casts a linked Rite for you."],["Soul Siphon","shaman","Rot","Spell, channel","Beam that drains life to you."],["Swampcall","shaman","Totem","Spell, area","Tentacles burst from the ground and grab foes."],["Corpse Burst","shaman","Grave","Spell, area","Spender: detonate a corpse for area damage."],["Ancestral Ward","shaman","Totem","Totem, buff","Totem that shields allies near it."]];
+const SPEC=[["Ember Bolt",["Twin Embers: +1 projectile, 10% less damage","Seeking: bolts curve toward enemies","Cinder Trail: bolts leave burning ground","Ricochet: bounce to 1 more enemy","Cold Ember: 50% converted to cold","Overheat: costs 50% more, deals 40% more","Ignition: +40% ignite chance","Pyre Lance mastery: lance pierces walls"]],["Ashen Cleave",["Whirling Cleave: 360 degrees, 20% less damage","Sundering: hits break 10% armour","Blood Arc: leech 2% of damage as life","Ember Edge: adds fire damage","Aftershock: a second cleave 0.3 s later at 50%","Executioner: +50% damage to enemies below 30% life"]],["Raise Husk",["Ash Husks: minions explode in fire on death","Brutes: 2 fewer husks, each twice as strong","Bone Archers: husks attack from range","Frenzy: minions +30% attack speed","Shared Pain: minions take 20% of the damage you take","Grave Speed: minions +40% movement"]]];
+const REG=[["Pyre","Fire damage, ignite, burning ground","Mastery: ignite duration, burning ground, or fire penetration"],["Rime","Cold damage, chill and freeze","Mastery: freeze duration, chill effect, or cold shields"],["Storm","Lightning, shock, crit","Mastery: chains, shock effect, or crit multiplier"],["Steel","Physical, melee, armour, block","Mastery: block, area, or armour from shields"],["Wind","Projectiles, evasion, speed","Mastery: projectile count, evasion, or movement"],["Venom","Chaos, poison, curses","Mastery: poison stacks, curse effect, or chaos resistance"],["Grave","Minions and totems","Mastery: minion count, totem duration, or minion life"],["Heart","Life, ward, resistances, flasks, utility","Mastery: flask charges, life regen, or all resistances"]];
+const KEY=[["Kiln-Born","Your cold damage becomes fire. Built."],["Stormcaller's Oath","Chains +2 and frequent shocks, but all damage is lower. Built."],["Blood Rite","Attacks leech and hit harder; less max life. Built."],["Hollow Heart","Spells deal far more damage; your resistances drop. Built."],["Echo of the Crown","Spells cast twice; 25% less cast speed."],["Ashen Avatar","You can't regenerate life. 40% of life becomes a fast-recharging Ember Ward."],["Wildfire","Ignites spread to everything nearby when the target dies. Burning damage can't leech. (A nod to Project Wildfire.)"],["Pack Leader","+2 max minions and totems; your own hits deal 30% less."],["Unbroken Vow","You can't be crit, and you can't crit."],["Tide of Venom","Poison stacks without limit; your hits deal 40% less."],["Fleetfoot Pact","Each 1% movement speed above base gives 1% more damage; 20% less life."],["Shared Flame","Your auras, banners and buffs affect allies at 150%. Built for co-op."]];
+const MECH=[
+ ["Hollow Rifts","Breach-inspired. Your pick.",["A Rift Seal (a cracked hand of the Hollow King) appears in about 35% of zones.","Touch it and a violet rift opens and spreads. Inside, the world inverts and rift monsters pour out.","Kills widen the rift; idle and it shrinks. It collapses after 60 s or when it closes.","Rift monsters drop Rift Splinters. 100 Splinters make a Rift Heart, which opens the Rift Lord's arena.","Rift-only rewards: Hollowbound rings with rift mods, and rift uniques.","Co-op: the rift grows faster with each player."]],
+ ["The Ashen Peddler","A wandering merchant.",["Appears at a shrine in about 25% of zones.","Sells six items rolled two levels above the zone; restock for Ember Shards.","Buys your unwanted gear, which now gives a choice beyond shattering.","Sometimes carries one unique or a rare currency."]],
+ ["Reliquaries","Strongbox-inspired.",["Two or three per zone, each showing up to four modifiers before you open it.","Ambushed: guardian waves. Gilded: +2 rares. Volatile: explodes after 3 s, run. Cursed: guardians are rare. Echoing: opens twice. Arcane: jewellery only.","More modifiers mean a harder fight and better loot."]],
+ ["Bound Embers","Essence-inspired.",["Monsters trapped in burning crystal. Free one and it fights with an empowered modifier.","Killing it drops an Essence: use it on an item to craft a rare with a guaranteed modifier.","Four tiers: Whispering, Smouldering, Blazing, Searing; around eight Essence types."]],
+ ["Writs of the Hollow King","Bounty-inspired.",["Each zone has one Writ: slay three rares, survive the rift for 45 s, clear 80% of the zone, kill the boss without a flask, and so on.","Rewards: Ember Shards, crafting currency, sometimes a guaranteed unique.","Gives every zone a goal beyond walking to the boss."]]];
+const CUR=[["Ember Shards","Gold. Buy from the Peddler, respec passives.","Everywhere"],["Kindling Shard","Reroll a magic item's affixes.","Common drop"],["Coal of Ascension","Upgrade a normal item to rare.","Uncommon drop, Writs"],["Ash Salt","Remove a random affix.","Shattering rares"],["Hollow Ember","Add a random affix to a rare.","Rare drop, Reliquaries"],["Crown Fragment","Reroll the values of an item's affixes.","Bosses, Writs"],["Essences","Craft a rare with a guaranteed affix type.","Bound Embers"],["Rift Splinters / Rift Heart","100 splinters make a Heart that opens the Rift Lord.","Hollow Rifts"],["Ash dust","Shatter items to collect dust; spend it on rerolls at the Peddler.","Shattering"]];
+const PAD=[["RT","Rite slot 1 (main)"],["A","Rite slot 2"],["X","Rite slot 3"],["B","Rite slot 4"],["Y","Rite slot 5"],["RB","Rite slot 6"],["LB + RB","Class Special"],["LT","Dodge"],["LB","Flask"],["Left stick","Move (cursor in menus)"],["Right stick","Aim; auto-targets when released"],["D-pad Up","Ember Constellation"],["D-pad Down","Class skill trees and ascension"],["D-pad Left / Right","Swap loadout"],["View","Inventory"],["Menu","Pause"]];
+const PLAN=[["A. Class framework","Classes, resources, Specials, class skill tree screen, dual-class at 10. The current five Rites move into their classes.","2 to 3"],["B. Rites","The other 35 Rites, Rite levels and specialization trees, bows and traps, minions and totems.","3 to 4"],["C. Ascensions","Ascension Trials every 5 depths; all 12 ascensions.","2"],["D. Constellation v2","About 150 nodes, 8 regions, masteries, 12 keystones, class entry stars.","1 to 2"],["E. Hollow Rifts","Rift Seal, spreading rift with world inversion, rift monsters, Splinters, Rift Lord.","1 to 2"],["F. Economy","Currencies, crafting, Peddler, Reliquaries, Bound Embers, Writs.","2 to 3"],["G. Co-op","Host-authoritative multiplayer for 1 to 4 players.","3+"]];
+const Q=[["Names","Oathsworn, Ember Magus, Hollow Ranger and Bog Shaman are placeholders. Want to name them from your own world?"],["Which class first?","Stage A is fastest if I fully build one class first. Which would you play first?"],["Dual-class timing","Level 10, or after beating the first Ashen Regent?"],["Respec cost","Free respecs (experiment freely) or Ember Shard cost (choices matter)?"],["More mechanics later?","You skipped Blood Altars and Ember Fog for now. Keep them on the list for a later batch?"],["Rite levels","Rites level from use (Last Epoch style). Or should Rite points come from character level instead?"]];
+
+const byId=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
+document.getElementById('tabs').innerHTML=TABS.map(([h,l])=>`<a href="#${h}">${l}</a>`).join('');
+document.getElementById('classGrid').innerHTML=CLASSES.map(c=>`<article class="card cls" style="--c:${c.c}"><h3>${c.name}<small>${c.sprite} · ${c.def}</small></h3><p>${c.role}</p><p><span class="k">Resource.</span> ${c.res}</p><p><span class="k">Special.</span> ${c.special}</p><p><span class="k">Skill tree branches</span></p><ul>${c.branches.map(b=>`<li>${b}</li>`).join('')}</ul><p><span class="k">Ascensions:</span> ${ASC.filter(a=>a[0]==c.id).map(a=>a[1]).join(', ')}</p></article>`).join('');
+document.getElementById('dualGrid').innerHTML=DUALS.map(d=>`<article class="card"><h3>${d[0]}<small>${d[1]}</small></h3><p>${d[2]}</p></article>`).join('');
+const filt=(id,on)=>{const el=document.getElementById(id);el.innerHTML=[["all","All"],...CLASSES.map(c=>[c.id,c.name])].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${v=='all'}">${l}</button>`).join('');el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;for(const x of el.children)x.setAttribute('aria-pressed',x===b);on(b.dataset.v)})};
+const drawAsc=v=>{document.getElementById('ascGrid').innerHTML=ASC.filter(a=>v=='all'||a[0]==v).map(a=>`<article class="card cls" style="--c:${byId[a[0]].c}"><h3>${a[1]}<small>${byId[a[0]].name} · ${a[2]}</small></h3><ul>${a[3].map(n=>{const i=n.indexOf(':');return `<li><span class="k">${n.slice(0,i)}</span>${n.slice(i)}</li>`}).join('')}</ul></article>`).join('')};
+const drawSk=v=>{document.querySelector('#skillTable tbody').innerHTML=SK.filter(s=>v=='all'||s[1]==v).map(s=>`<tr><td><b>${s[0]}</b></td><td>${byId[s[1]].name} · ${s[2]}</td><td>${s[3].split(', ').map(t=>`<span class="tag">${t}</span>`).join('')}</td><td>${s[4]}</td></tr>`).join('')};
+filt('ascFilter',drawAsc);filt('skillFilter',drawSk);drawAsc('all');drawSk('all');
+document.getElementById('specGrid').innerHTML=SPEC.map(s=>`<article class="card"><h3>${s[0]}</h3><ul>${s[1].map(n=>{const i=n.indexOf(':');return `<li><span class="k">${n.slice(0,i)}</span>${n.slice(i)}</li>`}).join('')}</ul></article>`).join('');
+document.getElementById('regionGrid').innerHTML=REG.map(r=>`<article class="card"><h3>${r[0]}</h3><p>${r[1]}</p><p style="color:var(--dim)">${r[2]}</p></article>`).join('');
+document.getElementById('keyGrid').innerHTML=KEY.map(k=>`<article class="card"><h3>${k[0]}</h3><p>${k[1]}</p></article>`).join('');
+document.getElementById('mechGrid').innerHTML=MECH.map(m=>`<article class="card"><h3>${m[0]}<small>${m[1]}</small></h3><ul>${m[2].map(x=>`<li>${x}</li>`).join('')}</ul></article>`).join('');
+document.querySelector('#curTable tbody').innerHTML=CUR.map(c=>`<tr><td><b>${c[0]}</b></td><td>${c[1]}</td><td>${c[2]}</td></tr>`).join('');
+const btn=b=>b.split(/( \+ | \/ )/).map(p=>/^[ABXY]$/.test(p)?`<span class="btn ${p}">${p}</span>`:(/^\s/.test(p)?'':`<span class="btn">${esc(p)}</span>`)).join('');
+document.getElementById('padGrid').innerHTML=PAD.map(p=>`<div class="card" style="padding:12px 14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px">${btn(p[0])}<span>${p[1]}</span></div>`).join('');
+document.querySelector('#planTable tbody').innerHTML=PLAN.map(p=>`<tr><td><b>${p[0]}</b></td><td>${p[1]}</td><td style="white-space:nowrap">${p[2]}</td></tr>`).join('');
+document.getElementById('qGrid').innerHTML=Q.map(q=>`<article class="card"><h3>${q[0]}</h3><p>${q[1]}</p></article>`).join('');
+const show=()=>{const h=(location.hash||'#overview').slice(1);const t=TABS.some(x=>x[0]==h)?h:'overview';for(const s of document.querySelectorAll('section[data-tab]'))s.classList.toggle('on',s.dataset.tab==t);for(const a of document.querySelectorAll('#tabs a'))a.toggleAttribute('aria-current',a.getAttribute('href')=='#'+t),a.getAttribute('href')=='#'+t&&a.setAttribute('aria-current','page')};
+window.addEventListener('hashchange',show);show();
+}
+</script>
+</body>
+</html>
