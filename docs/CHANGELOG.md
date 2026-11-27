@@ -74,3 +74,12 @@
 - `SkillExec.use` now calls `_behave()` for the actual Rite so it can be repeated (Echo of the Crown).
 - Tests: probe now 25 checks incl. keystones and Mastery switching; pad test 33 checks incl. allocating from the class star and switching a Mastery with A.
 - Not verified on Jason's PC or a real controller.
+
+## 2026-11-27 — Stage H: Blood Altars, Ember Fog, respec costs, loadouts
+- Blood Altar and Ember Fog as described in ROADMAP. New currency: Tribute.
+- Respecs now cost Ember Shards from level 20 (replaces the "coming soon" message).
+- Loadout swap on D-pad Left/Right and X; saved.
+- README controls and feature list rewritten for the current game.
+- Tuning from bot runs: lower Tribute payouts; early Fogborn mostly normal rarity, fewer and weaker.
+- Test flags: `--altar`, `--fog`, `--altar-now`, `--fog-now`. Pad test now 35 checks incl. loadout swap.
+- Not verified on Jason's PC or a real controller.

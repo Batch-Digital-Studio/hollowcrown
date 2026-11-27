@@ -75,10 +75,10 @@ func _input(event: InputEvent) -> void:
 		match h.kind:
 			"asc_node":
 				if not p.refund_asc(h.i) and p.asc_nodes.has(h.i):
-					FX.text(p.global_position, "Respecs cost Ember Shards after level 20 (coming soon)", Color(1, 0.6, 0.4), 16)
+					FX.text(p.global_position, "Respec needs %d Ember Shards" % p.respec_cost(), Color(1, 0.6, 0.4), 16)
 			"node":
 				if not p.refund_node(h.cls, h.b, h.i) and not p.can_respec():
-					FX.text(p.global_position, "Respecs cost Ember Shards after level 20 (coming soon)", Color(1, 0.6, 0.4), 16)
+					FX.text(p.global_position, "Respec needs %d Ember Shards" % p.respec_cost(), Color(1, 0.6, 0.4), 16)
 			"spec":
 				p.remove_spec(h.skill, h.spec)
 			"slot":
@@ -105,7 +105,7 @@ func _draw() -> void:
 	var gold := Color(1.0, 0.82, 0.45)
 	_txt(f, Vector2(40, 48), "CLASS  ·  " + String(cdef.name).to_upper(), 28, gold)
 	var info := "Class Points %d    ·    Rite Points %d    ·    Ascension Points %d    ·    %s" % [p.class_points(), p.rite_points(), p.asc_points(),
-		"Respecs free until level %d" % Player.FREE_RESPEC_LEVEL if p.can_respec() else "Respecs need Ember Shards"]
+		("Respecs free until level %d" % Player.FREE_RESPEC_LEVEL) if p.respec_cost() == 0 else ("Respec: %d Ember Shards per point" % p.respec_cost())]
 	_txt(f, Vector2(40, 78), info, 16, Color(0.95, 0.75, 0.45) if p.class_points() + p.rite_points() > 0 else Color(0.65, 0.62, 0.6))
 	var help := "A take / add / select   ·   X refund   ·   B close" if PlayerInput.using_pad else "Click take / add / select   ·   Right-click refund   ·   K / Esc close"
 	_txt(f, Vector2(vs.x - 40 - f.get_string_size(help, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x, 48), help, 15, Color(0.6, 0.58, 0.55))

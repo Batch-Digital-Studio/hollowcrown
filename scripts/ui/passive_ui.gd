@@ -77,6 +77,8 @@ func _input(event: InputEvent) -> void:
 			if p.refund(_hover):
 				FX.sound("hit", null, -10.0)
 				Game.instance.inv_ui.refresh()
+			elif p.passives.has(_hover) and not p.can_respec():
+				FX.text(p.global_position, "Respec needs %d Ember Shards" % p.respec_cost(), Color(1, 0.6, 0.4), 16)
 	elif event is InputEventMouseMotion and _drag:
 		offset += event.relative
 		_drag_moved += event.relative.length()
@@ -151,7 +153,7 @@ func _draw() -> void:
 	var title := "THE EMBER CONSTELLATION"
 	var tw2 := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 	draw_string(f, Vector2(vs.x / 2 - tw2 / 2, 50), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.82, 0.45))
-	var sub := ("Ember Points: %d     ·     A allocate  ·  X refund  ·  Right stick pan  ·  LB/RB zoom  ·  B close" if PlayerInput.using_pad else "Ember Points: %d     ·     Click to allocate  ·  Right-click to refund  ·  Drag to pan  ·  Wheel to zoom  ·  P / Esc to close") % pts_left
+	var sub := ("Ember Points: %d" + ("" if p.respec_cost() == 0 else ("  ·  refund %d shards" % p.respec_cost())) + "     ·     A allocate  ·  X refund  ·  Right stick pan  ·  LB/RB zoom  ·  B close" if PlayerInput.using_pad else "Ember Points: %d" + ("" if p.respec_cost() == 0 else ("  ·  refund %d shards" % p.respec_cost())) + "     ·     Click to allocate  ·  Right-click to refund  ·  Drag to pan  ·  Wheel to zoom  ·  P / Esc to close") % pts_left
 	var tw3 := f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	draw_string(f, Vector2(vs.x / 2 - tw3 / 2, 78), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.75, 0.45) if pts_left > 0 else Color(0.6, 0.58, 0.55))
 	# live stat deltas since opening

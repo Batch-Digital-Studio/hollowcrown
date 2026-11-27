@@ -74,3 +74,10 @@
 - [x] Old saves: v1 passive ids are dropped and their points refunded automatically
 - [ ] Ember Sockets (jewels) - later
 - [ ] Shared Flame is "50% stronger buffs on you" until co-op exists
+
+## Stage H — Blood Altars, Ember Fog, respec costs, loadouts (done 2026-11-27)
+- [x] Blood Altars (~30% of zones): three waves of risen monsters from this zone's kills, Tribute, three offerings bought by standing on them
+- [x] Ember Fog (~25% of zones): Fog Lantern, 45 s of Fogborn that scale with fog depth, Fog Cache scaled by fog kills, better drops inside the fog
+- [x] Respecs cost 4 x level Ember Shards per point from level 20 (class tree, Rite specs, Ascension, Constellation)
+- [x] Two loadouts (weapon + six Rites) on D-pad Left/Right, X key
+- [ ] Peddler is in every zone (the design guide said ~25%); kept for convenience, Jason to decide

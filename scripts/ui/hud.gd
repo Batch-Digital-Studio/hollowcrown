@@ -153,8 +153,8 @@ func _show_title() -> void:
 	box.add_child(_label(PAD_CONTROLS, 16, Color(0.55, 0.7, 0.55)))
 	_focus_first.call_deferred()
 
-const CONTROLS := "WASD move  ·  Mouse aim  ·  Rites on LMB, RMB, Q, E, R, F  ·  T Special\nSpace dodge  ·  1 flask  ·  I / Tab inventory  ·  P Constellation  ·  K class screen  ·  Esc pause"
-const PAD_CONTROLS := "Xbox: L-stick move  ·  R-stick aim (auto-targets)  ·  Rites on RT, A, X, B, Y, RB  ·  LB+RB Special\nLT dodge  ·  LB flask  ·  View inventory  ·  D-pad ↑ Constellation  ·  D-pad ↓ class screen  ·  Menu pause"
+const CONTROLS := "WASD move  ·  Mouse aim  ·  Rites on LMB, RMB, Q, E, R, F  ·  T Special\nSpace dodge  ·  1 flask  ·  X loadout  ·  I / Tab inventory  ·  P Constellation  ·  K class screen  ·  Esc pause"
+const PAD_CONTROLS := "Xbox: L-stick move  ·  R-stick aim (auto-targets)  ·  Rites on RT, A, X, B, Y, RB  ·  LB+RB Special\nLT dodge  ·  LB flask  ·  View inventory  ·  D-pad ↑ Constellation  ·  D-pad ↓ class screen  ·  D-pad ←/→ loadout  ·  Menu pause"
 
 func _start(cont: bool) -> void:
 	hide_overlays()

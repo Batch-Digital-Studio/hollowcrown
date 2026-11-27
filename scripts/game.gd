@@ -44,6 +44,8 @@ var _heart_at := -1.0
 var peddler: Peddler = null
 var _asc_arg := ""          # test: "<ascendancy>:<n1,n2,...>" sets trials + notables
 var writ: Writ = null
+var fog: EmberFog = null
+var recent_kills: Array = []   # type ids killed in this zone (Blood Altars raise them)
 var pad_cursor := Vector2(800, 450)   # virtual cursor for menus on a controller
 var _rift_log := 0.0
 var _near_boss_level := 0
@@ -256,6 +258,16 @@ func build_zone() -> void:
 		var ts := Trial.Seal.new()
 		ts.position = _open_spot(6.0)
 		fx_node.add_child(ts)
+	recent_kills.clear()
+	fog = null
+	if OS.get_cmdline_user_args().has("--altar") or rng.randf() < 0.3:
+		var ba := BloodAltar.new()
+		ba.position = _open_spot(7.0 if OS.get_cmdline_user_args().has("--altar") else 14.0)
+		world_layer.add_child(ba)
+	if OS.get_cmdline_user_args().has("--fog") or rng.randf() < 0.25:
+		var fl := EmberFog.new()
+		fl.position = _open_spot(5.0 if OS.get_cmdline_user_args().has("--fog") else 8.0)
+		fx_node.add_child(fl)
 	if has_ember:
 		var be := BoundEmber.new()
 		be.roll(rng, depth)
@@ -414,6 +426,14 @@ func _on_enemy_died(a: Actor) -> void:
 	enemies.erase(e)
 	kills += 1
 	writ_event("kill")
+	if not e.is_boss() and not e.has_meta("altar") and not e.has_meta("fog"):
+		recent_kills.append(e.type_id)
+		if recent_kills.size() > 40:
+			recent_kills.pop_front()
+	if e.has_meta("tribute"):
+		player.add_currency("tribute", int(e.get_meta("tribute")))
+	if e.has_meta("fog") and fog and is_instance_valid(fog):
+		fog.on_kill(e)
 	if e.rarity == "rare":
 		writ_event("rare")
 	if e.has_meta("essence"):
@@ -445,6 +465,10 @@ func _on_enemy_died(a: Actor) -> void:
 			player.add_flask_charge(3.0)
 	if e.has_meta("minion"):
 		mult *= 0.25
+	if e.has_meta("fog") and fog and is_instance_valid(fog):
+		rarity_bonus += 60.0 + 120.0 * fog.depth01()
+		if rng.randf() < 0.25 + 0.4 * fog.depth01():
+			drops += 1
 		drops = 0
 	add_corpse(e)
 	# Rifts: kills widen the rift and drop splinters
@@ -633,6 +657,8 @@ func _process(delta: float) -> void:
 		hud.class_ui.toggle()
 	if Input.is_action_just_pressed("inventory") and state == "play" and not paused:
 		inv_ui.toggle()
+	if Input.is_action_just_pressed("loadout") and state == "play" and not paused and not inv_ui.visible and player and not player.dead:
+		player.swap_loadout()
 	if Input.is_action_just_pressed("pause") and state == "play":
 		if hud.passives.visible:
 			hud.passives.toggle()
@@ -713,6 +739,14 @@ func _click(button: int) -> void:
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
+	if state == "play" and _clock > 1.0 and _clock < 1.1:
+		var args := OS.get_cmdline_user_args()
+		for c in world_layer.get_children():
+			if c is BloodAltar and args.has("--altar-now"):
+				player.global_position = c.global_position + Vector2(0, 40)
+		for c in fx_node.get_children():
+			if c is EmberFog and args.has("--fog-now") and not c.lit:
+				c._light(self)
 	if player and OS.get_cmdline_user_args().has("--god"):
 		player.life = player.max_life
 	if OS.get_cmdline_user_args().has("--kill-boss") and state == "play" and boss and is_instance_valid(boss) and not boss.dead and _clock > 2.0:

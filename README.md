@@ -1,6 +1,6 @@
 # Hollowcrown
 
-A co-op dark-fantasy ARPG prototype, built in Godot 4.7. This is Milestone 0, the combat prototype.
+A co-op dark-fantasy ARPG prototype, built in Godot 4.7. Built with Claude, one stage at a time (see `docs/ROADMAP.md`).
 
 ## Play it
 1. Open Godot 4.7.2 → **Import** → pick this folder's `project.godot` → **Import & Edit**.
@@ -11,49 +11,52 @@ The first import takes a few seconds while Godot scans the files.
 ## Controls (Xbox controller)
 | Button | Action |
 |---|---|
-| Left stick | Move |
+| Left stick | Move (and the cursor in menus) |
 | Right stick | Aim. Let go and it auto-targets the nearest enemy you're facing |
-| A or RT (hold) | Ember Bolt |
-| X | Ashen Cleave |
-| B | Rimeburst |
-| Y | Stormthread |
-| RB | Cinderfall |
-| LT | Dodge roll |
+| RT, A, X, B, Y, RB | Rite slots 1-6 (hold to repeat) |
+| LB + RB together | Class Special (Grand Rite, Cataclysm, Oathbreaker, Hunter's Moon) |
 | LB | Life flask |
-| View | Inventory (left stick = cursor, A equip, X twice shatter, B close) |
-| D-pad Up | Ember Constellation (left stick cursor, A allocate, X refund, right stick pan, LB/RB zoom, B close) |
+| LT | Dodge roll |
+| D-pad Left / Right | Swap loadout (weapon + six Rites) |
+| D-pad Up | Ember Constellation (A allocate, A again on a Mastery to switch it, X refund, right stick pan, LB/RB zoom, B close) |
+| D-pad Down | Class screen: class tree, Rite specializations, skill bar, Ascension tab (A take, X refund, B close) |
+| View | Inventory + purse (A equip / pick up currency / buy, X twice shatter or sell next to the Peddler, B drop currency or close) |
 | Menu | Pause |
 
 Taps are buffered for 0.3 s, so pressing a skill during another cast still fires it. Rumble on hits, slams, level-ups, uniques, boss kill.
+Walk onto seals to use them (Rift Seal, Ascension Trial). Stand next to a Reliquary for one second to open it.
 
 ## Controls (keyboard + mouse)
 | Input | Action |
 |---|---|
 | WASD | Move |
 | Mouse | Aim |
-| Left click (hold) | **Ember Bolt**: fire projectile that ignites |
-| Right click (hold) | **Ashen Cleave**: wide weapon swing |
-| Q | **Rimeburst**: cold nova that chills (cooldown) |
-| E | **Stormthread**: chain lightning, 4 chains |
-| R | **Cinderfall**: burning ground at cursor (cooldown) |
-| Space | Dodge roll (brief invulnerability) |
-| 1 | Life flask (charges refill from kills) |
-| I / Tab | Inventory + character sheet |
+| Left click, right click, Q, E, R, F | Rite slots 1-6 |
+| T | Class Special |
+| Space | Dodge roll |
+| 1 | Life flask |
+| X | Swap loadout |
+| I / Tab | Inventory + purse + Peddler shop |
+| P | Ember Constellation |
+| K | Class screen |
 | Esc | Pause |
 
 ## What's in it
-- PoE-style damage engine: flat / increased / more, conversion chains, crits, armour, resistances,
-  Ignite / Chill / Shock.
-- 5 Rites, 3 monster types, magic and rare monsters with modifiers, and a two-phase boss (The Ashen Regent).
-- Loot: normal / magic / rare / unique, tiered affixes, 5 build-enabling uniques.
-- Hover an item to see what equipping it would change, including per-skill DPS.
-- Endless descent: kill the boss → portal → next depth, harder, better loot.
-- Autosave (character, gear, depth).
+- Four classes (Bog Shaman, Ember Magus, Oathsworn, Hollow Ranger), each with a resource, a Special, a 3-branch class tree and its Rites with specialization trees. Pick a second class at level 10.
+- 12 Ascensions (3 per class), earned through Ascension Trials after the Regent on depths 5, 10, 15 and 20.
+- The Ember Constellation: 145 shared passives, 8 regions with Masteries, 12 keystones, a start star per class.
+- PoE-style damage: flat / increased / more, conversion, crits, armour, resistances, ignite / chill / shock / poison / freeze, curses.
+- Loot: normal / magic / rare / unique, tiered affixes, rift-only uniques. Crafting currencies and Essences. Two loadouts.
+- League-style mechanics: Hollow Rifts (and the Rift Lord), Reliquaries, Bound Embers, Writs of the Hollow King, the Ashen Peddler.
+- Endless descent: kill the Regent, take the portal, go deeper. Autosave.
+- Controller-first: everything works on an Xbox pad (see the table above).
 
 ## For developers (and Claude)
 - Design doc: `docs/DESIGN.md`. Roadmap: `docs/ROADMAP.md`.
 - Tests:
   - `godot --headless --path . -s res://scripts/tests/test_damage.gd`
   - `godot --headless --path . res://scenes/test_items.tscn`
+  - `godot --headless --path . res://scenes/test_crafting.tscn`
   - Controller test: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --pad-test`
+  - Ascension / keystone probe: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --seed=5 --class=magus --asc-probe`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

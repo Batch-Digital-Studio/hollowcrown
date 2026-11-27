@@ -55,6 +55,7 @@ func take_asc(i: int) -> bool:
 func refund_asc(i: int) -> bool:
 	if not asc_nodes.has(i) or not can_respec():
 		return false
+	_pay_respec()
 	asc_nodes.erase(i)
 	recalc_stats()
 	return true
@@ -95,6 +96,27 @@ const FREE_RESPEC_LEVEL := 20
 var equipment := {}
 var passives := {"start": true}
 var masteries := {}            # mastery node id -> chosen option index
+var loadout := 0               # active loadout (0 or 1): weapon + skill bar
+var alt_weapon: Item = null    # weapon of the inactive loadout
+var alt_bar: Array = []        # skill bar of the inactive loadout
+
+## Swap to the other loadout (D-pad Left/Right, X key).
+func swap_loadout() -> void:
+	if alt_bar.is_empty():
+		alt_bar = bar.duplicate()
+	var w: Item = equipment.get("weapon")
+	var b := bar
+	equipment["weapon"] = alt_weapon
+	bar = alt_bar
+	alt_weapon = w
+	alt_bar = b
+	loadout = 1 - loadout
+	if equipment.get("weapon") == null:
+		equipment.erase("weapon")
+	recalc_stats()
+	inventory_changed.emit()
+	FX.text(global_position, "Loadout %d" % (loadout + 1), Color(1.0, 0.85, 0.5), 20)
+	FX.sound("pickup", null, -6.0, 0.0)
 var inventory: Array = []
 var xp := 0
 var flask_charges := 3.0
@@ -305,8 +327,18 @@ func rite_points() -> int:
 		used += int(rite_specs[k])
 	return (level - 1) - used
 
+## Respecs are free below level 20, then each refunded point costs Ember Shards (4 x level).
+func respec_cost() -> int:
+	return 0 if level < FREE_RESPEC_LEVEL else 4 * level
+
 func can_respec() -> bool:
-	return level < FREE_RESPEC_LEVEL
+	return int(currency.get("ember_shards", 0)) >= respec_cost()
+
+func _pay_respec() -> void:
+	var c := respec_cost()
+	if c > 0:
+		currency["ember_shards"] = int(currency.get("ember_shards", 0)) - c
+		FX.text(global_position, "-%d Ember Shards" % c, Color(1.0, 0.78, 0.3), 15)
 
 ## Rites you can put on the bar: starting Rites of your classes + Rites unlocked in class trees.
 func unlocked_rites() -> Array:
@@ -341,6 +373,7 @@ func refund_node(c: String, b: int, i: int) -> bool:
 	if not can_respec() or not node_taken(c, b, i) or node_taken(c, b, i + 1):
 		return false
 	var n := ClassesDB.node(c, "%d:%d" % [b, i])
+	_pay_respec()
 	class_nodes.erase("%s/%d:%d" % [c, b, i])
 	if n.get("type", "") == "rite":
 		var idx := bar.find(n.rite)
@@ -365,6 +398,7 @@ func remove_spec(skill_id: String, spec_id: String) -> bool:
 	if not can_respec() or spec_rank(skill_id, spec_id) <= 0:
 		return false
 	var k := "%s/%s" % [skill_id, spec_id]
+	_pay_respec()
 	rite_specs[k] = spec_rank(skill_id, spec_id) - 1
 	if rite_specs[k] <= 0:
 		rite_specs.erase(k)
@@ -507,8 +541,9 @@ func can_refund(id: String) -> bool:
 	return seen.size() == passives.size() - 1
 
 func refund(id: String) -> bool:
-	if not can_refund(id):
+	if not can_refund(id) or not can_respec():
 		return false
+	_pay_respec()
 	passives.erase(id)
 	masteries.erase(id)
 	recalc_stats()
@@ -805,7 +840,8 @@ func to_save() -> Dictionary:
 	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero,
 		"class": class_id, "class2": class2_id, "class_nodes": class_nodes.keys(), "rite_specs": rite_specs, "bar": bar,
 		"spirit": spirit, "res": res, "currency": currency,
-		"ascendancy": ascendancy, "asc_nodes": asc_nodes, "asc_trials": asc_trials, "masteries": masteries}
+		"ascendancy": ascendancy, "asc_nodes": asc_nodes, "asc_trials": asc_trials, "masteries": masteries,
+		"loadout": loadout, "alt_weapon": alt_weapon.to_dict() if alt_weapon else null, "alt_bar": alt_bar}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
@@ -843,6 +879,11 @@ func from_save(d: Dictionary) -> void:
 	for id in d.get("passives", []):
 		if PassivesDB.nodes().has(id):
 			passives[id] = true
+	loadout = int(d.get("loadout", 0))
+	alt_weapon = Item.from_dict(d.alt_weapon) if d.get("alt_weapon") != null else null
+	alt_bar = d.get("alt_bar", []).duplicate()
+	while not alt_bar.is_empty() and alt_bar.size() < SkillsDB.BAR_SIZE:
+		alt_bar.append("")
 	masteries = {}
 	var md: Dictionary = d.get("masteries", {})
 	for k in md:

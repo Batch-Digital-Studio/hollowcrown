@@ -307,5 +307,16 @@ func _process(delta: float) -> void:
 		44:
 			if t > 16.50:
 				check("B closes the Constellation", not g.hud.passives.visible)
+				mem_id = g.player.bar[0]
+				tap(JOY_BUTTON_DPAD_LEFT)
+				step = 45
+		45:
+			if t > 16.80:
+				check("D-pad Left swaps to loadout 2 (no weapon there yet)", g.player.loadout == 1 and g.player.equipment.get("weapon") == null)
+				tap(JOY_BUTTON_DPAD_RIGHT)
+				step = 46
+		46:
+			if t > 17.10:
+				check("D-pad Right swaps back (weapon and bar restored)", g.player.loadout == 0 and g.player.equipment.get("weapon") != null and g.player.bar[0] == mem_id)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

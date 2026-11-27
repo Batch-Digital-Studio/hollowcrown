@@ -11,6 +11,7 @@ const CURRENCY := {
 	"ash_salt": {"name": "Ash Salt", "color": Color(0.8, 0.8, 0.8), "desc": "Remove a random affix from an item."},
 	"hollow_ember": {"name": "Hollow Ember", "color": Color(0.7, 0.45, 1.0), "desc": "Add a random affix to a rare item (max 6)."},
 	"crown_fragment": {"name": "Crown Fragment", "color": Color(1.0, 0.9, 0.55), "desc": "Reroll the values of an item's affixes."},
+	"tribute": {"name": "Tribute", "color": Color(0.95, 0.3, 0.3), "desc": "Paid by risen monsters at Blood Altars. Buys their offerings."},
 	"ash_dust": {"name": "Ash Dust", "color": Color(0.6, 0.58, 0.55), "desc": "From shattered items. The Peddler trades it."},
 }
 

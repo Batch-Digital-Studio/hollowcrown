@@ -1,6 +1,7 @@
 extends Node
 ## Test bot: plays the game for automated smoke tests and screenshots (--autoplay).
 
+var _altar_spot := Vector2.ZERO
 var astar: AStarGrid2D
 var _zone: Zone
 var _path: PackedVector2Array
@@ -69,6 +70,32 @@ func drive(p: Player, g: Game) -> void:
 			if dd < best:
 				target = c
 				best = dd
+	for c in g.world_layer.get_children():
+		if c is BloodAltar and c.state != "done":
+			var spot: Vector2 = c.global_position
+			if c.state == "offer":
+				spot = Vector2.INF
+				for o in c.offers:
+					if not o.bought and int(p.currency.get("tribute", 0)) >= int(o.price):
+						spot = c.global_position + o.pos
+						break
+				if spot == Vector2.INF:
+					c.state = "done" if g.bot else c.state
+					continue
+			if c.state == "rite" and not g.enemies.is_empty():
+				continue
+			var dd2 := spot.distance_to(p.global_position)
+			if dd2 < 30.0:
+				inp.move = Vector2.ZERO
+				return
+			if dd2 * 1.1 < best:
+				target = c
+				best = dd2
+				_altar_spot = spot
+	for c in g.fx_node.get_children():
+		if c is EmberFog and not c.lit and c.global_position.distance_to(p.global_position) * 1.2 < best:
+			target = c
+			best = c.global_position.distance_to(p.global_position) * 1.2
 	if target is Reliquary and target.global_position.distance_to(p.global_position) < 60.0:
 		inp.move = Vector2.ZERO   # stand still to open it
 		return
@@ -79,7 +106,8 @@ func drive(p: Player, g: Game) -> void:
 	if target == null:
 		inp.move = Vector2.ZERO
 		return
-	var to := target.global_position - p.global_position
+	var tpos: Vector2 = _altar_spot if target is BloodAltar else target.global_position
+	var to := tpos - p.global_position
 	var dist := to.length()
 	inp.aim = target.global_position
 	var los := g.has_line_of_sight(p.global_position, target.global_position)
@@ -110,7 +138,7 @@ func drive(p: Player, g: Game) -> void:
 		if _repath <= 0.0 or _path.is_empty():
 			_repath = 0.5
 			var a := Vector2i(p.global_position / Zone.CELL)
-			var b := Vector2i(target.global_position / Zone.CELL)
+			var b := Vector2i(tpos / Zone.CELL)
 			_path = astar.get_point_path(a, b)
 		while _path.size() > 1 and _path[0].distance_to(p.global_position) < 40.0:
 			_path.remove_at(0)
