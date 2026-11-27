@@ -7,6 +7,7 @@ var step := 0
 var fails := 0
 var x0 := 0.0
 var mana0 := 0.0
+var mem_id := ""
 var g: Game
 
 func _ready() -> void:
@@ -270,5 +271,41 @@ func _process(delta: float) -> void:
 		38:
 			if t > 14.80:
 				check("B closes the class screen", not g.hud.class_ui.visible)
+				g.player.level = 6
+				g.player.recalc_stats()
+				tap(JOY_BUTTON_DPAD_UP)
+				step = 39
+		39:
+			if t > 15.20:
+				var pu: PassiveUI = g.hud.passives
+				check("Shaman starts at the Shaman Star", g.player.passives.has("star_shaman") and not g.player.passives.has("start"))
+				mem_id = PassivesDB.nodes()["star_shaman"].links[0]
+				g.set_pad_cursor(pu._to_screen(PassivesDB.nodes()[mem_id].pos))
+				mana0 = g.player.passive_points()
+				step = 40
+		40:
+			if t > 15.40:
+				tap(JOY_BUTTON_A)
+				step = 41
+		41:
+			if t > 15.70:
+				check("A allocates a node next to the star (%s, points %d -> %d)" % [mem_id, int(mana0), g.player.passive_points()], g.player.passives.has(mem_id) and g.player.passive_points() == int(mana0) - 1)
+				# walk to the Grave mastery directly for the cycle check
+				g.player.passives["grave_mastery"] = true
+				g.player.recalc_stats()
+				g.set_pad_cursor(g.hud.passives._to_screen(PassivesDB.nodes()["grave_mastery"].pos))
+				step = 42
+		42:
+			if t > 15.90:
+				tap(JOY_BUTTON_A)
+				step = 43
+		43:
+			if t > 16.20:
+				check("A on an allocated Mastery switches its effect", int(g.player.masteries.get("grave_mastery", 0)) == 1)
+				tap(JOY_BUTTON_B)
+				step = 44
+		44:
+			if t > 16.50:
+				check("B closes the Constellation", not g.hud.passives.visible)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

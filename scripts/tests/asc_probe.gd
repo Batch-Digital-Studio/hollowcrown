@@ -25,6 +25,14 @@ func asc(id: String, nodes: Array) -> void:
 	p.asc_nodes = nodes.duplicate()
 	p.recalc_stats(true)
 
+func kp(id: String, on: bool) -> void:
+	if on:
+		p.passives[id] = true
+	else:
+		p.passives.erase(id)
+		p.masteries.erase(id)
+	p.recalc_stats(true)
+
 func dummy(id: String = "brute", off: Vector2 = Vector2(150, 0), life_mult: float = 30.0) -> Enemy:
 	var e := g.spawn_enemy(id, 1, "normal", [], p.global_position + off)
 	e.max_life *= life_mult
@@ -201,5 +209,70 @@ func _process(delta: float) -> void:
 			e1.take_hit({"damage": {"physical": 99999.0}, "crit": false, "ailments": {}}, p)
 			check("Combustion: burning enemy explodes on death", e3.life < l3)
 			clear()
-			print("ASC FAILURES: %d" % fails)
-			get_tree().quit(1 if fails > 0 else 0)
+			asc("pyromancer", [])
+			step = 13
+		13:  # Constellation keystones and masteries
+			var base_life := p.max_life
+			var base_ward := p.ward_max
+			kp("heart_key2", true)
+			check("Ashen Avatar: 40%% of life becomes ward (life %.0f->%.0f, ward %.0f->%.0f)" % [base_life, p.max_life, base_ward, p.ward_max], p.max_life < base_life * 0.65 and p.ward_max > base_ward + base_life * 0.35)
+			kp("heart_key2", false)
+			kp("steel_key2", true)
+			var crits := 0
+			for i in 200:
+				if Damage.roll_hit({"kind": "spell", "base_damage": {"fire": [5, 5]}, "crit": 100.0}, p.stats, g.rng).crit:
+					crits += 1
+			check("Unbroken Vow: cannot crit (%d crits)" % crits, crits == 0)
+			e1 = dummy()
+			p.ward_pool = 0.0
+			var l0 := p.life
+			p.take_hit({"damage": {"physical": 30.0}, "crit": true, "ailments": {}}, e1)
+			var critted := l0 - p.life
+			p.life = p.max_life
+			p.ward_pool = 0.0
+			p.take_hit({"damage": {"physical": 30.0}, "crit": false, "ailments": {}}, e1)
+			check("Unbroken Vow: incoming crits are reduced (%.1f vs %.1f)" % [critted, p.max_life - p.life], critted < (p.max_life - p.life))
+			kp("steel_key2", false)
+			p.life = p.max_life
+			var fm := p.flask_max
+			kp("heart_mastery", true)
+			p.masteries["heart_mastery"] = 0
+			p.recalc_stats()
+			check("Heart Mastery (flask charges): +1 flask (%d -> %d)" % [fm, p.flask_max], p.flask_max == fm + 1)
+			p.cycle_mastery("heart_mastery")
+			check("switching the Mastery removes the old effect", p.flask_max == fm and p.stats.get_stat("life_regen_pct") == 1.0)
+			kp("heart_mastery", false)
+			kp("venom_key", true)
+			var l4 := e1.life
+			e1.take_hit({"damage": {"physical": 100.0}, "crit": false, "ailments": {"poison": 100.0}}, p)
+			var hit_tide := l4 - e1.life
+			var pz: float = e1.poisons[0][0] if not e1.poisons.is_empty() else 0.0
+			kp("venom_key", false)
+			e1.poisons.clear()
+			l4 = e1.life
+			e1.take_hit({"damage": {"physical": 100.0}, "crit": false, "ailments": {"poison": 100.0}}, p)
+			var hit_plain := l4 - e1.life
+			var pz2: float = e1.poisons[0][0] if not e1.poisons.is_empty() else 0.0
+			check("Tide of Venom: hits 40%% less (%.1f vs %.1f), poison the same (%.1f vs %.1f)" % [hit_tide, hit_plain, pz, pz2], absf(hit_tide - hit_plain * 0.6) < 1.0 and absf(pz - pz2) < 0.01)
+			clear()
+			kp("rime_key", true)
+			p.bar[0] = "ember_bolt"
+			p.mana = p.max_mana
+			var before := 0
+			for c in g.fx_node.get_children():
+				if c is Projectile:
+					before += 1
+			SkillExec.use("ember_bolt", p, p.global_position + Vector2(300, 0))
+			mem["proj_before"] = before
+			step = 14
+			t = 0.0
+		14:
+			if t > 0.3:
+				var n := 0
+				for c in g.fx_node.get_children():
+					if c is Projectile:
+						n += 1
+				check("Echo of the Crown: Ember Bolt cast twice (%d projectiles)" % (n - int(mem.proj_before)), n - int(mem.proj_before) >= 2)
+				kp("rime_key", false)
+				print("ASC FAILURES: %d" % fails)
+				get_tree().quit(1 if fails > 0 else 0)

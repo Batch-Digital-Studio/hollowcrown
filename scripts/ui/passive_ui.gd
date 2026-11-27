@@ -3,7 +3,7 @@ extends Control
 ## The Ember Constellation screen. Drag to pan, wheel to zoom, click to allocate, right-click to refund.
 
 var offset := Vector2.ZERO
-var zoom := 0.6
+var zoom := 0.45
 var _drag := false
 var _drag_moved := 0.0
 var _hover := ""
@@ -18,8 +18,10 @@ func toggle() -> void:
 	visible = not visible
 	get_tree().paused = visible
 	if visible:
-		offset = Vector2.ZERO
 		var p := Game.instance.player
+		# centre on this character's entry star, pulled a little toward the middle
+		var root: String = PassivesDB.roots_for(p.classes())[0]
+		offset = -PassivesDB.nodes()[root].pos * zoom * 0.7
 		_summary_before = p.summary(p.equipment)
 
 func _to_screen(p: Vector2) -> Vector2:
@@ -41,6 +43,7 @@ func _process(delta: float) -> void:
 func _radius(t: String) -> float:
 	match t:
 		"start": return 26.0
+		"mastery": return 18.0
 		"notable": return 20.0
 		"keystone": return 28.0
 	return 12.0
@@ -62,7 +65,11 @@ func _input(event: InputEvent) -> void:
 			else:
 				_drag = false
 				if _drag_moved < 6.0 and _hover != "":
-					if p.allocate(_hover):
+					if p.passives.has(_hover) and PassivesDB.nodes()[_hover].type == "mastery":
+						p.cycle_mastery(_hover)
+						FX.sound("pickup", null, -6.0, 0.0)
+						Game.instance.inv_ui.refresh()
+					elif p.allocate(_hover):
 						var n: Dictionary = PassivesDB.nodes()[_hover]
 						FX.sound("levelup" if n.type == "keystone" else "pickup", null, -6.0 if n.type == "small" else -2.0, 0.0)
 						Game.instance.inv_ui.refresh()
@@ -121,6 +128,9 @@ func _draw() -> void:
 		elif avail:
 			draw_circle(pos, r * 0.78, Color(c.r, c.g, c.b, 0.25 + 0.15 * sin(_t * 5.0)))
 		var ring := c if (alloc or avail) else Color(0.4, 0.38, 0.42)
+		if n.type == "mastery":
+			var dm := PackedVector2Array([pos + Vector2(0, -r * 1.3), pos + Vector2(r * 1.3, 0), pos + Vector2(0, r * 1.3), pos + Vector2(-r * 1.3, 0), pos + Vector2(0, -r * 1.3)])
+			draw_polyline(dm, ring, 3.0, true)
 		if n.type == "keystone":
 			var pts := PackedVector2Array()
 			for k in 9:
@@ -129,10 +139,13 @@ func _draw() -> void:
 		draw_arc(pos, r, 0, TAU, 32, ring, 2.5 if n.type != "small" else 1.5, true)
 		if id == _hover:
 			draw_arc(pos, r + 5, 0, TAU, 32, Color(1, 1, 1, 0.8), 2.0, true)
-		if n.type == "notable" or n.type == "keystone" or n.type == "start":
-			var tw := f.get_string_size(n.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-			draw_string_outline(f, pos + Vector2(-tw / 2, r + 18), n.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
-			draw_string(f, pos + Vector2(-tw / 2, r + 18), n.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c if (alloc or avail) else Color(0.6, 0.58, 0.6))
+		if (n.type == "notable" and zoom >= 0.4) or n.type == "keystone" or n.type == "start" or (n.type == "mastery" and zoom >= 0.4):
+			var label: String = n.name
+			if n.type == "mastery" and alloc:
+				label = n.options[int(p.masteries.get(id, 0))][0]
+			var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			draw_string_outline(f, pos + Vector2(-tw / 2, r + 18), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
+			draw_string(f, pos + Vector2(-tw / 2, r + 18), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c if (alloc or avail) else Color(0.6, 0.58, 0.6))
 	# header
 	var pts_left := p.passive_points()
 	var title := "THE EMBER CONSTELLATION"
@@ -165,6 +178,15 @@ func _tooltip(n: Dictionary, p: Player) -> void:
 	lines.append([n.type.capitalize() if n.type != "small" else "Passive", Color(0.6, 0.58, 0.6)])
 	for k in n.stats:
 		lines.append([PassivesDB.describe(k, n.stats[k]), Color(0.55, 0.7, 1.0)])
+	if n.type == "mastery":
+		var cur := int(p.masteries.get(_hover, 0))
+		for i in n.options.size():
+			var o: Array = n.options[i]
+			var mark := "> " if p.passives.has(_hover) and i == cur else "   "
+			var parts: Array = []
+			for k in o[1]:
+				parts.append(PassivesDB.describe(k, o[1][k]))
+			lines.append([mark + o[0] + ": " + ", ".join(parts), Color(1.0, 0.85, 0.5) if mark != "   " else Color(0.65, 0.65, 0.7)])
 	if n.desc != "":
 		lines.append([n.desc, Color(0.8, 0.6, 0.35)])
 	var w := 0.0

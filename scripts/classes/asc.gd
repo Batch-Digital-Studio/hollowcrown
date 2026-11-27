@@ -103,6 +103,10 @@ func cast_extra(p: Player, skill_id: String) -> Dictionary:
 				n += 1
 		if n >= 2:
 			out["more_damage"] = float(out.get("more_damage", 0.0)) + s.get_stat("pillar")
+	if s.get_stat("fleetfoot") > 0.0:
+		var ms := (s.inc_mult(["inc_move_speed"]) - 1.0) * 100.0
+		if ms > 0.0:
+			out["more_damage"] = float(out.get("more_damage", 0.0)) + ms
 	if s.get_stat("wildfire_heart") > 0.0 and skill_id == "ember_bolt" and p.resources().has("kindling") and float(p.res.kindling) >= p.res_max("kindling"):
 		out["ignite_chance"] = 1000.0
 	return out
@@ -217,14 +221,20 @@ static func on_enemy_died(e: Actor, killer) -> void:
 	var p := g.player
 	var s := p.stats
 	var burning := e.ignite_time > 0.0
-	if burning and s.get_stat("ignite_spread") > 0.0:
+	if burning and (s.get_stat("ignite_spread") > 0.0 or s.get_stat("wildfire") > 0.0):
 		var n := 0
+		var lim := 999 if s.get_stat("wildfire") > 0.0 else int(s.get_stat("ignite_spread"))
 		for t in g.targets_in_circle("player", e.global_position, 300.0):
-			if t != e and n < int(s.get_stat("ignite_spread")):
+			if t != e and n < lim:
 				t.ignite_dps = maxf(t.ignite_dps, e.ignite_dps)
 				t.ignite_time = maxf(t.ignite_time, Actor.IGNITE_DURATION)
 				FX.burst(t.global_position, Color(1.0, 0.5, 0.2), 8, 120.0, 6.0, 0.4)
 				n += 1
+	if burning and s.get_stat("burn_ground_death") > 0.0:
+		var gfx := GroundEffect.new()
+		p.cast_stats = p.stats
+		gfx.setup(BURN_GROUND, p, e.global_position)
+		g.fx_node.add_child(gfx)
 	if burning and s.get_stat("resolve_on_ignite_kill") > 0.0:
 		p.gain_res("resolve", s.get_stat("resolve_on_ignite_kill"))
 	if burning and s.get_stat("combustion") > 0.0:

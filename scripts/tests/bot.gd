@@ -133,8 +133,8 @@ func drive(p: Player, g: Game) -> void:
 		var tree := PassivesDB.nodes()
 		var pick := ""
 		for id in tree:
-			if p.can_allocate(id):
-				if pick == "" or id.begins_with("b0"):
+			if p.can_allocate(id) and tree[id].type != "keystone":
+				if pick == "" or (tree[id].type == "notable" and tree[pick].type != "notable"):
 					pick = id
 		if pick != "":
 			p.allocate(pick)

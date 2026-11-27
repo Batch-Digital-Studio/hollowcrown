@@ -35,6 +35,16 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 	user.facing = dir
 	if user.has_method("on_skill_used"):
 		user.on_skill_used(s)
+	_behave(s, user, origin, dir, target_pos)
+	if s.kind == "spell" and is_player(user) and user.stats.get_stat("echo_crown") > 0.0 and not s.has("special_fx") and not ["grand_rite", "cataclysm", "hunters_moon", "blink", "buff", "warcry", "totem", "companion", "raise"].has(s.behavior):
+		var cs: StatBlock = user.cast_stats
+		user.get_tree().create_timer(0.18, false).timeout.connect(func():
+			if is_instance_valid(user) and not user.dead:
+				user.cast_stats = cs
+				_behave(s, user, user.global_position, dir, target_pos))
+	return true
+
+static func _behave(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2, target_pos: Vector2) -> void:
 	match s.behavior:
 		"projectile": _projectiles(s, user, origin, dir)
 		"radial": _radial(s, user, origin)
@@ -64,7 +74,6 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 		"rain": _rain(s, user, origin, target_pos)
 		"companion": _companion(s, user, origin)
 		"hunters_moon": _hunters_moon(s, user, origin)
-	return true
 
 static func is_player(a: Actor) -> bool:
 	return a.faction == "player"

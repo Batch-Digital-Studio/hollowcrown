@@ -94,6 +94,7 @@ const DUAL_CLASS_LEVEL := 10
 const FREE_RESPEC_LEVEL := 20
 var equipment := {}
 var passives := {"start": true}
+var masteries := {}            # mastery node id -> chosen option index
 var inventory: Array = []
 var xp := 0
 var flask_charges := 3.0
@@ -139,6 +140,9 @@ func build_stats(eq: Dictionary) -> StatBlock:
 	for id in passives:
 		if tree.has(id):
 			s.add_mods(tree[id].stats)
+			if tree[id].type == "mastery":
+				var opts: Array = tree[id].options
+				s.add_mods(opts[clampi(int(masteries.get(id, 0)), 0, opts.size() - 1)][1])
 	for c in classes():
 		s.add_mods(ClassesDB.class_def(c).get("base", {}))
 	for b in buffs:
@@ -193,6 +197,13 @@ func pay(cost: Dictionary) -> void:
 func add_buff(id: String, buff_stats: Dictionary, duration: float) -> void:
 	if duration > 1.0:
 		duration *= 1.0 + stats.get_stat("inc_buff_duration") / 100.0
+	var sf := stats.get_stat("shared_flame")
+	if sf > 0.0 and not id.begins_with("aura_noscale"):
+		var scaled := {}
+		for k in buff_stats:
+			var v := float(buff_stats[k])
+			scaled[k] = v * (1.0 + sf / 100.0) if v > 0.0 else v
+		buff_stats = scaled
 	for b in buffs:
 		if b.id == id:
 			b.time = duration
@@ -364,6 +375,7 @@ func choose_second_class(c: String) -> bool:
 	if level < DUAL_CLASS_LEVEL or class2_id != "" or c == class_id or not ClassesDB.class_def(c).get("built", false):
 		return false
 	class2_id = c
+	ensure_roots()
 	_after_build_change()
 	return true
 
@@ -423,7 +435,43 @@ func stats_for(skill_id: String) -> StatBlock:
 	return st
 
 func passive_points() -> int:
-	return (level - 1) - (passives.size() - 1)
+	var spent := 0
+	var roots := PassivesDB.roots_for(classes())
+	for id in passives:
+		if not roots.has(id):
+			spent += 1
+	return (level - 1) - spent
+
+## Make sure this character's entry star(s) are allocated (and only those roots).
+func ensure_roots() -> void:
+	var want := PassivesDB.roots_for(classes())
+	for r in want:
+		passives[r] = true
+	# drop anything no longer connected to a root (e.g. after a class change or old saves)
+	var tree := PassivesDB.nodes()
+	var seen := {}
+	var stack: Array = want.duplicate()
+	for r in want:
+		seen[r] = true
+	while not stack.is_empty():
+		var cur: String = stack.pop_back()
+		for l in tree[cur].links:
+			if passives.has(l) and not seen.has(l):
+				seen[l] = true
+				stack.append(l)
+	for id in passives.keys():
+		if not seen.has(id):
+			passives.erase(id)
+			masteries.erase(id)
+
+## Pick the next effect on an allocated Mastery (free).
+func cycle_mastery(id: String) -> bool:
+	var tree := PassivesDB.nodes()
+	if not passives.has(id) or not tree.has(id) or tree[id].type != "mastery":
+		return false
+	masteries[id] = (int(masteries.get(id, 0)) + 1) % tree[id].options.size()
+	recalc_stats()
+	return true
 
 func can_allocate(id: String) -> bool:
 	if passives.has(id) or passive_points() <= 0:
@@ -442,11 +490,14 @@ func allocate(id: String) -> bool:
 
 ## Refund only if every other allocated node stays connected to the start.
 func can_refund(id: String) -> bool:
-	if id == "start" or not passives.has(id):
+	var roots := PassivesDB.roots_for(classes())
+	if roots.has(id) or not passives.has(id):
 		return false
 	var tree := PassivesDB.nodes()
-	var seen := {"start": true}
-	var stack := ["start"]
+	var seen := {}
+	for r in roots:
+		seen[r] = true
+	var stack: Array = roots.duplicate()
 	while not stack.is_empty():
 		var cur: String = stack.pop_back()
 		for l in tree[cur].links:
@@ -459,6 +510,7 @@ func refund(id: String) -> bool:
 	if not can_refund(id):
 		return false
 	passives.erase(id)
+	masteries.erase(id)
 	recalc_stats()
 	return true
 
@@ -521,6 +573,11 @@ func recalc_stats(refill: bool = false) -> void:
 	max_life = calc_max_life(stats)
 	max_mana = maxf(0.0, stats.get_stat("mana_flat"))
 	ward_max = stats.get_stat("ember_ward_flat") + stats.get_stat("ember_ward_per_level") * level
+	var wfl := stats.get_stat("ward_from_life")
+	if wfl > 0.0:
+		ward_max += max_life * wfl / 100.0
+		max_life = maxf(1.0, max_life * (1.0 - wfl / 100.0))
+	flask_max = 3 + int(stats.get_stat("flask_max_add"))
 	ward_pool = minf(ward_pool, ward_max) if not refill else ward_max
 	if refill:
 		life = max_life
@@ -748,7 +805,7 @@ func to_save() -> Dictionary:
 	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero,
 		"class": class_id, "class2": class2_id, "class_nodes": class_nodes.keys(), "rite_specs": rite_specs, "bar": bar,
 		"spirit": spirit, "res": res, "currency": currency,
-		"ascendancy": ascendancy, "asc_nodes": asc_nodes, "asc_trials": asc_trials}
+		"ascendancy": ascendancy, "asc_nodes": asc_nodes, "asc_trials": asc_trials, "masteries": masteries}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
@@ -782,10 +839,15 @@ func from_save(d: Dictionary) -> void:
 		res[k] = float(rd[k])
 	if d.has("spirit") and not rd.has("spirit"):
 		spirit = float(d.spirit)
-	passives = {"start": true}
+	passives = {}
 	for id in d.get("passives", []):
 		if PassivesDB.nodes().has(id):
 			passives[id] = true
+	masteries = {}
+	var md: Dictionary = d.get("masteries", {})
+	for k in md:
+		masteries[k] = int(md[k])
+	ensure_roots()
 	equipment.clear()
 	var eqd: Dictionary = d.get("equipment", {})
 	for sl in eqd:
@@ -800,6 +862,7 @@ func from_save(d: Dictionary) -> void:
 ## New character of a class: starting Rites on the bar.
 func set_class(c: String) -> void:
 	class_id = c
+	ensure_roots()
 	var start: Array = ClassesDB.class_def(c).get("starting_rites", [])
 	bar = []
 	for i in SkillsDB.BAR_SIZE:

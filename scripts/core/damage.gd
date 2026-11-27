@@ -98,6 +98,8 @@ static func roll_hit(skill: Dictionary, stats: StatBlock, rng: RandomNumberGener
 
 	# 4. Crit.
 	var crit_chance: float = float(skill.get("crit", 5.0)) * stats.inc_mult(["inc_crit_chance"]) + stats.get_stat("crit_flat")
+	if stats.get_stat("no_crit") > 0.0:
+		crit_chance = 0.0
 	crit_chance = clampf(crit_chance, 0.0, 100.0)
 	var crit := rng.randf() * 100.0 < crit_chance
 	if crit:

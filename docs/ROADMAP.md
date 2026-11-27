@@ -65,3 +65,12 @@
 - [x] Probe test `--asc-probe` (18 behaviour checks) + every ascension run fully allocated with the bot
 - [ ] Balance: bot (level 22) dies in the depth 5 Trial without god mode; Trial may be too hard or the bot too weak
 - [ ] Approximations to revisit: Shieldwall/Rallying Cry/Shared Oath affect you + your minions (no co-op allies yet); Glacial Echo = second lance projectile; Perfect Focus = projectiles return once
+
+## Stage D — Constellation v2 (done 2026-11-27)
+- [x] 145 nodes: 8 regions (Steel, Pyre, Rime, Storm, Wind, Venom, Grave, Heart), inner + outer rings
+- [x] Class entry stars on the outer ring (dual-class adds the second star); classic characters keep the centre start
+- [x] 8 Masteries (allocate, then A / click again to switch between 3 effects for free)
+- [x] 12 keystones: the 4 old ones + Echo of the Crown, Ashen Avatar, Wildfire, Pack Leader, Unbroken Vow, Tide of Venom, Fleetfoot Pact, Shared Flame
+- [x] Old saves: v1 passive ids are dropped and their points refunded automatically
+- [ ] Ember Sockets (jewels) - later
+- [ ] Shared Flame is "50% stronger buffs on you" until co-op exists

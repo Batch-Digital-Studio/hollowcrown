@@ -66,3 +66,11 @@
 - Husk cap now counts only husks (hawk, squires, beast don't take husk slots).
 - Test flags: `--asc=<id>:<n,n>`, `--asc-probe`, `--trial`, `--kill-boss`, `--god`.
 - Not verified on Jason's PC or a real controller. Balance untested beyond bot runs.
+
+## 2026-11-27 — Stage D: Constellation v2
+- New 145-node Ember Constellation generated from region data in `scripts/data/passives_db.gd`. Each class enters at its own star; the tree opens centred on it.
+- Masteries and 8 new keystones (new hooks: Echo of the Crown recast, more cast speed, ward from life, no regen, crit immunity / no crit, hit-only damage reduction, elemental penetration for all types, shock effect, ignite duration, burning ground on death, flask charges, % life regen).
+- Fixed: walking through the centre node cost no point for classed characters.
+- `SkillExec.use` now calls `_behave()` for the actual Rite so it can be repeated (Echo of the Crown).
+- Tests: probe now 25 checks incl. keystones and Mastery switching; pad test 33 checks incl. allocating from the class star and switching a Mastery with A.
+- Not verified on Jason's PC or a real controller.

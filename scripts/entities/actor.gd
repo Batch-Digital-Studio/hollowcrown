@@ -103,6 +103,8 @@ func move_speed() -> float:
 func action_speed(kind: String) -> float:
 	var stat := "inc_attack_speed" if kind == "attack" else "inc_cast_speed"
 	var s := stats.inc_mult([stat])
+	if kind != "attack":
+		s *= stats.get_stat("more_cast_speed")
 	if haste_t > 0.0:
 		s *= 1.0 + haste_amt
 	if is_chilled():
@@ -157,18 +159,30 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 			return 0.0
 	var pen := {}
 	var po := Asc.owner_player(source)
-	if po and faction != "player" and po.stats.get_stat("chaos_pen") > 0.0:
-		pen["chaos"] = po.stats.get_stat("chaos_pen")
+	if po and faction != "player":
+		for pt in ["fire", "cold", "lightning", "chaos"]:
+			var pv := po.stats.get_stat(pt + "_pen")
+			if pv > 0.0:
+				pen[pt] = pv
+	# Unbroken Vow: crits land as normal hits
+	if result.get("crit", false) and stats.get_stat("crit_immune") > 0.0:
+		var cm := (150.0 + (source.stats.get_stat("crit_multi") if source else 0.0)) / 100.0
+		result = result.duplicate(true)
+		for k in result.damage:
+			result.damage[k] /= cm
+		result.crit = false
 	var dmg := Damage.mitigate(result.damage, defense_stats(), damage_taken_mult() * Asc.taken_mult(self) * Asc.dealt_mult(self, source, result), pen)
 	var amount := Damage.total(dmg)
 	if amount <= 0.0:
 		return 0.0
+	if po and faction != "player" and po.stats.get_stat("hit_less") > 0.0:
+		amount *= 1.0 - po.stats.get_stat("hit_less") / 100.0
 	if ward_pool > 0.0:
 		var absorbed := minf(ward_pool, amount)
 		ward_pool -= absorbed
 		amount -= absorbed
 		FX.burst(global_position, Color(0.5, 0.75, 1.0), 4, 120.0, 5.0)
-	_ward_delay = 3.0
+	_ward_delay = 1.0 if stats.get_stat("ward_from_life") > 0.0 else 3.0
 	if source and source.has_method("on_dealt_hit"):
 		source.on_dealt_hit(self, amount)
 	# Judgment Brand: the brander's third hit detonates it
@@ -211,13 +225,15 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 			ignite_dps = dps
 			ignite_base = dps
 			ignite_stacks = 1
-		ignite_time = IGNITE_DURATION
+		ignite_time = IGNITE_DURATION * (1.0 + (os.get_stat("inc_ignite_duration") / 100.0 if os else 0.0))
 	if dmg.get("cold", 0.0) > 0.0 and rng.randf() * 100.0 < ail.get("chill", 0.0):
 		chill_time = 2.0
 		chill_mult = 1.0 + (os.get_stat("inc_chill_effect") / 100.0 if os else 0.0)
 	if dmg.get("lightning", 0.0) > 0.0 and rng.randf() * 100.0 < ail.get("shock", 0.0):
 		shock_time = 4.0
-		shock_mult = 2.0 if os and os.get_stat("overcharge") > 0.0 and result.get("crit", false) else maxf(1.0, shock_mult if shock_time > 0.0 else 1.0)
+		shock_mult = 2.0 if os and os.get_stat("overcharge") > 0.0 and result.get("crit", false) else maxf(1.0, shock_mult)
+		if os and os.get_stat("inc_shock_effect") > 0.0:
+			shock_mult = maxf(shock_mult, 1.0 + os.get_stat("inc_shock_effect") / 100.0)
 	var pc: float = dmg.get("physical", 0.0) + dmg.get("chaos", 0.0)
 	if pc > 0.0 and rng.randf() * 100.0 < ail.get("poison", 0.0):
 		var inc := 1.0 + (source.stats.get_stat("inc_poison_damage") if source else 0.0) / 100.0
@@ -305,8 +321,8 @@ func tick_common(delta: float) -> void:
 			ignite_stacks = 1
 			ignite_base = 0.0
 	# regen
-	var regen := stats.get_stat("life_regen")
-	if regen > 0.0 and not dead:
+	var regen := stats.get_stat("life_regen") + max_life * stats.get_stat("life_regen_pct") / 100.0
+	if regen > 0.0 and not dead and stats.get_stat("no_regen") <= 0.0:
 		heal(regen * delta)
 	knock = knock.move_toward(Vector2.ZERO, 2200.0 * delta)
 	root_time = maxf(0.0, root_time - delta)
@@ -315,7 +331,7 @@ func tick_common(delta: float) -> void:
 	if ward_max > 0.0:
 		_ward_delay -= delta
 		if _ward_delay <= 0.0 and ward_pool < ward_max:
-			ward_pool = minf(ward_max, ward_pool + ward_max * 0.25 * delta)
+			ward_pool = minf(ward_max, ward_pool + ward_max * (0.6 if stats.get_stat("ward_from_life") > 0.0 else 0.25) * delta)
 	if ward_time > 0.0:
 		ward_time -= delta
 		heal(max_life * ward_regen / 100.0 * delta)
