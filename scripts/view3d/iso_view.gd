@@ -91,6 +91,13 @@ func _ready() -> void:
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.05
 	env.glow_hdr_threshold = 0.9
+	if RenderingServer.get_current_rendering_method() == "forward_plus":
+		# Forward+ extras (the Compatibility fallback simply goes without)
+		env.ssao_enabled = true
+		env.ssao_radius = 1.2
+		env.ssao_intensity = 1.6
+		env.ssil_enabled = true
+		env.glow_intensity = 0.8
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)

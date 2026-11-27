@@ -126,3 +126,5 @@
 - Fixed: the hero kept walking (and could cast) while the inventory or an NPC panel was open; on a controller the left stick moved the menu cursor and the hero at once. Held buttons also replayed after closing any menu (pause, tree, class screen, world map). Now every blocking menu stops the hero, and held input is ignored after closing until it is released; a fresh press works at once. (`game.gd`, `player_input.gd`)
 - Test: `--menu-probe` (37 checks: five menus x walking/held move/held click/close/fresh press, plus the controller stick). It fails 10 checks on the old code and passes on the new.
 - Tools: Blender 5.3 (Python module) runs in the cloud workspace. `tools/blender/gen_tree.py` generates seeded low-poly trees -> .glb; import into Godot checked. Pipeline test only, not in the game yet.
+- Renderer: switched to Forward+ (falls back to Compatibility automatically). Adds SSAO + SSIL in the 3D view. Checked in the cloud with a software Vulkan driver: iso probe 16/16, menu probe 37/37. Frame rate on Jason's PC not measured yet.
+- New `docs/DECISIONS.md`: confirmed choices and open questions.

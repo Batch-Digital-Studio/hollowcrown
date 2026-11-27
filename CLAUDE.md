@@ -11,7 +11,7 @@ to eventually play co-op with friends, and owns everything (no expansion fees).
 ## Rules
 - **Jason plays with an Xbox controller. Every feature must be fully usable on controller** (gameplay, menus,
   inventory, passive tree). Add pad bindings in `PlayerInput.setup_input_map` and extend `scripts/tests/pad_test.gd`.
-- Engine: Godot **4.7.2**, GL Compatibility renderer. Jason runs it on Windows (NVIDIA).
+- Engine: Godot **4.7.2**, Forward+ renderer (falls back to Compatibility without Vulkan/D3D12; in the cloud use the lavapipe software Vulkan driver: `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json`). Jason runs it on Windows (NVIDIA).
 - Keep simulation (stats, damage, AI, loot rolls) separate from presentation (FX autoload) so
   co-op (host-authoritative) can be added without a rewrite. Players read intents from `PlayerInput`.
 - All randomness for gameplay uses `Game.rng` or a passed RNG, never global `randf()` (FX may use randf).
