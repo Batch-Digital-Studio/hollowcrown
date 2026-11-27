@@ -296,12 +296,16 @@ func _open_spot(min_start: float) -> Vector2:
 			return zone.cell_center(c)
 	return zone.cell_center(zone.floor_cells[rng.randi() % zone.floor_cells.size()])
 
-## Ascension Trial seal after the Regent on depths 5/10/15/20 (if this character still owes that trial).
+## Ascension Trial seal after the Regent once you reach depths 5/10/15/20; a skipped trial comes back after the next Regent.
 func _maybe_trial(pos: Vector2) -> void:
 	if player == null or AscensionsDB.for_class(player.class_id).is_empty():
 		return
-	var idx := AscensionsDB.TRIAL_DEPTHS.find(depth)
-	if idx < 0 or player.asc_trials > idx:
+	# owed = trial depths reached so far; a missed trial reappears after the next Regent
+	var owed := 0
+	for td in AscensionsDB.TRIAL_DEPTHS:
+		if depth >= int(td):
+			owed += 1
+	if player.asc_trials >= owed:
 		return
 	if is_wall(pos):
 		pos = player.global_position
