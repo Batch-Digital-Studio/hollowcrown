@@ -28,7 +28,7 @@ func _draw() -> void:
 	draw_rect(Rect2(fx.x + 4, fx.y + 4 + 62 * (1.0 - fill), 30, 62 * fill), Color(0.5, 0.08, 0.12))
 	draw_texture_rect(Art.tex("flask_big_red"), Rect2(fx.x + 3, fx.y + 19, 32, 32), false, Color(1, 1, 1, 0.45 + 0.55 * minf(1.0, p.flask_charges)))
 	draw_rect(Rect2(fx.x, fx.y, 38, 70), Color(0.6, 0.42, 0.22), false, 2.0)
-	_text(f, Vector2(fx.x + 19, fx.y + 88), "1", 14, Color(0.8, 0.8, 0.8))
+	_pad_glyph(f, Vector2(fx.x + 19, fx.y + 84), "LB" if PlayerInput.using_pad else "1")
 	_text(f, Vector2(fx.x + 19, fx.y - 6), "%d" % int(p.flask_charges), 14, Color(1, 0.6, 0.6))
 	# Skill bar
 	var n := p.bar.size()
@@ -52,7 +52,7 @@ func _draw() -> void:
 			draw_rect(r, Color(0.1, 0.15, 0.6, 0.45))
 		var held: bool = p.input.skill_held[i]
 		draw_rect(r, Color(1.0, 0.82, 0.45) if held else Color(0.55, 0.4, 0.22), false, 2.0)
-		_text(f, Vector2(r.position.x + 12, r.position.y + 14), SkillsDB.BAR_KEYS[i], 12, Color(0.9, 0.9, 0.9))
+		_pad_glyph(f, Vector2(r.position.x + 13, r.position.y + 13), PlayerInput.labels()[i])
 	# XP bar
 	var need := Player.xp_to_next(p.level)
 	var xw := total + 140.0
@@ -63,10 +63,10 @@ func _draw() -> void:
 	# Zone label
 	_text_left(f, Vector2(24, 36), g.zone_title(), 20, Color(1.0, 0.82, 0.45))
 	_text_left(f, Vector2(24, 60), "Area Level %d   ·   Slain %d   ·   Remaining %d" % [g.area_level(), g.kills, g.enemies.size()], 14, Color(0.7, 0.68, 0.65))
-	_text_left(f, Vector2(vs.x - Zone.W * 3.0 - 20, 40), "I / Tab — Inventory", 14, Color(0.6, 0.58, 0.55))
+	_text_left(f, Vector2(vs.x - Zone.W * 3.0 - 20, 40), "View — Inventory   ·   D-pad ↑ — Tree" if PlayerInput.using_pad else "I / Tab — Inventory   ·   P — Tree", 14, Color(0.6, 0.58, 0.55))
 	if p.passive_points() > 0:
 		var a := 0.6 + 0.4 * sin(_t * 4.0)
-		_text(f, Vector2(vs.x / 2.0, y0 - 34), "P — %d unspent Ember Point%s" % [p.passive_points(), "s" if p.passive_points() > 1 else ""], 16, Color(1.0, 0.75, 0.35, a))
+		_text(f, Vector2(vs.x / 2.0, y0 - 34), "%s — %d unspent Ember Point%s" % ["D-pad ↑" if PlayerInput.using_pad else "P", p.passive_points(), "s" if p.passive_points() > 1 else ""], 16, Color(1.0, 0.75, 0.35, a))
 	# Minimap
 	if g.minimap.tex and not g.inv_ui.visible:
 		var ms := 3.0
@@ -145,6 +145,21 @@ func _skill_icon(r: Rect2, sid: String, s: Dictionary) -> void:
 			for i in 5:
 				var x := -16 + i * 8
 				draw_line(m + Vector2(x + 6, -20), m + Vector2(x, 4), c, 3.0, true)
+
+const PAD_COLORS := {"A": Color(0.35, 0.8, 0.3), "B": Color(0.9, 0.25, 0.2), "X": Color(0.25, 0.5, 0.95), "Y": Color(0.95, 0.8, 0.2)}
+
+## Button glyph: coloured circle for face buttons, plain text otherwise.
+func _pad_glyph(f: Font, c: Vector2, label: String) -> void:
+	if PAD_COLORS.has(label):
+		draw_circle(c, 10, Color(0.05, 0.05, 0.06))
+		draw_circle(c, 8.5, PAD_COLORS[label])
+		_text(f, c + Vector2(0, 5), label, 13, Color.WHITE)
+	elif label in ["RB", "LB", "RT", "LT"]:
+		draw_rect(Rect2(c - Vector2(14, 8), Vector2(28, 16)), Color(0.15, 0.15, 0.17))
+		draw_rect(Rect2(c - Vector2(14, 8), Vector2(28, 16)), Color(0.6, 0.6, 0.65), false, 1.0)
+		_text(f, c + Vector2(0, 5), label, 11, Color.WHITE)
+	else:
+		_text(f, c + Vector2(0, 4), label, 12, Color(0.9, 0.9, 0.9))
 
 func _text(f: Font, pos: Vector2, s: String, size: int, c: Color) -> void:
 	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x

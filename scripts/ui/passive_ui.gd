@@ -135,7 +135,7 @@ func _draw() -> void:
 	var title := "THE EMBER CONSTELLATION"
 	var tw2 := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 	draw_string(f, Vector2(vs.x / 2 - tw2 / 2, 50), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.82, 0.45))
-	var sub := "Ember Points: %d     ·     Click to allocate  ·  Right-click to refund  ·  Drag to pan  ·  Wheel to zoom  ·  P / Esc to close" % pts_left
+	var sub := ("Ember Points: %d     ·     A allocate  ·  X refund  ·  Right stick pan  ·  LB/RB zoom  ·  B close" if PlayerInput.using_pad else "Ember Points: %d     ·     Click to allocate  ·  Right-click to refund  ·  Drag to pan  ·  Wheel to zoom  ·  P / Esc to close") % pts_left
 	var tw3 := f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	draw_string(f, Vector2(vs.x / 2 - tw3 / 2, 78), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.75, 0.45) if pts_left > 0 else Color(0.6, 0.58, 0.55))
 	# live stat deltas since opening
@@ -150,6 +150,9 @@ func _draw() -> void:
 		var txt := "%s  %+.1f" % [k, d] if k.ends_with("DPS") else "%s  %+d" % [k, int(round(d))]
 		draw_string(f, Vector2(24, y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.4, 1.0, 0.5) if d > 0 else Color(1.0, 0.4, 0.4))
 		y += 22
+	if PlayerInput.using_pad:
+		var mp := get_viewport().get_mouse_position()
+		draw_arc(mp, 11, 0, TAU, 20, Color(1.0, 0.82, 0.45), 2.0, true)
 	if _hover != "":
 		_tooltip(tree[_hover], p)
 

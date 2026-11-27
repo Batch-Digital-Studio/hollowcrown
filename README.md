@@ -8,7 +8,25 @@ A co-op dark-fantasy ARPG prototype, built in Godot 4.7. This is Milestone 0, th
 
 The first import takes a few seconds while Godot scans the files.
 
-## Controls
+## Controls (Xbox controller)
+| Button | Action |
+|---|---|
+| Left stick | Move |
+| Right stick | Aim. Let go and it auto-targets the nearest enemy you're facing |
+| A or RT (hold) | Ember Bolt |
+| X | Ashen Cleave |
+| B | Rimeburst |
+| Y | Stormthread |
+| RB | Cinderfall |
+| LT | Dodge roll |
+| LB | Life flask |
+| View | Inventory (left stick = cursor, A equip, X twice shatter, B close) |
+| D-pad Up | Ember Constellation (left stick cursor, A allocate, X refund, right stick pan, LB/RB zoom, B close) |
+| Menu | Pause |
+
+Taps are buffered for 0.3 s, so pressing a skill during another cast still fires it. Rumble on hits, slams, level-ups, uniques, boss kill.
+
+## Controls (keyboard + mouse)
 | Input | Action |
 |---|---|
 | WASD | Move |
@@ -37,4 +55,5 @@ The first import takes a few seconds while Godot scans the files.
 - Tests:
   - `godot --headless --path . -s res://scripts/tests/test_damage.gd`
   - `godot --headless --path . res://scenes/test_items.tscn`
+  - Controller test: `godot --headless --path . --fixed-fps 60 -- --fresh --pad-test`
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

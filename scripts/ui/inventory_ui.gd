@@ -23,6 +23,8 @@ var _hover_item: Item = null
 var _hover_slot := ""
 var _hover_bag := -1
 var _compare_cache := {}
+var _shatter_idx := -1
+var _shatter_t := 0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -95,10 +97,17 @@ func _input(event: InputEvent) -> void:
 				refresh()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if _hover_bag >= 0 and p.inventory[_hover_bag]:
-				var it: Item = p.inventory[_hover_bag]
-				p.inventory[_hover_bag] = null
-				FX.text(p.global_position, "Shattered " + it.name, Color(0.7, 0.7, 0.7), 16)
-				refresh()
+				var now := Time.get_ticks_msec()
+				if _shatter_idx == _hover_bag and now - _shatter_t < 2000:
+					var it: Item = p.inventory[_hover_bag]
+					p.inventory[_hover_bag] = null
+					FX.text(p.global_position, "Shattered " + it.name, Color(0.7, 0.7, 0.7), 16)
+					FX.sound("die", null, -6.0)
+					_shatter_idx = -1
+					refresh()
+				else:
+					_shatter_idx = _hover_bag
+					_shatter_t = now
 
 func _draw() -> void:
 	var g := Game.instance
@@ -117,7 +126,12 @@ func _draw() -> void:
 			_t(f, r.get_center() + Vector2(0, 5), ItemsDB.SLOT_NAMES[s], 12, Color(0.4, 0.38, 0.36), true)
 	for i in Player.INV_SIZE:
 		_cell(_bag_rect(i), p.inventory[i], i == _hover_bag)
-	_t(f, pr.position + Vector2(PANEL_W / 2, PANEL_H - 22), "Click: equip / unequip    ·    Right-click: shatter", 13, Color(0.55, 0.53, 0.5), true)
+	var hint := "A: equip / unequip   ·   X twice: shatter   ·   B: close" if PlayerInput.using_pad else "Click: equip / unequip   ·   Right-click twice: shatter"
+	_t(f, pr.position + Vector2(PANEL_W / 2, PANEL_H - 22), hint, 13, Color(0.55, 0.53, 0.5), true)
+	if _shatter_idx >= 0 and Time.get_ticks_msec() - _shatter_t < 2000:
+		var sr0 := _bag_rect(_shatter_idx)
+		draw_rect(sr0.grow(3), Color(1.0, 0.3, 0.2), false, 3.0)
+		_t(f, sr0.position + Vector2(sr0.size.x / 2, -6), "Again to shatter", 13, Color(1.0, 0.45, 0.35), true)
 	# Character sheet
 	var sr := sheet_rect()
 	_box(sr)
@@ -135,6 +149,10 @@ func _draw() -> void:
 		y += 26
 	if _hover_item:
 		_tooltip(_hover_item)
+	if PlayerInput.using_pad:
+		var mp := get_viewport().get_mouse_position()
+		draw_circle(mp, 9, Color(1.0, 0.82, 0.45, 0.35))
+		draw_arc(mp, 9, 0, TAU, 20, Color(1.0, 0.82, 0.45), 2.0, true)
 
 func _fmt(k: String, v: float) -> String:
 	if k.ends_with("Res"):

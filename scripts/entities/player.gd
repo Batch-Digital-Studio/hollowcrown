@@ -160,6 +160,7 @@ func gain_xp(amount: int) -> void:
 		FX.burst(global_position, Color(1.0, 0.8, 0.35), 50, 420.0, 9.0, 0.8)
 		FX.text(global_position, "LEVEL %d" % level, Color(1.0, 0.85, 0.4), 34)
 		FX.sound("levelup", null, 0.0, 0.0)
+		FX.rumble(0.4, 0.2, 0.35)
 		if game() and game().hud:
 			game().hud.show_message("LEVEL %d" % level, "+1 Ember Point · press P to open the Constellation")
 		leveled_up.emit(level)
@@ -212,6 +213,7 @@ func _physics_process(delta: float) -> void:
 	for i in bar.size():
 		if input.skill_held[i]:
 			if SkillExec.use(bar[i], self, input.aim):
+				input.consume(i)
 				break
 	# Movement (slowed while casting/attacking).
 	var speed := move_speed() * (0.45 if busy_time > 0.0 else 1.0)
@@ -322,7 +324,7 @@ func _update_visuals(delta: float) -> void:
 	elif shock_time > 0.0:
 		tint = Color(1.0, 1.0, 0.7)
 	_mat.set_shader_parameter("tint", tint)
-	_mat.set_shader_parameter("flash", 0.8 if hit_flash > 0.0 else 0.0)
+	_mat.set_shader_parameter("flash", 0.5 if hit_flash > 0.0 else 0.0)
 
 func _on_hit_fx(dmg: Dictionary, amount: float, crit: bool) -> void:
 	super._on_hit_fx(dmg, amount, crit)

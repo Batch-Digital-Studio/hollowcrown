@@ -31,7 +31,9 @@ func _ready() -> void:
 	match item.rarity:
 		"magic": FX.sound("drop_magic", null, -8.0, 0.0)
 		"rare": FX.sound("drop_rare", null, -3.0, 0.0)
-		"unique": FX.sound("drop_unique", null, 0.0, 0.0)
+		"unique":
+			FX.sound("drop_unique", null, 0.0, 0.0)
+			FX.rumble(0.5, 0.5, 0.5)
 	if item.rarity == "unique":
 		FX.text(position, "UNIQUE", c, 26)
 		FX.shake(4.0)

@@ -93,6 +93,7 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 	_on_hit_fx(dmg, amount, result.get("crit", false))
 	if faction == "player":
 		FX.sound("hurt", null, -4.0)
+		FX.rumble(0.25, 0.35 if amount > max_life * 0.15 else 0.1, 0.12)
 	else:
 		FX.sound("crit" if result.get("crit", false) else "hit", global_position, -2.0 if result.get("crit", false) else -7.0)
 	if life <= 0.0:

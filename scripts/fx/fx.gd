@@ -71,6 +71,13 @@ func sound(name: String, world_pos = null, vol: float = 0.0, pitch_var: float = 
 	if sfx and enabled:
 		sfx.play(name, vol, pitch_var, world_pos)
 
+## Controller rumble (only when playing on a pad).
+func rumble(weak: float, strong: float, seconds: float) -> void:
+	if not PlayerInput.using_pad:
+		return
+	for d in Input.get_connected_joypads():
+		Input.start_joy_vibration(d, clampf(weak, 0, 1), clampf(strong, 0, 1), seconds)
+
 func shake(amount: float) -> void:
 	_shake = maxf(_shake, amount)
 

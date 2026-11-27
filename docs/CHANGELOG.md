@@ -18,3 +18,10 @@
 - Tiled dungeons: floor variants, brick walls, banners, fountains, skulls, spikes, crates; treasure chests.
 - Real 2D lighting: dark ambient, player light, flickering braziers, glowing casters and boss, light flashes on spells.
 - Unlit FX layer + world overlay for life bars and names; weapon sprite icons; flask sprite on HUD.
+
+## 2026-11-26: Xbox controller support
+- Full controller play: stick move, right-stick aim with auto-targeting, face buttons + triggers for Rites, LT dodge, LB flask.
+- Menus navigable on pad (title, hero select, pause, death); virtual cursor in inventory and passive tree.
+- Button glyphs switch automatically between keyboard and controller; rumble feedback.
+- Input buffering (0.3 s) so tapped skills aren't dropped mid-cast. Shatter now needs a second press.
+- Automated controller test (`--pad-test`): 14 checks, all passing.

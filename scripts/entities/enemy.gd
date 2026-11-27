@@ -175,6 +175,7 @@ func die(killer: Actor) -> void:
 	FX.sound("die", global_position, -6.0)
 	if is_boss():
 		FX.sound("boom", null, 4.0)
+		FX.rumble(0.6, 1.0, 0.6)
 		FX.shake(20.0)
 		FX.hitstop(0.25)
 	set_physics_process(false)

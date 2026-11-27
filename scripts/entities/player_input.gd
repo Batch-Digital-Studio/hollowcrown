@@ -2,14 +2,26 @@ class_name PlayerInput
 extends RefCounted
 ## Intent source for a player. Local players read devices; in co-op a remote
 ## player's PlayerInput will be filled from network packets instead.
+##
+## Xbox controller layout (Jason plays on controller; every feature must work on it):
+##   Left stick move · Right stick aim (auto-targets nearest foe when released)
+##   A / RT Ember Bolt · X Ashen Cleave · B Rimeburst · Y Stormthread · RB Cinderfall
+##   LT dodge · LB flask · View inventory · Menu pause · D-pad Up passive tree
 
 var move := Vector2.ZERO
 var aim := Vector2.ZERO          # world position
 var skill_held := [false, false, false, false, false]
 var dodge := false
 var flask := false
+var _buffered := [0, 0, 0, 0, 0]   # msec timestamp of the last tap per skill
+const BUFFER_MS := 300
+
+static var using_pad := false    # last input came from a controller
 
 const SKILL_ACTIONS := ["skill_1", "skill_2", "skill_3", "skill_4", "skill_5"]
+const KEY_LABELS := ["LMB", "RMB", "Q", "E", "R"]
+const PAD_LABELS := ["A", "X", "B", "Y", "RB"]
+const DEADZONE := 0.22
 
 static func setup_input_map() -> void:
 	_key("move_up", [KEY_W, KEY_UP])
@@ -27,27 +39,138 @@ static func setup_input_map() -> void:
 	_key("respawn", [KEY_ENTER])
 	_mouse("skill_1", MOUSE_BUTTON_LEFT)
 	_mouse("skill_2", MOUSE_BUTTON_RIGHT)
+	# --- Xbox controller ---
+	_axis("move_left", JOY_AXIS_LEFT_X, -1.0)
+	_axis("move_right", JOY_AXIS_LEFT_X, 1.0)
+	_axis("move_up", JOY_AXIS_LEFT_Y, -1.0)
+	_axis("move_down", JOY_AXIS_LEFT_Y, 1.0)
+	_axis("aim_left", JOY_AXIS_RIGHT_X, -1.0)
+	_axis("aim_right", JOY_AXIS_RIGHT_X, 1.0)
+	_axis("aim_up", JOY_AXIS_RIGHT_Y, -1.0)
+	_axis("aim_down", JOY_AXIS_RIGHT_Y, 1.0)
+	_button("skill_1", JOY_BUTTON_A)
+	_axis("skill_1", JOY_AXIS_TRIGGER_RIGHT, 1.0)
+	_button("skill_2", JOY_BUTTON_X)
+	_button("skill_3", JOY_BUTTON_B)
+	_button("skill_4", JOY_BUTTON_Y)
+	_button("skill_5", JOY_BUTTON_RIGHT_SHOULDER)
+	_axis("dodge", JOY_AXIS_TRIGGER_LEFT, 1.0)
+	_button("flask", JOY_BUTTON_LEFT_SHOULDER)
+	_button("inventory", JOY_BUTTON_BACK)
+	_button("pause", JOY_BUTTON_START)
+	_button("passives", JOY_BUTTON_DPAD_UP)
+	_button("respawn", JOY_BUTTON_START)
+	# menu-only actions (inventory / passive tree with the virtual cursor)
+	_button("pad_click", JOY_BUTTON_A)
+	_button("pad_alt_click", JOY_BUTTON_X)
+	_button("pad_close", JOY_BUTTON_B)
+	_button("pad_zoom_in", JOY_BUTTON_RIGHT_SHOULDER)
+	_button("pad_zoom_out", JOY_BUTTON_LEFT_SHOULDER)
+	# Godot's built-in UI actions: make sure buttons/menus are fully navigable on pad
+	_button("ui_accept", JOY_BUTTON_A)
+	_button("ui_cancel", JOY_BUTTON_B)
+	_button("ui_up", JOY_BUTTON_DPAD_UP)
+	_button("ui_down", JOY_BUTTON_DPAD_DOWN)
+	_button("ui_left", JOY_BUTTON_DPAD_LEFT)
+	_button("ui_right", JOY_BUTTON_DPAD_RIGHT)
+	_axis("ui_up", JOY_AXIS_LEFT_Y, -1.0)
+	_axis("ui_down", JOY_AXIS_LEFT_Y, 1.0)
+	_axis("ui_left", JOY_AXIS_LEFT_X, -1.0)
+	_axis("ui_right", JOY_AXIS_LEFT_X, 1.0)
+	for a in ["move_left", "move_right", "move_up", "move_down", "aim_left", "aim_right", "aim_up", "aim_down"]:
+		InputMap.action_set_deadzone(a, DEADZONE)
+	InputMap.action_set_deadzone("skill_1", 0.35)
+	InputMap.action_set_deadzone("dodge", 0.35)
 
-static func _key(action: String, keys: Array) -> void:
+static func _ensure(action: String) -> void:
 	if not InputMap.has_action(action):
 		InputMap.add_action(action)
+
+static func _key(action: String, keys: Array) -> void:
+	_ensure(action)
 	for k in keys:
 		var e := InputEventKey.new()
 		e.physical_keycode = k
 		InputMap.action_add_event(action, e)
 
 static func _mouse(action: String, button: int) -> void:
-	if not InputMap.has_action(action):
-		InputMap.add_action(action)
+	_ensure(action)
 	var e := InputEventMouseButton.new()
 	e.button_index = button
 	InputMap.action_add_event(action, e)
 
-## Poll local devices. ui_blocking: true while the cursor is over a UI panel.
-func poll_local(world_mouse: Vector2, ui_blocking: bool) -> void:
+static func _button(action: String, button: int) -> void:
+	_ensure(action)
+	var e := InputEventJoypadButton.new()
+	e.button_index = button
+	e.device = -1   # any controller
+	InputMap.action_add_event(action, e)
+
+static func _axis(action: String, axis: int, dir: float) -> void:
+	_ensure(action)
+	var e := InputEventJoypadMotion.new()
+	e.axis = axis
+	e.axis_value = dir
+	e.device = -1
+	InputMap.action_add_event(action, e)
+
+## Called from Game._input so the HUD shows the right button labels and aiming mode.
+static func note_event(event: InputEvent) -> void:
+	if event is InputEventJoypadButton:
+		using_pad = true
+	elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.4:
+		using_pad = true
+	elif event is InputEventMouseMotion and event.relative.length() > 3.0:
+		using_pad = false
+	elif event is InputEventMouseButton or event is InputEventKey:
+		using_pad = false
+
+static func labels() -> Array:
+	return PAD_LABELS if using_pad else KEY_LABELS
+
+## Poll local devices.
+## ui_blocking: a menu is under the cursor / open (skills that share the click are suppressed).
+func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> void:
 	move = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	aim = world_mouse
+	if using_pad and me != null:
+		aim = _pad_aim(me)
+	else:
+		aim = world_mouse
+	var now := Time.get_ticks_msec()
 	for i in SKILL_ACTIONS.size():
-		skill_held[i] = Input.is_action_pressed(SKILL_ACTIONS[i]) and not (ui_blocking and i < 2)
+		var blocked := ui_blocking and (using_pad or i < 2)
+		if Input.is_action_just_pressed(SKILL_ACTIONS[i]) and not blocked:
+			_buffered[i] = now
+		var buffered: bool = now - int(_buffered[i]) < BUFFER_MS
+		skill_held[i] = (Input.is_action_pressed(SKILL_ACTIONS[i]) or buffered) and not blocked
 	dodge = Input.is_action_just_pressed("dodge")
 	flask = Input.is_action_just_pressed("flask")
+
+## A buffered tap was used; don't fire it twice.
+func consume(i: int) -> void:
+	_buffered[i] = 0
+
+## Right stick aims; released stick auto-targets the best nearby enemy (console-ARPG style).
+func _pad_aim(me: Actor) -> Vector2:
+	var rs := Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
+	var origin := me.global_position
+	if rs.length() > 0.3:
+		return origin + rs.normalized() * 360.0
+	var g := me.game()
+	var dir := move.normalized() if move.length() > 0.2 else me.facing
+	var best: Actor = null
+	var best_score := INF
+	if g:
+		for e in g.targets_in_circle(me.faction, origin, 760.0):
+			var to: Vector2 = e.global_position - origin
+			var d := to.length()
+			if d > 1.0 and not g.has_line_of_sight(origin, e.global_position):
+				continue
+			var ang := absf(dir.angle_to(to)) if d > 1.0 else 0.0
+			var score := d * (1.0 + ang * 0.9)   # prefer enemies in the direction you're facing
+			if score < best_score:
+				best_score = score
+				best = e
+	if best:
+		return best.global_position
+	return origin + dir * 300.0

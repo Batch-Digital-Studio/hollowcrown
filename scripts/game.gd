@@ -95,6 +95,8 @@ func _parse_args() -> void:
 			_near_boss_level = int(a.substr(12))
 		elif a.begins_with("--tree-at="):
 			_tree_at = float(a.substr(10))
+		elif a == "--pad-test":
+			add_child(load("res://scripts/tests/pad_test.gd").new())
 		elif a == "--fresh":
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
@@ -420,7 +422,7 @@ func _process(delta: float) -> void:
 		if bot:
 			bot.drive(player, self)
 		else:
-			player.input.poll_local(get_global_mouse_position(), over_ui)
+			player.input.poll_local(get_global_mouse_position(), over_ui or (PlayerInput.using_pad and inv_ui.visible), player)
 		camera.global_position = player.global_position + (player.input.aim - player.global_position).limit_length(220.0) * 0.18
 		minimap.update(player.global_position, delta)
 		_save_t += delta
@@ -438,6 +440,7 @@ func _process(delta: float) -> void:
 			inv_ui.toggle()
 		else:
 			hud.toggle_pause()
+	_pad_menus(delta)
 	if Input.is_action_just_pressed("respawn") and state == "dead":
 		respawn()
 	if bot and state == "dead":
@@ -445,6 +448,53 @@ func _process(delta: float) -> void:
 		print("BOT died at t=%.0f depth=%d level=%d" % [_clock, depth, player.level])
 		respawn()
 	_testing_hooks()
+
+func _input(event: InputEvent) -> void:
+	PlayerInput.note_event(event)
+
+## Controller in the inventory / passive tree: left stick drives a virtual cursor,
+## A = click, X = right-click, B = close, right stick pans the tree, LB/RB zoom.
+func _pad_menus(delta: float) -> void:
+	var menu_open := inv_ui.visible or hud.passives.visible
+	if not menu_open:
+		return
+	if Input.is_action_just_pressed("pad_close"):
+		if hud.passives.visible:
+			hud.passives.toggle()
+		else:
+			inv_ui.toggle()
+		return
+	if not PlayerInput.using_pad:
+		return
+	var vp := get_viewport()
+	var stick := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if stick.length() > 0.0:
+		var speed := 1100.0 * (0.35 + 0.65 * stick.length())
+		var m := vp.get_mouse_position() + stick * speed * delta
+		var vs := vp.get_visible_rect().size
+		vp.warp_mouse(Vector2(clampf(m.x, 0, vs.x), clampf(m.y, 0, vs.y)))
+	if hud.passives.visible:
+		var rs := Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
+		hud.passives.offset -= rs * 700.0 * delta
+		if Input.is_action_pressed("pad_zoom_in"):
+			hud.passives.zoom = clampf(hud.passives.zoom * (1.0 + delta), 0.4, 1.6)
+		if Input.is_action_pressed("pad_zoom_out"):
+			hud.passives.zoom = clampf(hud.passives.zoom / (1.0 + delta), 0.4, 1.6)
+	if Input.is_action_just_pressed("pad_click"):
+		_click(MOUSE_BUTTON_LEFT)
+	if Input.is_action_just_pressed("pad_alt_click"):
+		_click(MOUSE_BUTTON_RIGHT)
+
+func _click(button: int) -> void:
+	var pos := get_viewport().get_mouse_position()
+	for pressed in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = button
+		e.pressed = pressed
+		e.position = pos
+		e.global_position = pos
+		Input.parse_input_event(e)
+	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
 	if _tree_at > 0.0 and _clock >= _tree_at and state == "play":

@@ -110,6 +110,18 @@ func _centered_box() -> VBoxContainer:
 	_overlay = holder
 	return box
 
+## Focus the first button of the current overlay so the controller can navigate it.
+func _focus_first() -> void:
+	if _overlay == null:
+		return
+	var stack: Array = [_overlay]
+	while not stack.is_empty():
+		var n: Node = stack.pop_front()
+		if n is BaseButton:
+			(n as BaseButton).grab_focus()
+			return
+		stack.append_array(n.get_children())
+
 func hide_overlays() -> void:
 	if _overlay:
 		_overlay.queue_free()
@@ -133,8 +145,11 @@ func _show_title() -> void:
 	sp2.custom_minimum_size = Vector2(0, 20)
 	box.add_child(sp2)
 	box.add_child(_label(CONTROLS, 16, Color(0.6, 0.58, 0.55)))
+	box.add_child(_label(PAD_CONTROLS, 16, Color(0.55, 0.7, 0.55)))
+	_focus_first.call_deferred()
 
 const CONTROLS := "WASD move  ·  Mouse aim  ·  LMB Ember Bolt  ·  RMB Ashen Cleave\nQ Rimeburst  ·  E Stormthread  ·  R Cinderfall  ·  Space dodge  ·  1 flask\nI / Tab inventory  ·  P passive tree  ·  Esc pause"
+const PAD_CONTROLS := "Xbox: L-stick move  ·  R-stick aim (auto-targets)  ·  A/RT Ember Bolt  ·  X Cleave  ·  B Rimeburst  ·  Y Stormthread\nRB Cinderfall  ·  LT dodge  ·  LB flask  ·  View inventory  ·  D-pad ↑ tree  ·  Menu pause"
 
 func _start(cont: bool) -> void:
 	hide_overlays()
@@ -163,13 +178,14 @@ func _show_hero_select() -> void:
 		card.add_theme_stylebox_override("normal", n)
 		card.add_theme_stylebox_override("hover", hv)
 		card.add_theme_stylebox_override("pressed", hv)
-		card.add_theme_stylebox_override("focus", n)
+		card.add_theme_stylebox_override("focus", hv)
 		card.pressed.connect(func():
 			hide_overlays()
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(Game.SAVE_PATH))
 			Game.instance.start_game(false, h))
 		grid.add_child(card)
 	box.add_child(grid)
+	_focus_first.call_deferred()
 
 func toggle_pause() -> void:
 	if _overlay:
@@ -181,12 +197,14 @@ func toggle_pause() -> void:
 	box.add_child(_button("Save & Quit", func():
 		Game.instance.save_game()
 		get_tree().quit()))
-	box.add_child(_label(CONTROLS, 16, Color(0.6, 0.58, 0.55)))
+	box.add_child(_label(PAD_CONTROLS if PlayerInput.using_pad else CONTROLS, 16, Color(0.6, 0.58, 0.55)))
 	get_tree().paused = true
+	_focus_first.call_deferred()
 
 func show_death() -> void:
 	var box := _centered_box()
 	(_overlay.get_child(0) as ColorRect).color = Color(0.15, 0.0, 0.0, 0.55)
 	box.add_child(_label("YOU HAVE BEEN HOLLOWED", 52, Color(0.9, 0.25, 0.2)))
 	box.add_child(_label("Your gear and levels are kept. The zone is reborn.", 18, Color(0.8, 0.7, 0.65)))
-	box.add_child(_button("Rise again  (Enter)", func(): Game.instance.respawn()))
+	box.add_child(_button("Rise again", func(): Game.instance.respawn()))
+	_focus_first.call_deferred()
