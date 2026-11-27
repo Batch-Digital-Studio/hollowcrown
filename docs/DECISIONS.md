@@ -12,7 +12,8 @@ What Jason has confirmed, and what is still open. Newest first.
 - 2026-11-27 Art route: real-time 3D (chosen over 2D sprites).
 
 ## Open
-- Unreal test: needs Unreal Engine installed on Jason's PC through the Epic Games Launcher (free account sign-in is his step). Version and install path to confirm.
+- Unreal test: UE 5.8.4 installed, project `Documents/HollowcrownUE` created 2026-11-27. Still to do: the same Whisperwood patch, spell and camera in both engines, frame timing on Jason's PC.
+- Fab / Quixel Bridge (installed by Jason): third-party stock; reference only under the original-art rule unless Jason decides otherwise.
 - First minute of play: enhance the Ashfall Crypt opening or build a new opening region?
 - Gathering and crafting: which trade first (lumber, fishing + cooking, herbs)?
 - World structure (linked zones as now, or seamless), platforms and minimum hardware.

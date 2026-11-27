@@ -128,3 +128,4 @@
 - Tools: Blender 5.3 (Python module) runs in the cloud workspace. `tools/blender/gen_tree.py` generates seeded low-poly trees -> .glb; import into Godot checked. Pipeline test only, not in the game yet.
 - Renderer: switched to Forward+ (falls back to Compatibility automatically). Adds SSAO + SSIL in the 3D view. Checked in the cloud with a software Vulkan driver: iso probe 16/16, menu probe 37/37. Frame rate on Jason's PC not measured yet.
 - New `docs/DECISIONS.md`: confirmed choices and open questions.
+- Unreal test: project HollowcrownUE created on Jason's PC (UE 5.8.4). Scripts in `unreal/ClaudeScripts` build a test level with the same iso camera; Blender trees import and light correctly with Lumen. Not yet a fair comparison (placeholder assets, no matching Godot scene, no frame timing).
