@@ -32,6 +32,7 @@ var _shot_i := 0
 var _clock := 0.0
 var quit_after := -1.0
 var _inv_at := -1.0
+var _near_boss_level := 0
 
 func _ready() -> void:
 	instance = self
@@ -70,6 +71,8 @@ func _parse_args() -> void:
 			rng.seed = int(a.substr(7))
 		elif a.begins_with("--inv-at="):
 			_inv_at = float(a.substr(9))
+		elif a.begins_with("--near-boss="):
+			_near_boss_level = int(a.substr(12))
 		elif a == "--fresh":
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
@@ -77,6 +80,21 @@ func _parse_args() -> void:
 	if bot:
 		hud.hide_overlays()
 		start_game(false)
+		if _near_boss_level > 0:
+			player.level = _near_boss_level
+			for i in 6:
+				player.add_to_inventory(Loot.make_item(_near_boss_level, rng, "rare"))
+			for i in Player.INV_SIZE:
+				if player.inventory[i]:
+					player.equip_from_bag(i)
+			player.recalc_stats(true)
+			for e in enemies.duplicate():
+				if not e.is_boss():
+					enemies.erase(e)
+					e.queue_free()
+			player.global_position = zone.cell_center(zone.boss_cell) + Vector2(-420, 0)
+			if zone.is_wall_at(player.global_position):
+				player.global_position = zone.cell_center(zone.boss_cell) + Vector2(0, 300)
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
@@ -265,6 +283,7 @@ func _on_enemy_died(a: Actor) -> void:
 			it = Loot.make_item(e.level, rng, "rare" if rng.randf() > 0.35 else "unique")
 		drop_item(it, e.global_position)
 	if e.is_boss():
+		print("BOSS killed at t=%.1f" % _clock)
 		hud.show_message("THE ASHEN REGENT FALLS", "A way down has opened.")
 		var portal := Portal.new()
 		portal.global_position = e.global_position + Vector2(0, -40)

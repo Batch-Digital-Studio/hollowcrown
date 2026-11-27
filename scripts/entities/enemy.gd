@@ -54,8 +54,7 @@ func _ready() -> void:
 	c.radius = radius * 0.8
 	shape.shape = c
 	add_child(shape)
-	_strafe = 1.0 if randf() < 0.5 else -1.0
-	_think = randf() * 0.3
+	_strafe = 1.0 if game().rng.randf() < 0.5 else -1.0
 	if rarity == "rare" or rarity == "magic" or def.get("boss", false):
 		var col := Color(1.0, 0.8, 0.3, 0.5) if rarity == "rare" else Color(0.4, 0.55, 1.0, 0.4)
 		if def.get("boss", false):
@@ -154,7 +153,7 @@ func _ai_boss(p: Player, to_p: Vector2, dist: float, delta: float) -> Vector2:
 		cooldowns["regent_volley"] = 5.0 if _boss_phase == 1 else 3.0
 		return Vector2.ZERO
 	if dist > 130.0:
-		return to_p.normalized()
+		return to_p.normalized() * (1.6 if dist > 380.0 else 1.0)
 	return Vector2.ZERO
 
 func die(killer: Actor) -> void:

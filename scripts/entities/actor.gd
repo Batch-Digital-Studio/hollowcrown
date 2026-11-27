@@ -71,7 +71,7 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 	if amount <= 0.0:
 		return 0.0
 	life -= amount
-	hit_flash = 0.12
+	hit_flash = 0.08
 	knock += knock_dir.normalized() * knock_force
 	# Ailments
 	var rng := game().rng
@@ -157,7 +157,7 @@ func status_tint(base: Color) -> Color:
 	if shock_time > 0.0:
 		c = c.lerp(Color(1.0, 0.95, 0.5), 0.25)
 	if hit_flash > 0.0:
-		c = c.lerp(Color.WHITE, 0.75)
+		c = c.lerp(Color.WHITE, clampf(0.55 * 16.0 / radius, 0.15, 0.6))
 	return c
 
 func can_use(skill_id: String) -> bool:

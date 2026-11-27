@@ -21,7 +21,7 @@ const ENEMIES := {
 		"stats": {"armour": 160, "res_cold": 25},
 	},
 	"regent": {
-		"name": "The Ashen Regent", "life": 2200, "speed": 125.0, "radius": 44.0, "xp": 400,
+		"name": "The Ashen Regent", "life": 3000, "speed": 125.0, "radius": 44.0, "xp": 400,
 		"skills": ["regent_sweep", "regent_nova", "regent_volley"], "ai": "boss", "range": 140.0,
 		"color": Color(0.3, 0.27, 0.25), "eye": Color(1.0, 0.75, 0.25),
 		"stats": {"armour": 250, "res_fire": 30, "res_cold": 30, "res_lightning": 30},

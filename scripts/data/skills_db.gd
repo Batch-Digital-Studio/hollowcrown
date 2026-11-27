@@ -48,12 +48,12 @@ const SKILLS := {
 		"color": Color(1.0, 0.45, 0.2), "range": 600.0},
 	"brute_slam": {"name": "Slam", "kind": "attack", "behavior": "telegraph", "base_damage": {"physical": [16, 24]},
 		"crit": 5.0, "time": 2.2, "radius": 105.0, "windup": 0.75, "tags": ["area"], "color": Color(0.9, 0.6, 0.4)},
-	"regent_sweep": {"name": "Crown Sweep", "kind": "attack", "behavior": "melee_arc", "base_damage": {"physical": [18, 26]},
-		"crit": 5.0, "time": 1.1, "arc_deg": 180.0, "radius": 150.0, "tags": ["melee"], "color": Color(1.0, 0.8, 0.4)},
-	"regent_nova": {"name": "Hollow Flare", "kind": "spell", "behavior": "telegraph", "base_damage": {"fire": [26, 38]},
-		"crit": 5.0, "time": 4.0, "radius": 260.0, "windup": 1.1, "tags": ["area"], "color": Color(1.0, 0.4, 0.1)},
-	"regent_volley": {"name": "Ember Volley", "kind": "spell", "behavior": "radial", "base_damage": {"fire": [10, 15]},
-		"crit": 5.0, "time": 3.0, "speed": 340.0, "radius": 12.0, "count": 14, "tags": ["projectile"],
+	"regent_sweep": {"name": "Crown Sweep", "kind": "attack", "behavior": "melee_arc", "base_damage": {"physical": [26, 38]},
+		"crit": 5.0, "time": 0.9, "arc_deg": 180.0, "radius": 150.0, "tags": ["melee"], "color": Color(1.0, 0.8, 0.4)},
+	"regent_nova": {"name": "Hollow Flare", "kind": "spell", "behavior": "telegraph", "base_damage": {"fire": [38, 54]},
+		"crit": 5.0, "time": 1.25, "radius": 260.0, "windup": 1.1, "tags": ["area"], "color": Color(1.0, 0.4, 0.1)},
+	"regent_volley": {"name": "Ember Volley", "kind": "spell", "behavior": "radial", "base_damage": {"fire": [12, 18]},
+		"crit": 5.0, "time": 0.8, "speed": 360.0, "radius": 12.0, "count": 16, "tags": ["projectile"],
 		"color": Color(1.0, 0.6, 0.2), "range": 900.0},
 }
 
