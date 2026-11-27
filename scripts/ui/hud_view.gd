@@ -25,7 +25,8 @@ func _draw() -> void:
 	var fx := Vector2(220, vs.y - 92)
 	draw_rect(Rect2(fx.x, fx.y, 38, 70), Color(0.05, 0.04, 0.05, 0.85))
 	var fill := p.flask_charges / float(p.flask_max)
-	draw_rect(Rect2(fx.x + 4, fx.y + 4 + 62 * (1.0 - fill), 30, 62 * fill), Color(0.8, 0.15, 0.2))
+	draw_rect(Rect2(fx.x + 4, fx.y + 4 + 62 * (1.0 - fill), 30, 62 * fill), Color(0.5, 0.08, 0.12))
+	draw_texture_rect(Art.tex("flask_big_red"), Rect2(fx.x + 3, fx.y + 19, 32, 32), false, Color(1, 1, 1, 0.45 + 0.55 * minf(1.0, p.flask_charges)))
 	draw_rect(Rect2(fx.x, fx.y, 38, 70), Color(0.6, 0.42, 0.22), false, 2.0)
 	_text(f, Vector2(fx.x + 19, fx.y + 88), "1", 14, Color(0.8, 0.8, 0.8))
 	_text(f, Vector2(fx.x + 19, fx.y - 6), "%d" % int(p.flask_charges), 14, Color(1, 0.6, 0.6))
@@ -84,7 +85,7 @@ func _draw() -> void:
 		for e in g.enemies:
 			if e.rarity == "rare" and g.minimap.is_revealed(Vector2i(e.global_position / Zone.CELL)):
 				draw_circle(mr.position + e.global_position / Zone.CELL * ms, 2.5, Color(1.0, 0.85, 0.3))
-		for c in g.world_layer.get_children():
+		for c in g.fx_node.get_children():
 			if c is Portal:
 				draw_circle(mr.position + c.global_position / Zone.CELL * ms, 5.0, Color(0.7, 0.5, 1.0))
 	# Boss bar

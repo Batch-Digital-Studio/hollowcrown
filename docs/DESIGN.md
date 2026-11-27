@@ -55,7 +55,7 @@ Enter zone → clear packs → loot drops → equip / compare → level up → b
 - **Data-driven content.** Skills, affixes, base items and enemies are dictionaries in
   `scripts/data/`. New content should rarely need new code.
 
-## Art direction (for now)
-No sprite art yet: shapes, glow and particles drawn in code, high contrast on a dark ground.
-A real art pipeline (AI-generated or licensed sprites) is a later milestone; entity
-visuals are isolated in `_draw()` / visual child nodes so they can be swapped.
+## Art direction
+Dark pixel art (chosen by Jason, 2026-11-26): 0x72 DungeonTileset II (CC0) at 4x scale, nearest filtering,
+lit by real 2D lights over a dark ambient. Effects, numbers and labels live on an unlit layer so they pop.
+Sprites are looked up by name through `Art` (scripts/core/art.gd) so packs can be extended or swapped.

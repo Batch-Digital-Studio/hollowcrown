@@ -138,9 +138,38 @@ const CONTROLS := "WASD move  ·  Mouse aim  ·  LMB Ember Bolt  ·  RMB Ashen C
 
 func _start(cont: bool) -> void:
 	hide_overlays()
-	if not cont:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(Game.SAVE_PATH))
-	Game.instance.start_game(cont)
+	if cont:
+		Game.instance.start_game(true)
+	else:
+		_show_hero_select()
+
+func _show_hero_select() -> void:
+	var box := _centered_box()
+	(_overlay.get_child(0) as ColorRect).color = Color(0.02, 0.02, 0.03, 0.97)
+	box.add_child(_label("CHOOSE YOUR KINDLED", 48, GOLD))
+	box.add_child(_label("Appearance only. Every Kindled can walk any path of the Constellation.", 18, Color(0.7, 0.65, 0.6)))
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	for h in Art.HEROES:
+		var card := HeroCard.new()
+		card.hero = h
+		card.custom_minimum_size = Vector2(190, 230)
+		var n := _panel_style(0.9)
+		var hv := _panel_style(0.95)
+		hv.border_color = GOLD
+		hv.bg_color = Color(0.14, 0.08, 0.05, 0.95)
+		card.add_theme_stylebox_override("normal", n)
+		card.add_theme_stylebox_override("hover", hv)
+		card.add_theme_stylebox_override("pressed", hv)
+		card.add_theme_stylebox_override("focus", n)
+		card.pressed.connect(func():
+			hide_overlays()
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(Game.SAVE_PATH))
+			Game.instance.start_game(false, h))
+		grid.add_child(card)
+	box.add_child(grid)
 
 func toggle_pause() -> void:
 	if _overlay:

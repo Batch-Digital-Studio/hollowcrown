@@ -10,6 +10,9 @@ const ZONE_NAMES := ["The Ashfall Road", "Rimeglass Hollow", "The Cinder Vaults"
 var rng := RandomNumberGenerator.new()
 var zone: Zone
 var world_layer: Node2D
+var fx_node: Node2D        # unlit effects layer (follows the camera)
+var light_root: Node2D
+var ambient: CanvasModulate
 var player: Player
 var enemies: Array = []
 var packs := {}          # enemy -> pack id
@@ -44,11 +47,25 @@ func _ready() -> void:
 	world_layer = Node2D.new()
 	world_layer.y_sort_enabled = true
 	add_child(world_layer)
-	FX.world = world_layer
+	light_root = Node2D.new()
+	add_child(light_root)
+	ambient = CanvasModulate.new()
+	ambient.color = Color(0.42, 0.39, 0.46)
+	add_child(ambient)
+	var fx_layer := CanvasLayer.new()
+	fx_layer.layer = 1
+	fx_layer.follow_viewport_enabled = true
+	add_child(fx_layer)
+	fx_node = Node2D.new()
+	fx_layer.add_child(fx_node)
+	var overlay := WorldOverlay.new()
+	fx_layer.add_child(overlay)
+	FX.world = fx_node
+	FX.light_root = light_root
 	camera = Camera2D.new()
 	camera.position_smoothing_enabled = true
 	camera.position_smoothing_speed = 9.0
-	camera.zoom = Vector2(1.35, 1.35)
+	camera.zoom = Vector2(1.0, 1.0)
 	camera.process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	add_child(camera)
 	camera.make_current()
@@ -84,7 +101,7 @@ func _parse_args() -> void:
 			depth = int(a.substr(8))
 	if bot:
 		hud.hide_overlays()
-		start_game(false)
+		start_game(false, Art.HEROES[rng.randi() % Art.HEROES.size()])
 		if _near_boss_level > 0:
 			player.level = _near_boss_level
 			for i in 6:
@@ -104,8 +121,10 @@ func _parse_args() -> void:
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
-func start_game(continue_save: bool) -> void:
+func start_game(continue_save: bool, hero: String = "") -> void:
 	player = Player.new()
+	if hero != "":
+		player.hero = hero
 	if continue_save and has_save():
 		var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 		var d = JSON.parse_string(f.get_as_text())
@@ -136,6 +155,10 @@ func build_zone() -> void:
 	for c in world_layer.get_children():
 		if c != player:
 			c.queue_free()
+	for c in fx_node.get_children():
+		c.queue_free()
+	for c in light_root.get_children():
+		c.queue_free()
 	if zone:
 		zone.queue_free()
 	zone = Zone.new()
@@ -155,6 +178,15 @@ func build_zone() -> void:
 	camera.global_position = player.global_position
 	camera.reset_smoothing()
 	minimap.reset(zone)
+	for b in zone.braziers:
+		var l := FX.make_light(zone.theme_accent.lerp(Color(1, 0.8, 0.5), 0.4), rng.randf_range(300, 420), 1.25)
+		l.position = b
+		l.set_script(load("res://scripts/fx/flicker.gd"))
+		light_root.add_child(l)
+	for c in zone.chest_cells:
+		var ch := Chest.new()
+		ch.position = zone.cell_center(c)
+		world_layer.add_child(ch)
 	_spawn_packs()
 	_spawn_boss()
 	inv_ui.refresh()
@@ -184,16 +216,24 @@ func _spawn_packs() -> void:
 		var lvl := area_level() + (1 if c.x > Zone.W / 2 else 0)
 		var comp: Array = []
 		var r := rng.randf()
-		if r < 0.42:
+		if r < 0.26:
 			for i in rng.randi_range(4, 7): comp.append("husk")
-		elif r < 0.68:
+		elif r < 0.42:
+			for i in rng.randi_range(5, 8): comp.append("rattler")
+		elif r < 0.58:
 			for i in rng.randi_range(2, 3): comp.append("cinderling")
 			for i in rng.randi_range(2, 3): comp.append("husk")
-		elif r < 0.9:
+		elif r < 0.70:
+			for i in rng.randi_range(2, 3): comp.append("rimecaller")
+			for i in rng.randi_range(2, 4): comp.append("rattler")
+		elif r < 0.80:
+			comp.append("gravecaller")
+			for i in rng.randi_range(2, 3): comp.append("husk")
+		elif r < 0.93:
 			comp.append("brute")
 			for i in rng.randi_range(3, 4): comp.append("husk")
 		else:
-			comp.append_array(["brute", "brute", "cinderling", "cinderling"])
+			comp.append_array(["brute", "brute", "cinderling", "rimecaller"])
 		var rare_ch := 0.16 + depth * 0.03
 		var leader_rare := rng.randf() < rare_ch
 		pack_members[pid] = []
@@ -280,6 +320,9 @@ func _on_enemy_died(a: Actor) -> void:
 			drops = 5
 			rarity_bonus = 250.0
 			player.add_flask_charge(3.0)
+	if e.has_meta("minion"):
+		mult *= 0.25
+		drops = 0
 	var xp := int(round(e.def.xp * pow(1.12, e.level - 1) * mult))
 	if player and not player.dead:
 		player.gain_xp(xp)
@@ -294,13 +337,16 @@ func _on_enemy_died(a: Actor) -> void:
 		var portal := Portal.new()
 		portal.global_position = e.global_position + Vector2(0, -40)
 		portal.entered.connect(_descend)
-		world_layer.add_child(portal)
+		fx_node.add_child(portal)
+		var pl := FX.make_light(Color(0.7, 0.5, 1.0), 420.0, 1.4)
+		pl.position = portal.global_position
+		light_root.add_child(pl)
 		save_game()
 
 func drop_item(it: Item, pos: Vector2) -> void:
 	var p := Pickup.new()
 	p.setup(it, pos, Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(120, 260))
-	world_layer.add_child(p)
+	fx_node.add_child(p)
 
 func on_item_picked(_it: Item) -> void:
 	inv_ui.refresh()

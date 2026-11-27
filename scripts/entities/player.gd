@@ -22,7 +22,6 @@ var _dodge_cd := 0.0
 var _dodge_dir := Vector2.ZERO
 var _flask_heal := 0.0
 var _anim := 0.0
-var _glow: Sprite2D
 var _light: PointLight2D
 
 func _init() -> void:
@@ -39,9 +38,7 @@ func _ready() -> void:
 	c.radius = radius
 	shape.shape = c
 	add_child(shape)
-	_glow = FX.make_glow(Color(1.0, 0.55, 0.2, 0.55), 150.0)
-	_glow.z_index = -1
-	add_child(_glow)
+	_build_visuals()
 	if equipment.is_empty():
 		equipment["weapon"] = Loot.starter_weapon()
 	recalc_stats(true)
@@ -193,6 +190,7 @@ func _physics_process(delta: float) -> void:
 			FX.burst(global_position, Color(1.0, 0.6, 0.3), 2, 40.0, 7.0, 0.35)
 		if _dodge_t <= 0.0:
 			invulnerable = false
+		_update_visuals(delta)
 		queue_redraw()
 		return
 	if input.dodge and _dodge_cd <= 0.0:
@@ -219,37 +217,116 @@ func _physics_process(delta: float) -> void:
 	var speed := move_speed() * (0.45 if busy_time > 0.0 else 1.0)
 	velocity = input.move.normalized() * speed + knock
 	move_and_slide()
+	_update_visuals(delta)
 	queue_redraw()
 
 func _draw() -> void:
-	var bob := sin(_anim * 8.0) * (1.5 if velocity.length() > 10.0 else 0.4)
-	var body := status_tint(Color(0.16, 0.14, 0.18))
-	if invulnerable:
-		body.a = 0.55
 	# shadow
-	draw_set_transform(Vector2(0, radius * 0.9), 0.0, Vector2(1.0, 0.4))
-	draw_circle(Vector2.ZERO, radius * 1.1, Color(0, 0, 0, 0.45))
+	draw_set_transform(Vector2(0, radius * 0.7), 0.0, Vector2(1.0, 0.38))
+	draw_circle(Vector2.ZERO, radius * 1.4, Color(0, 0, 0, 0.5))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# cloak
-	var pts := PackedVector2Array()
-	for i in 20:
-		var a := TAU * i / 20.0
-		var r := radius * (1.15 if sin(a) > 0.2 else 1.0)
-		pts.append(Vector2(cos(a) * r, sin(a) * r * 1.1 + bob))
-	draw_colored_polygon(pts, body)
-	draw_polyline(pts + PackedVector2Array([pts[0]]), status_tint(Color(0.5, 0.35, 0.25)), 2.0, true)
-	# hood + ember heart
-	draw_circle(Vector2(0, -radius * 0.55 + bob), radius * 0.62, status_tint(Color(0.1, 0.09, 0.11)))
-	var pulse := 0.8 + 0.2 * sin(_anim * 5.0)
-	draw_circle(Vector2(0, radius * 0.15 + bob), radius * 0.32 * pulse, Color(1.0, 0.55, 0.2))
-	draw_circle(Vector2(0, radius * 0.15 + bob), radius * 0.16, Color(1.0, 0.9, 0.6))
-	# eyes look toward aim
-	var eye_c := Vector2(0, -radius * 0.55 + bob) + facing * radius * 0.28
-	draw_circle(eye_c + facing.orthogonal() * 3.5, 2.0, Color(1.0, 0.8, 0.4))
-	draw_circle(eye_c - facing.orthogonal() * 3.5, 2.0, Color(1.0, 0.8, 0.4))
-	# weapon
-	var wbase := facing * radius * 0.9 + facing.orthogonal() * radius * 0.6
-	draw_line(wbase, wbase + facing * radius * 1.5, Color(0.75, 0.72, 0.68), 3.0, true)
+	if ignite_time > 0.0:
+		draw_arc(Vector2(0, radius * 0.7), radius * 1.5, 0, TAU, 24, Color(1, 0.45, 0.1, 0.7), 2.0, true)
+
+# ---------- visuals ----------
+
+var hero := "knight_m"
+var _spr: AnimatedSprite2D
+var _wpn: Sprite2D
+var _wpn_id := ""
+var _mat: ShaderMaterial
+var _hit_t := 0.0
+var _swing_t := 0.0
+var _swing_dir := 1.0
+var _lunge := Vector2.ZERO
+
+func _build_visuals() -> void:
+	_mat = ShaderMaterial.new()
+	_mat.shader = load("res://assets/shaders/sprite_fx.gdshader")
+	_spr = AnimatedSprite2D.new()
+	_spr.sprite_frames = Art.frames_for(hero)
+	_spr.scale = Vector2.ONE * Art.PX
+	_spr.position = Vector2(0, -44)
+	_spr.material = _mat
+	_spr.play("idle")
+	add_child(_spr)
+	_wpn = Sprite2D.new()
+	_wpn.centered = false
+	_wpn.scale = Vector2.ONE * Art.PX * 0.85
+	_wpn.material = _mat
+	add_child(_wpn)
+	_light = FX.make_light(Color(1.0, 0.78, 0.55), 560.0, 1.05)
+	_light.position = Vector2(0, -30)
+	add_child(_light)
+	_refresh_weapon()
+
+func set_hero(h: String) -> void:
+	hero = h if Art.HEROES.has(h) else "knight_m"
+	if _spr:
+		_spr.sprite_frames = Art.frames_for(hero)
+		_spr.play("idle")
+
+func _refresh_weapon() -> void:
+	var it: Item = equipment.get("weapon")
+	var id := ""
+	if it:
+		id = it.unique_id if Art.WEAPON_SPRITES.has(it.unique_id) else it.base_id
+	if id == _wpn_id:
+		return
+	_wpn_id = id
+	_wpn.visible = id != ""
+	if id != "":
+		var name: String = Art.WEAPON_SPRITES.get(id, "weapon_rusty_sword")
+		_wpn.texture = Art.tex(name)
+		var sz := Art.size_of(name)
+		_wpn.offset = Vector2(-sz.x / 2.0, -sz.y + 4)   # pivot near the grip
+
+## Called by SkillExec when the player uses a Rite.
+func on_skill_used(skill: Dictionary) -> void:
+	_swing_t = 0.22 if skill.get("kind") == "attack" else 0.14
+	_swing_dir = -_swing_dir
+	_lunge = facing * (10.0 if skill.get("kind") == "attack" else 4.0)
+
+func _update_visuals(delta: float) -> void:
+	if _spr == null:
+		return
+	_refresh_weapon()
+	_hit_t = maxf(0.0, _hit_t - delta)
+	_swing_t = maxf(0.0, _swing_t - delta)
+	_lunge = _lunge.move_toward(Vector2.ZERO, 120.0 * delta)
+	var anim := "idle"
+	if _hit_t > 0.0:
+		anim = "hit"
+	elif velocity.length() > 30.0:
+		anim = "run"
+	if _spr.animation != anim:
+		_spr.play(anim)
+	var left := facing.x < -0.05
+	_spr.flip_h = left
+	_spr.position = Vector2(0, -44) + _lunge
+	_spr.modulate.a = 0.55 if invulnerable else 1.0
+	# weapon follows aim, swings on attacks
+	var hand := Vector2(-14.0 if left else 14.0, -22.0) + _lunge
+	_wpn.position = hand
+	var base_angle := facing.angle() + PI / 2.0
+	var swing := 0.0
+	if _swing_t > 0.0:
+		var k := 1.0 - _swing_t / 0.22
+		swing = lerpf(-1.4, 1.4, k) * _swing_dir
+	_wpn.rotation = base_angle + swing
+	_wpn.z_index = 1 if facing.y > -0.3 else -1
+	# status + flash
+	var tint := Color.WHITE
+	if is_chilled():
+		tint = Color(0.6, 0.85, 1.0)
+	elif shock_time > 0.0:
+		tint = Color(1.0, 1.0, 0.7)
+	_mat.set_shader_parameter("tint", tint)
+	_mat.set_shader_parameter("flash", 0.8 if hit_flash > 0.0 else 0.0)
+
+func _on_hit_fx(dmg: Dictionary, amount: float, crit: bool) -> void:
+	super._on_hit_fx(dmg, amount, crit)
+	_hit_t = 0.15
 
 func to_save() -> Dictionary:
 	var eq := {}
@@ -259,11 +336,12 @@ func to_save() -> Dictionary:
 	var inv: Array = []
 	for it in inventory:
 		inv.append(it.to_dict() if it else null)
-	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys()}
+	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
+	hero = d.get("hero", "knight_m")
 	passives = {"start": true}
 	for id in d.get("passives", []):
 		if PassivesDB.nodes().has(id):

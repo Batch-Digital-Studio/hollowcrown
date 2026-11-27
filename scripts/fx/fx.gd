@@ -2,7 +2,9 @@ extends Node
 ## Presentation-only effects. Gameplay code calls these; nothing here affects simulation.
 ## In co-op, clients can trigger these from replicated events.
 
-var world: Node2D           # layer effects are spawned into (set by game.gd)
+var world: Node2D           # unlit effects layer (set by game.gd)
+var light_root: Node2D      # lights live in the lit world canvas
+var light_tex: Texture2D
 var camera: Camera2D
 var enabled := true
 
@@ -16,6 +18,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	glow_tex = _make_radial(64, 2.2)
 	soft_tex = _make_radial(16, 1.0)
+	light_tex = _make_radial(256, 1.0)
 	sfx = Sfx.new()
 	add_child(sfx)
 
@@ -32,6 +35,27 @@ func _make_radial(size: int, falloff: float) -> Texture2D:
 	t.width = size
 	t.height = size
 	return t
+
+## A PointLight2D for the lit world. radius in world px.
+func make_light(color: Color, radius: float, energy: float = 1.0) -> PointLight2D:
+	var l := PointLight2D.new()
+	l.texture = light_tex
+	l.texture_scale = radius / 128.0
+	l.color = color
+	l.energy = energy
+	l.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	return l
+
+## Short burst of real light (explosions, crits, level up).
+func light_flash(pos: Vector2, color: Color, radius: float = 220.0, duration: float = 0.25, energy: float = 1.6) -> void:
+	if not light_root:
+		return
+	var l := make_light(color, radius, energy)
+	l.position = pos
+	light_root.add_child(l)
+	var tw := l.create_tween()
+	tw.tween_property(l, "energy", 0.0, duration)
+	tw.tween_callback(l.queue_free)
 
 func _process(delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
@@ -83,6 +107,7 @@ func burst(pos: Vector2, color: Color, count: int = 14, speed: float = 260.0, si
 	p.lifetime = life
 	p.explosiveness = 1.0
 	p.texture = soft_tex
+	p.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	p.spread = 180.0
 	p.gravity = Vector2.ZERO
 	p.initial_velocity_min = speed * 0.35
@@ -118,6 +143,7 @@ func flash(pos: Vector2, color: Color, radius: float = 90.0, duration: float = 0
 		return
 	var s := Sprite2D.new()
 	s.texture = glow_tex
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	s.position = pos
 	s.modulate = color
 	s.scale = Vector2.ONE * radius / 32.0
@@ -128,11 +154,14 @@ func flash(pos: Vector2, color: Color, radius: float = 90.0, duration: float = 0
 	var tw := s.create_tween()
 	tw.tween_property(s, "modulate:a", 0.0, duration)
 	tw.tween_callback(s.queue_free)
+	if radius >= 60.0:
+		light_flash(pos, color, radius * 2.2, duration + 0.1, 1.2)
 
 ## Additive glow sprite to attach under an entity.
 func make_glow(color: Color, radius: float) -> Sprite2D:
 	var s := Sprite2D.new()
 	s.texture = glow_tex
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	s.modulate = color
 	s.scale = Vector2.ONE * radius / 32.0
 	var mat := CanvasItemMaterial.new()

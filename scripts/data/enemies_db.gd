@@ -3,26 +3,44 @@ extends RefCounted
 
 const ENEMIES := {
 	"husk": {
-		"name": "Ashen Husk", "life": 24, "speed": 165.0, "radius": 16.0, "xp": 9,
+		"name": "Ashen Husk", "life": 24, "speed": 165.0, "radius": 20.0, "sprite": "zombie", "px": 4.0, "xp": 9,
 		"skills": ["husk_claw"], "ai": "melee", "range": 40.0,
 		"color": Color(0.55, 0.55, 0.5), "eye": Color(1.0, 0.55, 0.2),
 		"stats": {"armour": 20},
 	},
 	"cinderling": {
-		"name": "Cinderling", "life": 24, "speed": 150.0, "radius": 13.0, "xp": 11,
+		"name": "Cinderling", "life": 24, "speed": 150.0, "radius": 18.0, "sprite": "imp", "px": 4.0, "light": Color(1.0, 0.5, 0.2), "xp": 11,
 		"skills": ["cinder_spit"], "ai": "ranged", "range": 420.0, "keep_away": 260.0,
 		"color": Color(0.65, 0.25, 0.12), "eye": Color(1.0, 0.8, 0.3),
 		"stats": {"res_fire": 40},
 	},
 	"brute": {
-		"name": "Hollow Brute", "life": 115, "speed": 105.0, "radius": 26.0, "xp": 30,
-		"skills": ["brute_slam"], "ai": "melee", "range": 80.0,
+		"name": "Hollow Brute", "life": 115, "speed": 105.0, "radius": 42.0, "sprite": "ogre", "px": 4.0, "xp": 30,
+		"skills": ["brute_slam"], "ai": "melee", "range": 100.0,
 		"color": Color(0.35, 0.38, 0.45), "eye": Color(0.5, 0.85, 1.0),
 		"stats": {"armour": 160, "res_cold": 25},
 	},
+	"rattler": {
+		"name": "Bone Rattler", "life": 16, "speed": 230.0, "radius": 18.0, "xp": 8, "sprite": "skelet", "px": 4.0,
+		"skills": ["rattler_slash"], "ai": "melee", "range": 38.0,
+		"color": Color(0.85, 0.85, 0.8), "eye": Color(0.9, 0.9, 1.0),
+		"stats": {"res_cold": 30},
+	},
+	"rimecaller": {
+		"name": "Rimecaller", "life": 30, "speed": 135.0, "radius": 20.0, "xp": 14, "sprite": "orc_shaman", "px": 4.0,
+		"skills": ["rime_bolt"], "ai": "ranged", "range": 460.0, "keep_away": 280.0, "light": Color(0.5, 0.8, 1.0),
+		"color": Color(0.3, 0.5, 0.35), "eye": Color(0.5, 0.85, 1.0),
+		"stats": {"res_cold": 50},
+	},
+	"gravecaller": {
+		"name": "Gravecaller", "life": 40, "speed": 120.0, "radius": 20.0, "xp": 22, "sprite": "necromancer", "px": 4.0,
+		"skills": ["raise_dead"], "ai": "summoner", "range": 520.0, "keep_away": 340.0, "light": Color(0.6, 1.0, 0.6),
+		"color": Color(0.3, 0.3, 0.35), "eye": Color(0.6, 1.0, 0.6),
+		"stats": {"res_fire": 20, "res_cold": 20, "res_lightning": 20},
+	},
 	"regent": {
-		"name": "The Ashen Regent", "life": 3000, "speed": 125.0, "radius": 44.0, "xp": 400,
-		"skills": ["regent_sweep", "regent_nova", "regent_volley"], "ai": "boss", "range": 140.0,
+		"name": "The Ashen Regent", "life": 3000, "speed": 125.0, "radius": 66.0, "sprite": "big_demon", "px": 6.0, "light": Color(1.0, 0.45, 0.15), "xp": 400,
+		"skills": ["regent_sweep", "regent_nova", "regent_volley"], "ai": "boss", "range": 180.0,
 		"color": Color(0.3, 0.27, 0.25), "eye": Color(1.0, 0.75, 0.25),
 		"stats": {"armour": 250, "res_fire": 30, "res_cold": 30, "res_lightning": 30},
 		"boss": true,

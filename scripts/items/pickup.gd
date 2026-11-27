@@ -8,6 +8,7 @@ var _beam := 0.0
 var _vel := Vector2.ZERO
 var _glow: Sprite2D
 var _label_w := 0.0
+var _label_y := -18.0
 
 func setup(it: Item, pos: Vector2, scatter: Vector2) -> void:
 	item = it
@@ -20,6 +21,12 @@ func _ready() -> void:
 	_glow = FX.make_glow(c, 70.0 if item.rarity in ["rare", "unique"] else 40.0)
 	_glow.modulate.a = 0.7
 	add_child(_glow)
+	# stack labels so several drops in one spot stay readable
+	var n := 0
+	for o in get_parent().get_children():
+		if o != self and o is Pickup and o.position.distance_to(position) < 90.0:
+			n += 1
+	_label_y = -18.0 - n * 20.0
 	_label_w = ThemeDB.fallback_font.get_string_size(item.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 	match item.rarity:
 		"magic": FX.sound("drop_magic", null, -8.0, 0.0)
@@ -59,7 +66,9 @@ func _draw() -> void:
 	draw_colored_polygon(pts, c)
 	draw_polyline(pts + PackedVector2Array([pts[0]]), Color.WHITE, 1.5, true)
 	var f := ThemeDB.fallback_font
-	var y := -18.0
+	var y := _label_y
+	if y < -20.0:
+		draw_line(Vector2(0, -8), Vector2(0, y + 5), Color(c.r, c.g, c.b, 0.4), 1.0)
 	draw_rect(Rect2(-_label_w / 2 - 5, y - 13, _label_w + 10, 18), Color(0, 0, 0, 0.75))
 	draw_rect(Rect2(-_label_w / 2 - 5, y - 13, _label_w + 10, 18), c.darkened(0.3), false, 1.0)
 	draw_string(f, Vector2(-_label_w / 2, y), item.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)

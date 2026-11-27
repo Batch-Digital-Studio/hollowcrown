@@ -18,7 +18,7 @@
 - Ember Constellation expansion to ~120 nodes, cross-links between branches
 - Support gems (Rite modifiers): more projectiles, chain, added fire, etc.
 - ~15 Rites, one fully realized class fantasy
-- Sound pass, real art pass for player + 3 enemies
+- [x] Art pass v1 (CC0 pixel pack, lighting). Next: attack/death animations, armour icons, real audio samples
 - Save/load, stash
 
 ## Milestone 2 — Co-op

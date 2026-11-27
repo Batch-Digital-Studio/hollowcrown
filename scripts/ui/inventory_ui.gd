@@ -168,6 +168,15 @@ func _icon(r: Rect2, it: Item) -> void:
 	var c := it.color()
 	var m := r.get_center()
 	var s := minf(r.size.x, r.size.y) * 0.32
+	if it.slot_group() == "weapon":
+		var wid: String = it.unique_id if Art.WEAPON_SPRITES.has(it.unique_id) else it.base_id
+		var name: String = Art.WEAPON_SPRITES.get(wid, "weapon_rusty_sword")
+		var sz := Art.size_of(name)
+		var k := minf((r.size.x - 10) / sz.x, (r.size.y - 10) / sz.y)
+		k = floorf(k) if k >= 3.0 else k
+		var dr := Rect2(m - sz * k / 2.0, sz * k)
+		draw_texture_rect(Art.tex(name), dr, false)
+		return
 	match it.slot_group():
 		"weapon":
 			var wand := it.base_id.contains("wand")

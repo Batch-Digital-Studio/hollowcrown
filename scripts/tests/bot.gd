@@ -42,7 +42,7 @@ func drive(p: Player, g: Game) -> void:
 			best = d
 			target = e
 	if target == null:
-		for c in g.world_layer.get_children():
+		for c in g.fx_node.get_children():
 			if c is Portal:
 				target = c
 	if target == null:

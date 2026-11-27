@@ -16,6 +16,8 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 		dir = user.facing
 	dir = dir.normalized()
 	user.facing = dir
+	if user.has_method("on_skill_used"):
+		user.on_skill_used(s)
 	match s.behavior:
 		"projectile": _projectiles(s, user, origin, dir)
 		"radial": _radial(s, user, origin)
@@ -24,6 +26,7 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 		"chain": _chain(s, user, origin, target_pos)
 		"ground": _ground(s, user, origin, target_pos)
 		"telegraph": _telegraph(s, user, origin)
+		"summon": _summon(s, user, origin)
 	return true
 
 static func is_player(a: Actor) -> bool:
@@ -36,7 +39,7 @@ static func _projectiles(s: Dictionary, user: Actor, origin: Vector2, dir: Vecto
 		var off := (i - (count - 1) / 2.0) * spread
 		var p := Projectile.new()
 		p.setup(s, user, origin + dir * (user.radius + 4.0), dir.rotated(off))
-		user.game().world_layer.add_child(p)
+		user.game().fx_node.add_child(p)
 	if is_player(user):
 		FX.flash(origin + dir * 24.0, s.color, 40.0, 0.12)
 		FX.sound("bolt", null, -11.0)
@@ -50,7 +53,7 @@ static func _radial(s: Dictionary, user: Actor, origin: Vector2) -> void:
 		var p := Projectile.new()
 		var d := Vector2.RIGHT.rotated(start + TAU * i / count)
 		p.setup(s, user, origin + d * (user.radius + 4.0), d)
-		user.game().world_layer.add_child(p)
+		user.game().fx_node.add_child(p)
 	FX.ring(origin, user.radius * 2.5, s.color, 0.3)
 	FX.sound("nova", origin, -4.0)
 
@@ -72,7 +75,7 @@ static func _melee_arc(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2
 	fx.radius = r
 	fx.arc = half * 2.0
 	fx.color = s.color
-	user.game().world_layer.add_child(fx)
+	user.game().fx_node.add_child(fx)
 	if hits > 0 and is_player(user):
 		FX.hitstop(0.045)
 		FX.shake(5.0 + hits)
@@ -142,17 +145,36 @@ static func _lightning(g: Game, points: Array, color: Color) -> void:
 	var fx := LightningFX.new()
 	fx.points = points
 	fx.color = color
-	g.world_layer.add_child(fx)
+	g.fx_node.add_child(fx)
 
 static func _ground(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
 	var pos := origin + (target_pos - origin).limit_length(float(s.get("range", 600.0)))
 	FX.sound("ground", pos, 0.0)
 	var gfx := GroundEffect.new()
 	gfx.setup(s, user, pos)
-	user.game().world_layer.add_child(gfx)
+	user.game().fx_node.add_child(gfx)
 
 static func _telegraph(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	FX.sound("windup", origin, -2.0, 0.0)
 	var t := Telegraph.new()
 	t.setup(s, user)
-	user.game().world_layer.add_child(t)
+	user.game().fx_node.add_child(t)
+
+static func _summon(s: Dictionary, user: Actor, origin: Vector2) -> void:
+	var g := user.game()
+	var alive := 0
+	for e in g.enemies:
+		if e.has_meta("summoner") and e.get_meta("summoner") == user:
+			alive += 1
+	var n := mini(int(s.count), int(s.get("max_minions", 6)) - alive)
+	FX.sound("portal", origin, -6.0, 0.1)
+	FX.ring(origin, 90.0, s.color, 0.5, 6.0)
+	for i in n:
+		var p := origin + Vector2.RIGHT.rotated(g.rng.randf() * TAU) * g.rng.randf_range(50, 110)
+		if g.is_wall(p):
+			p = origin
+		var e := g.spawn_enemy(String(s.minion), user.level, "normal", [], p)
+		e.aggro = true
+		e.set_meta("summoner", user)
+		e.set_meta("minion", true)
+		FX.burst(p, s.color, 18, 160.0, 7.0, 0.5)
