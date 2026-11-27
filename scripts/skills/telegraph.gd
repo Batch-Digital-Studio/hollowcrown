@@ -31,6 +31,7 @@ func _physics_process(delta: float) -> void:
 		FX.ring(global_position, radius, skill.color, 0.4, 12.0)
 		FX.burst(global_position, skill.color, 40, radius * 2.5, 9.0, 0.5)
 		FX.shake(10.0)
+		FX.sound("boom", global_position, 0.0)
 		queue_free()
 
 func _draw() -> void:

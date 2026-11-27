@@ -21,6 +21,10 @@ func _ready() -> void:
 	_glow.modulate.a = 0.7
 	add_child(_glow)
 	_label_w = ThemeDB.fallback_font.get_string_size(item.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+	match item.rarity:
+		"magic": FX.sound("drop_magic", null, -8.0, 0.0)
+		"rare": FX.sound("drop_rare", null, -3.0, 0.0)
+		"unique": FX.sound("drop_unique", null, 0.0, 0.0)
 	if item.rarity == "unique":
 		FX.text(position, "UNIQUE", c, 26)
 		FX.shake(4.0)
@@ -35,6 +39,7 @@ func _process(delta: float) -> void:
 			if g.player.add_to_inventory(item):
 				FX.text(global_position, item.name, item.color(), 18)
 				FX.burst(global_position, item.color(), 12, 160.0, 6.0, 0.4)
+				FX.sound("pickup", null, -10.0)
 				g.on_item_picked(item)
 				queue_free()
 				return

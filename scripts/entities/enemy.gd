@@ -166,7 +166,9 @@ func die(killer: Actor) -> void:
 	FX.flash(global_position, c, radius * 3.0, 0.2)
 	if rarity != "normal":
 		FX.shake(6.0)
+	FX.sound("die", global_position, -6.0)
 	if is_boss():
+		FX.sound("boom", null, 4.0)
 		FX.shake(20.0)
 		FX.hitstop(0.25)
 	set_physics_process(false)

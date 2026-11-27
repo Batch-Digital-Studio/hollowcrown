@@ -9,12 +9,15 @@ var enabled := true
 var _shake := 0.0
 var _hitstop_until := 0.0
 var glow_tex: Texture2D
+var sfx: Sfx
 var soft_tex: Texture2D
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	glow_tex = _make_radial(64, 2.2)
 	soft_tex = _make_radial(16, 1.0)
+	sfx = Sfx.new()
+	add_child(sfx)
 
 func _make_radial(size: int, falloff: float) -> Texture2D:
 	var g := Gradient.new()
@@ -39,6 +42,10 @@ func _process(delta: float) -> void:
 		_shake = maxf(0.0, _shake - delta * 60.0)
 		var s := minf(_shake, 18.0)
 		camera.offset = Vector2(randf_range(-s, s), randf_range(-s, s))
+
+func sound(name: String, world_pos = null, vol: float = 0.0, pitch_var: float = 0.08) -> void:
+	if sfx and enabled:
+		sfx.play(name, vol, pitch_var, world_pos)
 
 func shake(amount: float) -> void:
 	_shake = maxf(_shake, amount)

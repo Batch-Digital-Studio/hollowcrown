@@ -117,6 +117,7 @@ func gain_xp(amount: int) -> void:
 		FX.ring(global_position, 220.0, Color(1.0, 0.8, 0.35), 0.6, 10.0)
 		FX.burst(global_position, Color(1.0, 0.8, 0.35), 50, 420.0, 9.0, 0.8)
 		FX.text(global_position, "LEVEL %d" % level, Color(1.0, 0.85, 0.4), 34)
+		FX.sound("levelup", null, 0.0, 0.0)
 		leveled_up.emit(level)
 
 func add_flask_charge(amount: float) -> void:
@@ -154,10 +155,12 @@ func _physics_process(delta: float) -> void:
 		invulnerable = true
 		busy_time = 0.0
 		FX.flash(global_position, Color(1.0, 0.6, 0.3), 60.0, 0.15)
+		FX.sound("dodge", null, -10.0)
 		return
 	if input.flask and flask_charges >= 1.0 and life < max_life:
 		flask_charges -= 1.0
 		_flask_heal += max_life * 0.6
+		FX.sound("flask", null, -3.0)
 		FX.ring(global_position, 70.0, Color(1.0, 0.3, 0.35), 0.35)
 		FX.burst(global_position, Color(1.0, 0.3, 0.35), 18, 160.0, 7.0, 0.5)
 	# Skills (hold to repeat). Lower index wins when several are held.

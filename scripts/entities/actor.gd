@@ -91,6 +91,10 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 		if gain > 0.0:
 			source.heal(gain)
 	_on_hit_fx(dmg, amount, result.get("crit", false))
+	if faction == "player":
+		FX.sound("hurt", null, -4.0)
+	else:
+		FX.sound("crit" if result.get("crit", false) else "hit", global_position, -2.0 if result.get("crit", false) else -7.0)
 	if life <= 0.0:
 		life = 0.0
 		die(source)

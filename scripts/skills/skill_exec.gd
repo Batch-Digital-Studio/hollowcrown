@@ -39,6 +39,9 @@ static func _projectiles(s: Dictionary, user: Actor, origin: Vector2, dir: Vecto
 		user.game().world_layer.add_child(p)
 	if is_player(user):
 		FX.flash(origin + dir * 24.0, s.color, 40.0, 0.12)
+		FX.sound("bolt", null, -11.0)
+	else:
+		FX.sound("bolt", origin, -16.0)
 
 static func _radial(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	var count: int = s.get("count", 12)
@@ -49,6 +52,7 @@ static func _radial(s: Dictionary, user: Actor, origin: Vector2) -> void:
 		p.setup(s, user, origin + d * (user.radius + 4.0), d)
 		user.game().world_layer.add_child(p)
 	FX.ring(origin, user.radius * 2.5, s.color, 0.3)
+	FX.sound("nova", origin, -4.0)
 
 static func _melee_arc(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) -> void:
 	var r: float = s.radius * user.stats.inc_mult(["inc_area"])
@@ -61,6 +65,7 @@ static func _melee_arc(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2
 		var res := Damage.roll_hit(s, user.stats, user.game().rng)
 		t.take_hit(res, user, to, 260.0 if is_player(user) else 120.0)
 		hits += 1
+	FX.sound("slash", null if is_player(user) else origin, -8.0 if is_player(user) else -14.0)
 	var fx := SlashFX.new()
 	fx.position = origin
 	fx.dir = dir
@@ -79,6 +84,7 @@ static func _nova(s: Dictionary, user: Actor, origin: Vector2) -> void:
 		var res := Damage.roll_hit(s, user.stats, user.game().rng)
 		t.take_hit(res, user, t.global_position - origin, 300.0)
 		hits += 1
+	FX.sound("nova", origin, 0.0)
 	FX.ring(origin, r, s.color, 0.4, 10.0)
 	FX.burst(origin, s.color, 40, r * 2.2, 8.0, 0.5)
 	FX.flash(origin, s.color, r * 0.8, 0.25)
@@ -132,6 +138,7 @@ static func _chain(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vect
 		FX.shake(3.0 + n)
 
 static func _lightning(g: Game, points: Array, color: Color) -> void:
+	FX.sound("zap", points[0], -3.0)
 	var fx := LightningFX.new()
 	fx.points = points
 	fx.color = color
@@ -139,11 +146,13 @@ static func _lightning(g: Game, points: Array, color: Color) -> void:
 
 static func _ground(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
 	var pos := origin + (target_pos - origin).limit_length(float(s.get("range", 600.0)))
+	FX.sound("ground", pos, 0.0)
 	var gfx := GroundEffect.new()
 	gfx.setup(s, user, pos)
 	user.game().world_layer.add_child(gfx)
 
 static func _telegraph(s: Dictionary, user: Actor, origin: Vector2) -> void:
+	FX.sound("windup", origin, -2.0, 0.0)
 	var t := Telegraph.new()
 	t.setup(s, user)
 	user.game().world_layer.add_child(t)

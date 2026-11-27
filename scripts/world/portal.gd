@@ -11,6 +11,7 @@ func _ready() -> void:
 	add_child(g)
 	z_index = 2
 	FX.ring(global_position, 160.0, Color(0.7, 0.5, 1.0), 0.6, 10.0)
+	FX.sound("portal", null, 0.0, 0.0)
 
 func _process(delta: float) -> void:
 	_t += delta
