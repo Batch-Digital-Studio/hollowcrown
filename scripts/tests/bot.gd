@@ -31,17 +31,21 @@ func drive(p: Player, g: Game) -> void:
 	var inp := p.input
 	for i in 6:
 		inp.skill_held[i] = false
-	inp.special = p.max_spirit() > 0.0 and p.spirit >= 100.0
+	var spid: String = ClassesDB.class_def(p.class_id).get("special", "")
+	inp.special = false
+	if spid != "":
+		var ss: Dictionary = SkillsDB.SKILLS[spid]
+		inp.special = p.can_pay(ss.get("res_cost", {"spirit": ss.get("spirit_cost", 100)})) and p.cooldowns.get(spid, 0.0) <= 0.0
 	_spend_class_points(p)
 	_dbg_t += dt
-	if _dbg_t > 30.0 and p.max_spirit() > 0.0:
+	if _dbg_t > 30.0 and p.class_id != "classic":
 		_dbg_t = 0.0
 		var husks := 0
 		var totems := 0
 		for a in g.allies:
 			if a is Minion: husks += 1
 			elif a is Totem: totems += 1
-		print("BOT shaman t=%.0f lvl=%d husks=%d totems=%d spirit=%.0f corpses=%d life=%.0f/%.0f" % [_t, p.level, husks, totems, p.spirit, g.corpses.size(), p.life, p.max_life])
+		print("BOT %s t=%.0f lvl=%d allies=%d/%d res=%s life=%.0f/%.0f ward=%.0f" % [p.class_id, _t, p.level, husks, totems, str(p.res), p.life, p.max_life, p.ward_pool])
 	inp.dodge = false
 	inp.flask = p.life < p.max_life * 0.5
 	# target
@@ -65,15 +69,19 @@ func drive(p: Player, g: Game) -> void:
 	var los := g.has_line_of_sight(p.global_position, target.global_position)
 	if target is Enemy and dist < 520.0 and los:
 		# fight
-		inp.move = to.normalized().orthogonal() * (1.0 if int(_t / 2.0) % 2 == 0 else -1.0)
-		if dist > 260.0:
-			inp.move += to.normalized() * 0.6
-		elif dist < 150.0:
-			inp.move -= to.normalized() * 0.6
+		var melee := p.class_id == "oath" or (p.class2_id == "oath" and p.class_id == "classic")
+		if melee:
+			inp.move = to.normalized() if dist > 70.0 else to.normalized().orthogonal() * 0.3
+		else:
+			inp.move = to.normalized().orthogonal() * (1.0 if int(_t / 2.0) % 2 == 0 else -1.0)
+			if dist > 260.0:
+				inp.move += to.normalized() * 0.6
+			elif dist < 150.0:
+				inp.move -= to.normalized() * 0.6
 		var phase := int(_t * 2.0) % 6
 		var main := 0
 		for i in p.bar.size():
-			if p.bar[i] != "" and SkillsDB.SKILLS[p.bar[i]].behavior in ["projectile", "beam"]:
+			if p.bar[i] != "" and SkillsDB.SKILLS[p.bar[i]].behavior in (["melee_arc"] if p.class_id == "oath" else ["projectile", "beam"]):
 				main = i
 				break
 		inp.skill_held[main] = true
@@ -121,14 +129,20 @@ var _node_rot := 0
 var _dbg_t := 0.0
 
 func _spend_class_points(p: Player) -> void:
-	var cdef := ClassesDB.class_def(p.class_id)
+	if p.level >= Player.DUAL_CLASS_LEVEL and p.class2_id == "" and p.class_id != "classic":
+		for c in ["magus", "shaman", "ranger", "oath"]:
+			if c != p.class_id and p.choose_second_class(c):
+				print("BOT dual-class ", p.class_id, " + ", c)
+				break
+	var cid: String = p.classes()[_node_rot % p.classes().size()]
+	var cdef := ClassesDB.class_def(cid)
 	var branches: Array = cdef.get("branches", [])
 	if p.class_points() > 0 and not branches.is_empty():
 		for k in branches.size():
 			var bi := (_node_rot + k) % branches.size()
 			for ni in branches[bi].nodes.size():
-				if p.can_take_node(p.class_id, bi, ni):
-					p.take_node(p.class_id, bi, ni)
+				if p.can_take_node(cid, bi, ni):
+					p.take_node(cid, bi, ni)
 					print("BOT class node ", branches[bi].nodes[ni].name)
 					_node_rot += 1
 					break

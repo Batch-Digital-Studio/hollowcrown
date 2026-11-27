@@ -33,3 +33,11 @@
 - 6-slot skill bar (RT A X B Y RB / LMB RMB Q E R F), LB+RB Special chord, buffered Special.
 - Fixed: husks and totems spawned with 1 life (a shadowed variable). Input timing now uses game time.
 - Controller test now covers the Shaman flow; run it with --seed=3 for a deterministic map.
+
+## 2026-11-26/27 overnight: Stage B — Ember Magus, Oathsworn, Hollow Ranger
+- All four classes playable; dual-classing at level 10 is live (pick in the class screen).
+- Ember Magus: Kindling charges (spells build, Pyre Lance spends), Cataclysm Special, Ember Ward shield; Blink, Flame Wall, Frost Lance, Glacial Prison, Ball Lightning, Pyre Lance.
+- Oathsworn: Resolve (taking/landing hits), block chance; Shield Rush, Earthsplitter, Oath of Embers (taunt), Bastion, Judgment Brand (3rd hit detonates), Chain Hook, Banner of the Last King, Sunder, Iron Will; Oathbreaker Special.
+- Hollow Ranger: bows (3 new bases), Focus (builds while moving; full Focus empowers the next Rite), evasion; Split Shot, Vault Shot, Rain of Ash, Pinning Shot, Thornvine Arrow, Caltrops, Spirit Hawk companion, Smoke Veil, Explosive Bolt, Windrunner; Hunter's Moon Special.
+- Generic systems: buffs, block, entropy evasion, Ember Ward, slows, brands, dashes, resource HUD.
+- Known: Magus is currently the strongest class in bot tests; needs a balance pass.

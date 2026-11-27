@@ -11,6 +11,7 @@ var root := 1.5
 var _t := 0.0
 var _fired := false
 var _tentacles: Array = []
+var style := "tentacle"    # tentacle | fissure | arrow | meteor
 
 func setup(s: Dictionary, u: Actor, pos: Vector2, stats: StatBlock, delay: float = 0.0) -> void:
 	skill = s
@@ -34,16 +35,45 @@ func _process(delta: float) -> void:
 			for t in g.targets_in_circle(user.faction if is_instance_valid(user) else "player", position, radius):
 				t.take_hit(Damage.roll_hit(skill, st, g.rng), user if is_instance_valid(user) else null, t.global_position - position, 60.0)
 				t.root_time = maxf(t.root_time, root)
-		FX.burst(position, Color(0.3, 0.5, 0.25), 30, radius * 2.0, 9.0, 0.5)
-		FX.shake(5.0)
-		FX.sound("boom", position, -8.0)
-		FX.rumble(0.2, 0.3, 0.15)
+		var bc: Color = Color(0.3, 0.5, 0.25) if style == "tentacle" else skill.color
+		FX.burst(position, bc, 30 if style != "arrow" else 8, radius * 2.0, 9.0, 0.5)
+		if style == "tentacle" or style == "meteor":
+			FX.shake(5.0)
+			FX.sound("boom", position, -8.0 if style == "tentacle" else -12.0)
+			FX.rumble(0.2, 0.3, 0.15)
+		elif style == "fissure":
+			FX.sound("hit", position, -8.0)
 	if _t >= windup + 0.9:
 		queue_free()
 	queue_redraw()
 
 func _draw() -> void:
 	var c: Color = skill.color
+	if style == "arrow":
+		if not _fired:
+			var k0 := _t / windup
+			draw_line(Vector2(-30, -260) * (1.0 - k0), Vector2(-24, -210) * (1.0 - k0) + Vector2(0, 8), Color(0.9, 0.85, 0.7, 0.9), 3.0)
+			draw_circle(Vector2.ZERO, radius * 0.3, Color(0, 0, 0, 0.25))
+		else:
+			draw_line(Vector2(-3, -26), Vector2(0, 0), Color(0.55, 0.42, 0.3), 3.0)
+		return
+	if style == "meteor":
+		if not _fired:
+			var k1 := _t / windup
+			draw_circle(Vector2.ZERO, radius, Color(c.r, c.g, c.b, 0.12))
+			draw_arc(Vector2.ZERO, radius * k1, 0, TAU, 32, Color(c.r, c.g, c.b, 0.6), 2.0, true)
+			draw_circle(Vector2(0, -400) * (1.0 - k1), 10.0, c.lightened(0.3))
+		else:
+			var e1 := _t - windup
+			draw_circle(Vector2.ZERO, radius * clampf(1.0 - e1 * 2.0, 0.0, 1.0), Color(c.r, c.g, c.b, 0.35))
+		return
+	if style == "fissure":
+		if _fired:
+			var e2 := clampf((_t - windup) * 3.0, 0.0, 1.0)
+			var a := 1.0 - clampf((_t - windup - 0.4) * 2.0, 0.0, 1.0)
+			draw_line(Vector2(-radius * e2, -4), Vector2(radius * e2, 4), Color(0.1, 0.05, 0.03, a), 10.0)
+			draw_line(Vector2(-radius * e2, -4), Vector2(radius * e2, 4), Color(1.0, 0.5, 0.2, a), 3.0)
+		return
 	if not _fired:
 		var k := _t / windup
 		draw_circle(Vector2.ZERO, radius, Color(0.1, 0.2, 0.08, 0.35))

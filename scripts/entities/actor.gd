@@ -39,6 +39,15 @@ var curse_dot := 0.0           # chaos damage per second
 var curse_spread := false
 var curse_src: Actor = null
 var root_time := 0.0
+var slow_time := 0.0
+var slow_amt := 0.0
+var ward_pool := 0.0           # Ember Ward: absorbs damage before life
+var ward_max := 0.0
+var _ward_delay := 0.0
+var brand_time := 0.0
+var brand_hits := 0
+var brand_owner: Actor = null
+var _evade_acc := 0.0
 var ward_time := 0.0
 var ward_reduction := 0.0
 var ward_regen := 0.0
@@ -65,6 +74,8 @@ func move_speed() -> float:
 		m *= 1.0 - CHILL_SLOW
 	if root_time > 0.0:
 		m *= 0.15
+	if slow_time > 0.0:
+		m *= 1.0 - slow_amt
 	return base * m
 
 func action_speed(kind: String) -> float:
@@ -103,8 +114,45 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 	if dead or invulnerable:
 		return 0.0
 	var source: Actor = src if is_instance_valid(src) else null
+	# Block (shields/stances) and evasion (entropy-based so it can't streak)
+	var block := minf(stats.get_stat("block_chance"), 60.0)
+	if block > 0.0 and game().rng.randf() * 100.0 < block:
+		FX.text(global_position, "Block", Color(0.8, 0.85, 1.0), 16)
+		FX.sound("hit", global_position, -14.0, 0.3)
+		if has_method("on_blocked"):
+			call("on_blocked")
+		return 0.0
+	var evade := minf(stats.get_stat("evade_chance"), 75.0)
+	if evade > 0.0:
+		_evade_acc += evade
+		if _evade_acc >= 100.0:
+			_evade_acc -= 100.0
+			FX.text(global_position, "Evade", Color(0.7, 1.0, 0.85), 16)
+			return 0.0
 	var dmg := Damage.mitigate(result.damage, stats, damage_taken_mult())
 	var amount := Damage.total(dmg)
+	if amount <= 0.0:
+		return 0.0
+	if ward_pool > 0.0:
+		var absorbed := minf(ward_pool, amount)
+		ward_pool -= absorbed
+		amount -= absorbed
+		FX.burst(global_position, Color(0.5, 0.75, 1.0), 4, 120.0, 5.0)
+	_ward_delay = 3.0
+	if source and source.has_method("on_dealt_hit"):
+		source.on_dealt_hit(self, amount)
+	# Judgment Brand: the brander's third hit detonates it
+	if brand_time > 0.0 and source != null and source == brand_owner:
+		brand_hits += 1
+		if brand_hits >= 3:
+			brand_time = 0.0
+			brand_hits = 0
+			var bs := {"kind": "attack", "base_damage": {"fire": [12, 20]}, "effectiveness": 150.0, "crit": 5.0, "tags": ["area"], "ignite_chance": 40.0}
+			for t in game().targets_in_circle(source.faction, global_position, 150.0):
+				t.take_hit(Damage.roll_hit(bs, source.stats, game().rng), source, t.global_position - global_position, 220.0)
+			FX.ring(global_position, 150.0, Color(1.0, 0.75, 0.3), 0.35, 10.0)
+			FX.flash(global_position, Color(1.0, 0.7, 0.3), 120.0, 0.25)
+			FX.sound("boom", global_position, -6.0)
 	if amount <= 0.0:
 		return 0.0
 	life -= amount
@@ -203,6 +251,12 @@ func tick_common(delta: float) -> void:
 		heal(regen * delta)
 	knock = knock.move_toward(Vector2.ZERO, 2200.0 * delta)
 	root_time = maxf(0.0, root_time - delta)
+	slow_time = maxf(0.0, slow_time - delta)
+	brand_time = maxf(0.0, brand_time - delta)
+	if ward_max > 0.0:
+		_ward_delay -= delta
+		if _ward_delay <= 0.0 and ward_pool < ward_max:
+			ward_pool = minf(ward_max, ward_pool + ward_max * 0.25 * delta)
 	if ward_time > 0.0:
 		ward_time -= delta
 		heal(max_life * ward_regen / 100.0 * delta)

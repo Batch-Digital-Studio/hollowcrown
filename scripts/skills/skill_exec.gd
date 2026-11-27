@@ -11,6 +11,18 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 		if float(user.get("spirit")) < float(s.spirit_cost):
 			return false
 		user.set("spirit", float(user.get("spirit")) - float(s.spirit_cost))
+	if s.has("res_cost"):
+		if not user.has_method("can_pay") or not user.can_pay(s.res_cost):
+			return false
+		if s.behavior == "lance" and float(user.res.get("kindling", 0.0)) < 1.0:
+			return false
+	if s.behavior == "lance" and user.has_method("can_pay") and float(user.res.get("kindling", 0.0)) < 1.0:
+		FX.text(user.global_position, "No Kindling", Color(1.0, 0.6, 0.3), 14)
+		return false
+	if user.has_method("pre_cast"):
+		user.pre_cast(skill_id, s)
+	if s.has("res_cost"):
+		user.pay(s.res_cost)
 	user.mana -= float(s.get("cost", 0))
 	user.busy_time = user.use_time(s)
 	if s.has("cooldown"):
@@ -39,14 +51,27 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 		"eruption": _eruption(s, user, origin, target_pos)
 		"corpse_burst": _corpse_burst(s, user, origin, target_pos)
 		"grand_rite": _grand_rite(s, user, origin)
+		"blink": _blink(s, user, origin, target_pos)
+		"wall": _wall(s, user, origin, target_pos)
+		"prison": _prison(s, user, origin, target_pos)
+		"lance": _lance(s, user, origin, dir)
+		"cataclysm": _cataclysm(s, user)
+		"rush": _rush(s, user, origin, target_pos)
+		"fissure": _fissure(s, user, origin, dir)
+		"warcry": _warcry(s, user, origin)
+		"buff": _buff(s, user, origin)
+		"vault": _vault(s, user, origin, dir)
+		"rain": _rain(s, user, origin, target_pos)
+		"companion": _companion(s, user, origin)
+		"hunters_moon": _hunters_moon(s, user, origin)
 	return true
 
 static func is_player(a: Actor) -> bool:
 	return a.faction == "player"
 
 static func _projectiles(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) -> void:
-	var count := 1 + int(user.cast_stats.get_stat("proj_count_add"))
-	var spread := deg_to_rad(10.0)
+	var count := 1 + int(user.cast_stats.get_stat("proj_count_add")) + int(s.get("extra_proj", 0))
+	var spread := deg_to_rad(10.0 if count < 4 else 7.0)
 	for i in count:
 		var off := (i - (count - 1) / 2.0) * spread
 		var p := Projectile.new()
@@ -80,6 +105,10 @@ static func _melee_arc(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2
 		var res := Damage.roll_hit(s, user.cast_stats, user.game().rng)
 		t.take_hit(res, user, to, 260.0 if is_player(user) else 120.0)
 		hits += 1
+		if s.get("brand", 0.0) > 0.0:
+			t.brand_time = 6.0
+			t.brand_owner = user
+			FX.ring(t.global_position, 30.0, Color(1.0, 0.75, 0.3), 0.3)
 	FX.sound("slash", null if is_player(user) else origin, -8.0 if is_player(user) else -14.0)
 	var fx := SlashFX.new()
 	fx.position = origin
@@ -91,6 +120,12 @@ static func _melee_arc(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2
 	if hits > 0 and is_player(user):
 		FX.hitstop(0.045)
 		FX.shake(5.0 + hits)
+	if is_player(user) and user.cast_stats.get_stat("oath_fire") > 0.0:
+		var wave := {"kind": "attack", "base_damage": {"fire": [10, 16]}, "effectiveness": 80.0, "crit": 5.0, "tags": ["area"], "ignite_chance": 30.0}
+		var wpos := origin + dir * r * 0.8
+		for t2 in user.game().targets_in_circle(user.faction, wpos, 120.0):
+			t2.take_hit(Damage.roll_hit(wave, user.cast_stats, user.game().rng), user, t2.global_position - wpos, 150.0)
+		FX.ring(wpos, 120.0, Color(1.0, 0.5, 0.2), 0.3, 8.0)
 
 static func _nova(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	var r: float = s.radius * user.cast_stats.inc_mult(["inc_area"])
@@ -363,3 +398,204 @@ static func _grand_rite(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	FX.shake(12.0)
 	FX.sound("portal", null, 2.0, 0.0)
 	FX.rumble(0.6, 0.8, 0.6)
+
+
+# ---------------- Ember Magus ----------------
+
+static func _blink(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
+	var g := user.game()
+	var to := (target_pos - origin).limit_length(float(s.range))
+	var dest := origin
+	var steps := 12
+	for i in range(1, steps + 1):
+		var p := origin + to * float(i) / steps
+		if g.is_wall(p):
+			break
+		dest = p
+	_hit_area(s, user, origin, float(s.radius))
+	FX.burst(origin, s.color, 24, 220.0, 7.0, 0.4)
+	user.global_position = dest
+	FX.flash(dest, s.color, 70.0, 0.2)
+	FX.sound("dodge", null, -6.0)
+
+static func _hit_area(s: Dictionary, user: Actor, pos: Vector2, r: float) -> void:
+	if s.get("base_damage", {}).is_empty():
+		return
+	var g := user.game()
+	for t in g.targets_in_circle(user.faction, pos, r * user.cast_stats.inc_mult(["inc_area"])):
+		t.take_hit(Damage.roll_hit(s, user.cast_stats, g.rng), user, t.global_position - pos, 160.0)
+
+static func _wall(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
+	var g := user.game()
+	var center := _clamp_target(s, origin, target_pos)
+	var perp := (target_pos - origin).normalized().orthogonal()
+	var n := int(s.count)
+	for i in n:
+		var p := center + perp * (i - (n - 1) / 2.0) * float(s.radius) * 1.4
+		if g.is_wall(p):
+			continue
+		var gfx := GroundEffect.new()
+		gfx.setup(s, user, p)
+		g.fx_node.add_child(gfx)
+	FX.sound("ground", center, -4.0)
+
+static func _prison(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
+	var g := user.game()
+	var best: Actor = null
+	var bd := INF
+	for t in g.targets_in_circle(user.faction, origin, float(s.range)):
+		var d: float = t.global_position.distance_to(target_pos)
+		if d < bd:
+			bd = d
+			best = t
+	if best == null:
+		return
+	best.take_hit(Damage.roll_hit(s, user.cast_stats, g.rng), user)
+	best.chill_time = maxf(best.chill_time, float(s.duration) + 1.0)
+	var boss: bool = best is Enemy and best.is_boss()
+	if not boss:
+		best.root_time = maxf(best.root_time, float(s.duration))
+		best.busy_time = maxf(best.busy_time, float(s.duration))
+	FX.ring(best.global_position, 70.0, s.color, 0.5, 8.0)
+	FX.burst(best.global_position, s.color, 30, 200.0, 8.0, 0.6)
+	FX.sound("nova", best.global_position, -6.0)
+
+static func _lance(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) -> void:
+	var g := user.game()
+	var length := float(s.range)
+	for i in range(1, 30):
+		if g.is_wall(origin + dir * length * i / 30.0):
+			length = length * (i - 1) / 30.0
+			break
+	var end := origin + dir * length
+	var w := float(s.width)
+	for t in g.targets_in_circle(user.faction, origin + dir * length / 2.0, length / 2.0 + w):
+		var p: Vector2 = t.global_position
+		var proj := clampf((p - origin).dot(dir), 0.0, length)
+		if p.distance_to(origin + dir * proj) <= w + t.radius:
+			t.take_hit(Damage.roll_hit(s, user.cast_stats, g.rng), user, dir, 200.0)
+	var fx := LightningFX.new()
+	fx.points = [origin, end]
+	fx.color = s.color
+	g.fx_node.add_child(fx)
+	for i in 6:
+		FX.flash(origin.lerp(end, i / 5.0), s.color, 60.0, 0.3)
+	FX.shake(6.0)
+	FX.sound("nova", origin, -2.0)
+
+static func _cataclysm(s: Dictionary, user: Actor) -> void:
+	var c := Cataclysm.new()
+	c.setup(s, user)
+	user.game().fx_node.add_child(c)
+	FX.text(user.global_position, "CATACLYSM", Color(1.0, 0.6, 0.25), 34)
+	FX.rumble(0.5, 0.7, 0.5)
+
+# ---------------- Oathsworn ----------------
+
+static func _rush(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
+	var to := (target_pos - origin).limit_length(float(s.range))
+	if user.has_method("start_dash"):
+		user.start_dash(to.normalized(), to.length(), 0.18, func():
+			var g := user.game()
+			var p := user.global_position
+			for t in g.targets_in_circle(user.faction, p, float(s.radius) * user.cast_stats.inc_mult(["inc_area"])):
+				t.take_hit(Damage.roll_hit(s, user.cast_stats, g.rng), user, t.global_position - p, 320.0)
+				t.root_time = maxf(t.root_time, float(s.root))
+			FX.ring(p, float(s.radius), s.color, 0.3, 8.0)
+			FX.shake(6.0)
+			FX.hitstop(0.05)
+			FX.sound("boom", null, -8.0))
+
+static func _fissure(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) -> void:
+	var g := user.game()
+	for i in int(s.count):
+		var p := origin + dir * (60.0 + i * float(s.spacing))
+		if g.is_wall(p):
+			break
+		var e := Eruption.new()
+		e.style = "fissure"
+		e.setup(s, user, p, user.cast_stats, i * 0.05)
+		e.root = 0.0
+		g.fx_node.add_child(e)
+	FX.shake(6.0)
+
+static func _warcry(s: Dictionary, user: Actor, origin: Vector2) -> void:
+	var g := user.game()
+	var r := float(s.radius)
+	for t in g.targets_in_circle(user.faction, origin, r):
+		if t is Enemy:
+			t._target = user
+			t._retarget = 3.0
+			t.aggro = true
+	if user.has_method("add_buff"):
+		user.add_buff(s.name, s.buff, float(s.duration))
+	FX.ring(origin, r, s.color, 0.5, 10.0)
+	FX.text(origin, s.name.to_upper(), s.color, 22)
+	FX.sound("windup", null, -4.0, 0.0)
+
+static func _buff(s: Dictionary, user: Actor, origin: Vector2) -> void:
+	var id: String = s.get("special_fx", s.name)
+	if user.has_method("add_buff"):
+		user.add_buff(id, s.buff, float(s.duration))
+	if s.has("heal_pct"):
+		user.heal(user.max_life * float(s.heal_pct) / 100.0)
+	FX.ring(origin, 90.0, s.color, 0.4, 8.0)
+	FX.burst(origin, s.color, 24, 200.0, 7.0, 0.5)
+	if s.has("special_fx"):
+		FX.text(origin, s.name.to_upper(), s.color, 34)
+		FX.shake(10.0)
+		FX.rumble(0.5, 0.7, 0.4)
+		FX.sound("levelup", null, -2.0, 0.0)
+	else:
+		FX.sound("flask", null, -6.0)
+
+# ---------------- Hollow Ranger ----------------
+
+static func _vault(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) -> void:
+	if user.has_method("start_dash"):
+		user.start_dash(-dir, 220.0, 0.16, func(): pass)
+	_projectiles(s, user, origin, dir)
+
+static func _rain(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
+	var g := user.game()
+	var center := _clamp_target(s, origin, target_pos)
+	var r := float(s.radius) * user.cast_stats.inc_mult(["inc_area"])
+	var imp := s.duplicate()
+	imp.radius = float(s.impact)
+	imp.windup = 0.2
+	for i in int(s.count):
+		var p := center + Vector2.RIGHT.rotated(g.rng.randf() * TAU) * sqrt(g.rng.randf()) * r
+		var e := Eruption.new()
+		e.style = "arrow"
+		e.setup(imp, user, p, user.cast_stats, i * 0.06)
+		e.root = 0.0
+		g.fx_node.add_child(e)
+	FX.sound("bolt", null, -8.0)
+
+static func _companion(s: Dictionary, user: Actor, origin: Vector2) -> void:
+	var g := user.game()
+	for a in g.allies.duplicate():
+		if a is Minion and a.kind == "hawk" and a.owner_actor == user:
+			a.heal(a.max_life)
+			FX.burst(a.global_position, s.color, 12, 140.0, 6.0)
+			return
+	var m := Minion.new()
+	m.kind = "hawk"
+	m.setup(user, user.level, origin + Vector2(0, -60))
+	g.world_layer.add_child(m)
+	g.allies.append(m)
+	FX.sound("portal", null, -10.0, 0.2)
+
+static func _hunters_moon(s: Dictionary, user: Actor, origin: Vector2) -> void:
+	var g := user.game()
+	if user.has_method("add_buff"):
+		user.add_buff("hunters_moon", s.buff, float(s.duration))
+	for e in g.enemies:
+		if is_instance_valid(e) and e.global_position.distance_to(origin) < 1300.0:
+			e.slow_time = float(s.duration)
+			e.slow_amt = 0.5
+	FX.ring(origin, 600.0, s.color, 0.8, 12.0)
+	FX.light_flash(origin, s.color, 900.0, 1.0, 1.4)
+	FX.text(origin, "HUNTER'S MOON", s.color, 34)
+	FX.rumble(0.4, 0.4, 0.5)
+	FX.sound("portal", null, 0.0, 0.0)

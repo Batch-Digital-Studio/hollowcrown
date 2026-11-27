@@ -35,3 +35,8 @@
 - [x] Systems: permanent minions, Grim Pillar totems, poison stacks + chaos resistance, curses, roots, ward aura, corpses
 - [x] Dual-class hook at level 10 (activates when stage B classes exist)
 - [ ] Balance pass from Jason's playtesting (Shaman vs boss especially)
+
+## Stage B — Other three classes (done 2026-11-27)
+- [x] Ember Magus, Oathsworn, Hollow Ranger with resources, Specials, trees, specs
+- [x] Dual-class live
+- [ ] Balance pass (Magus strong, Oathsworn early game slow)

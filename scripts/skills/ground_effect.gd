@@ -42,9 +42,16 @@ func _physics_process(delta: float) -> void:
 		_tick_t -= tick
 		var g := Game.instance
 		if g:
-			for t in g.targets_in_circle(faction, position, radius):
-				var res := Damage.roll_hit(skill, user_stats, g.rng)
-				t.take_hit(res, user if is_instance_valid(user) else null)
+			if not skill.get("base_damage", {}).is_empty():
+				for t in g.targets_in_circle(faction, position, radius):
+					var res := Damage.roll_hit(skill, user_stats, g.rng)
+					t.take_hit(res, user if is_instance_valid(user) else null)
+					if skill.has("slow"):
+						t.slow_time = maxf(t.slow_time, 0.5)
+						t.slow_amt = float(skill.slow)
+			if skill.has("aura") and is_instance_valid(user) and user.has_method("add_buff"):
+				if user.global_position.distance_to(position) <= radius:
+					user.add_buff("aura_" + skill.name, skill.aura, 0.5)
 	if _t >= duration:
 		var tw := create_tween()
 		tw.tween_property(self, "modulate:a", 0.0, 0.3)

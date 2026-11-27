@@ -47,12 +47,17 @@ func setup(owner_: Actor, s: Dictionary, pos: Vector2, st: StatBlock) -> void:
 func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 0
-	var top := Art.sprite("column_top")
-	top.position = Vector2(0, -96)
-	add_child(top)
-	var mid := Art.sprite("column_mid")
-	mid.position = Vector2(0, -32)
-	add_child(mid)
+	if skill.get("banner", false):
+		var flag := Art.sprite("wall_banner_red")
+		flag.position = Vector2(14, -96)
+		add_child(flag)
+	else:
+		var top := Art.sprite("column_top")
+		top.position = Vector2(0, -96)
+		add_child(top)
+		var mid := Art.sprite("column_mid")
+		mid.position = Vector2(0, -32)
+		add_child(mid)
 	var c: Color = skill.color
 	_light = FX.make_light(c, 300.0 if ward else 220.0, 1.0)
 	_light.position = Vector2(0, -70)
@@ -73,7 +78,12 @@ func _physics_process(delta: float) -> void:
 		die(null)
 		return
 	var g := game()
-	if ward:
+	if skill.get("banner", false):
+		var rb: float = float(skill.radius) * owner_actor.stats.inc_mult(["inc_area"])
+		if is_instance_valid(g.player) and g.player.global_position.distance_to(global_position) <= rb:
+			g.player.add_buff("banner", skill.aura, 0.5)
+			g.player.gain_res("resolve", 6.0 * delta)
+	elif ward:
 		var r: float = float(skill.radius) * owner_actor.stats.inc_mult(["inc_area"])
 		var allies: Array = [g.player] + g.allies
 		for a in allies:
@@ -112,6 +122,13 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var c: Color = skill.color
 	var k := 1.0 - _t / duration
+	if skill.get("banner", false):
+		draw_line(Vector2(0, 0), Vector2(0, -130), Color(0.45, 0.35, 0.25), 5.0)
+		draw_circle(Vector2(0, -132), 5, Color(1.0, 0.8, 0.4))
+		var rb: float = float(skill.radius) * owner_actor.stats.inc_mult(["inc_area"]) if is_instance_valid(owner_actor) else 240.0
+		draw_arc(Vector2.ZERO, rb, 0, TAU, 64, Color(c.r, c.g, c.b, 0.35), 2.0, true)
+		draw_arc(Vector2(0, 4), 24, -PI / 2, -PI / 2 + TAU * k, 24, Color(c.r, c.g, c.b, 0.7), 3.0, true)
+		return
 	# glowing runes climbing the pillar
 	for i in 3:
 		var y := -30.0 - i * 34.0

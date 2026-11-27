@@ -3,6 +3,7 @@ extends Actor
 ## A raised husk fighting for its owner. Follows, leashes, picks targets near its owner.
 
 var owner_actor: Actor
+var kind := "husk"            # husk | hawk
 var temporary := 0.0          # >0: dies when it runs out (Grand Rite horde)
 var brute := false
 var explode := false
@@ -24,7 +25,7 @@ func setup(owner_: Actor, lvl: int, pos: Vector2, temp_seconds: float = 0.0) -> 
 	global_position = pos
 	display_name = "Husk"
 	var os: StatBlock = owner_.stats
-	brute = os.get_stat("husk_brute") > 0.0
+	brute = os.get_stat("husk_brute") > 0.0 and kind == "husk"
 	explode = os.get_stat("husk_explode") > 0.0
 	radius = 24.0 if brute else 18.0
 	stats = StatBlock.new()
@@ -41,6 +42,17 @@ func setup(owner_: Actor, lvl: int, pos: Vector2, temp_seconds: float = 0.0) -> 
 	if os.get_stat("minion_fire") > 0.0:
 		stats.add("conv_physical_to_fire", os.get_stat("minion_fire"))
 		stats.add("ignite_chance", 15.0)
+	if kind == "hawk":
+		hp *= 0.6
+		stats = StatBlock.new()
+		stats.add("life_flat", hp)
+		stats.add("move_speed_base", 430.0)
+		stats.add("inc_damage", os.get_stat("inc_minion_damage"))
+		stats.add("more_damage", (pow(1.1, lvl - 1) - 1.0) * 100.0)
+		stats.add("evade_chance", 50.0)
+		stats.add("life_regen", hp * 0.03)
+		radius = 14.0
+		display_name = "Spirit Hawk"
 	max_life = hp
 	life = hp
 	_offset = Vector2.RIGHT.rotated(randf() * TAU) * randf_range(50, 110)
@@ -53,6 +65,11 @@ func _ready() -> void:
 	c.radius = radius * 0.7
 	shape.shape = c
 	add_child(shape)
+	if kind == "hawk":
+		collision_mask = 0
+		var hl := FX.make_light(Color(0.7, 0.9, 1.0), 160.0, 0.7)
+		add_child(hl)
+		return
 	_mat = ShaderMaterial.new()
 	_mat.shader = load("res://assets/shaders/sprite_fx.gdshader")
 	_spr = AnimatedSprite2D.new()
@@ -103,10 +120,13 @@ func _physics_process(delta: float) -> void:
 	if _target:
 		var to := _target.global_position - global_position
 		facing = to.normalized()
-		var reach: float = SkillsDB.SKILLS.minion_claw.radius + _target.radius
+		var sk_id := "hawk_strike" if kind == "hawk" else "minion_claw"
+		var reach: float = SkillsDB.SKILLS[sk_id].radius + _target.radius
 		if to.length() <= reach:
 			cast_stats = stats
-			SkillExec.use("minion_claw", self, _target.global_position)
+			if SkillExec.use(sk_id, self, _target.global_position) and kind == "hawk":
+				var mark := 0.10 + owner_actor.stats.get_stat("hawk_mark") / 100.0
+				_target.apply_curse(owner_actor, mark, 0.0, 4.0, false)
 		elif busy_time <= 0.0:
 			move = to.normalized()
 	else:
@@ -129,6 +149,7 @@ func _physics_process(delta: float) -> void:
 
 func _update_visuals() -> void:
 	if _spr == null:
+		queue_redraw()
 		return
 	var anim := "run" if velocity.length() > 25.0 else "idle"
 	if _spr.animation != anim and _spr.sprite_frames.has_animation(anim):
@@ -142,6 +163,19 @@ func _update_visuals() -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if kind == "hawk":
+		var y := -70.0 + sin(_anim * 6.0) * 6.0
+		draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.38))
+		draw_circle(Vector2.ZERO, 12, Color(0, 0, 0, 0.3))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var flap := sin(_anim * 18.0) * 10.0
+		var c := Color(0.7, 0.9, 1.0, 0.9)
+		var f := 1.0 if facing.x >= 0 else -1.0
+		draw_colored_polygon(PackedVector2Array([Vector2(-22 * f, y - flap), Vector2(0, y), Vector2(-6 * f, y + 4)]), c)
+		draw_colored_polygon(PackedVector2Array([Vector2(22 * f, y - flap), Vector2(0, y), Vector2(6 * f, y + 4)]), c)
+		draw_circle(Vector2(4 * f, y - 2), 6, c.lightened(0.3))
+		draw_line(Vector2(9 * f, y - 2), Vector2(14 * f, y), Color(1.0, 0.85, 0.4), 2.0)
+		return
 	draw_set_transform(Vector2(0, 2), 0.0, Vector2(1.0, 0.38))
 	draw_circle(Vector2.ZERO, radius * 1.1, Color(0, 0, 0, 0.45))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

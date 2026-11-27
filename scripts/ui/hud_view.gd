@@ -57,20 +57,41 @@ func _draw() -> void:
 		var held: bool = p.input.skill_held[i]
 		draw_rect(r, Color(1.0, 0.82, 0.45) if held else Color(0.55, 0.4, 0.22), false, 2.0)
 		_pad_glyph(f, Vector2(r.position.x + 13, r.position.y + 13), PlayerInput.labels()[i])
-	# Spirit (Bog Shaman resource) + Special
-	if p.max_spirit() > 0.0:
-		var sx := x0 + total + 18.0
-		var sr := Rect2(sx, y0 - 4, 16, size + 8)
-		draw_rect(sr, Color(0.03, 0.05, 0.03, 0.9))
-		var fr := p.spirit / p.max_spirit()
-		draw_rect(Rect2(sx + 2, sr.end.y - 2 - (sr.size.y - 4) * fr, 12, (sr.size.y - 4) * fr), Color(0.45, 0.9, 0.35))
-		draw_rect(sr, Color(0.4, 0.6, 0.3), false, 1.5)
-		var spid: String = ClassesDB.class_def(p.class_id).get("special", "")
-		if spid != "":
-			var ready := p.spirit >= float(SkillsDB.SKILLS[spid].get("spirit_cost", 100))
-			var a := 0.6 + 0.4 * sin(_t * 5.0) if ready else 0.5
-			_text_left(f, Vector2(sx + 24, y0 + 22), SkillsDB.SKILLS[spid].name, 14, Color(0.6, 1.0, 0.5, a) if ready else Color(0.5, 0.55, 0.5, a))
-			_text_left(f, Vector2(sx + 24, y0 + 42), ("LB+RB" if PlayerInput.using_pad else "T") + "  %d / 100" % int(p.spirit), 12, Color(0.7, 0.7, 0.7))
+	# Class resources (Spirit, Kindling, Resolve, Focus) + Special
+	var rx := x0 + total + 18.0
+	var RES_COL := {"spirit": Color(0.45, 0.9, 0.35), "kindling": Color(1.0, 0.55, 0.2), "resolve": Color(1.0, 0.8, 0.4), "focus": Color(0.7, 1.0, 0.85)}
+	for rname in p.resources():
+		var mx := p.res_max(rname)
+		var sr := Rect2(rx, y0 - 4, 16, size + 8)
+		draw_rect(sr, Color(0.03, 0.03, 0.03, 0.9))
+		var fr: float = clampf(float(p.res[rname]) / maxf(1.0, mx), 0.0, 1.0)
+		var rc: Color = RES_COL.get(rname, Color.WHITE)
+		if rname == "kindling":
+			for k in int(mx):
+				var cy := sr.end.y - 8 - k * (sr.size.y - 10) / maxf(1.0, mx - 1.0)
+				draw_circle(Vector2(sr.get_center().x, cy), 6, rc if k < int(p.res.kindling) else Color(0.2, 0.15, 0.1))
+		else:
+			draw_rect(Rect2(rx + 2, sr.end.y - 2 - (sr.size.y - 4) * fr, 12, (sr.size.y - 4) * fr), rc)
+		if rname == "focus" and p.res.focus >= 100.0:
+			draw_rect(sr.grow(2), Color(0.8, 1.0, 0.6, 0.5 + 0.5 * sin(_t * 8.0)), false, 2.0)
+		else:
+			draw_rect(sr, rc.darkened(0.4), false, 1.5)
+		rx += 24.0
+	var spid: String = ClassesDB.class_def(p.class_id).get("special", "")
+	if spid != "":
+		var ss: Dictionary = SkillsDB.SKILLS[spid]
+		var cost: Dictionary = ss.get("res_cost", {"spirit": ss.get("spirit_cost", 100)})
+		var ready: bool = p.can_pay(cost) and p.cooldowns.get(spid, 0.0) <= 0.0
+		var a := 0.6 + 0.4 * sin(_t * 5.0) if ready else 0.5
+		var rn: String = cost.keys()[0]
+		_text_left(f, Vector2(rx + 4, y0 + 22), ss.name, 14, Color(0.6, 1.0, 0.5, a) if ready else Color(0.5, 0.55, 0.5, a))
+		var cdtxt := ("  ·  %.0fs" % p.cooldowns[spid]) if p.cooldowns.get(spid, 0.0) > 0.0 else ""
+		_text_left(f, Vector2(rx + 4, y0 + 42), ("LB+RB" if PlayerInput.using_pad else "T") + "  %d / %d %s%s" % [int(p.res.get(rn, 0)), int(cost[rn]), rn.capitalize(), cdtxt], 12, Color(0.7, 0.7, 0.7))
+	if p.ward_max > 0.0:
+		var wr := Rect2(110 - 78, vs.y - 110 - 78 - 16, 156, 8)
+		draw_rect(wr, Color(0, 0, 0, 0.7))
+		draw_rect(Rect2(wr.position, Vector2(wr.size.x * p.ward_pool / p.ward_max, 8)), Color(0.5, 0.75, 1.0))
+		_text(f, wr.get_center() + Vector2(0, -6), "Ember Ward %d" % int(p.ward_pool), 11, Color(0.7, 0.85, 1.0))
 	if p.class_points() > 0 or p.rite_points() > 0:
 		var a2 := 0.6 + 0.4 * sin(_t * 4.0)
 		_text(f, Vector2(vs.x / 2.0, y0 - 52), "%s: %d Class, %d Rite point(s) to spend" % ["D-pad ↓" if PlayerInput.using_pad else "K", p.class_points(), p.rite_points()], 15, Color(0.6, 1.0, 0.5, a2))
@@ -161,6 +182,34 @@ func _skill_icon(r: Rect2, sid: String, s: Dictionary) -> void:
 			draw_polyline(pts, c, 4.0, true)
 			for pt in pts:
 				draw_circle(pt, 3, Color.WHITE)
+		"blink", "rush", "vault":
+			draw_line(m + Vector2(-18, 10), m + Vector2(14, -8), c, 4.0, true)
+			draw_circle(m + Vector2(16, -9), 6, c.lightened(0.3))
+			draw_circle(m + Vector2(-18, 10), 3, c)
+		"wall", "fissure":
+			for k in 4:
+				draw_rect(Rect2(m + Vector2(-18 + k * 10, -10 + (k % 2) * 6), Vector2(7, 18)), c)
+		"prison":
+			draw_rect(Rect2(m - Vector2(13, 13), Vector2(26, 26)), c, false, 3.0)
+			draw_line(m - Vector2(13, 13), m + Vector2(13, 13), c, 2.0)
+		"lance":
+			draw_line(m + Vector2(-20, 0), m + Vector2(20, 0), c, 6.0)
+			draw_line(m + Vector2(-20, 0), m + Vector2(20, 0), Color(1, 1, 0.8), 2.0)
+		"warcry":
+			for k in 3:
+				draw_arc(m + Vector2(-10, 0), 8 + k * 7, -0.8, 0.8, 10, c, 2.5, true)
+		"buff", "hunters_moon", "cataclysm":
+			draw_circle(m, 14, Color(c.r, c.g, c.b, 0.4))
+			draw_arc(m, 14, 0, TAU, 20, c, 3.0, true)
+			draw_line(m + Vector2(0, 8), m + Vector2(0, -8), c, 3.0)
+			draw_line(m + Vector2(-6, -2), m + Vector2(0, -8), c, 3.0)
+			draw_line(m + Vector2(6, -2), m + Vector2(0, -8), c, 3.0)
+		"rain":
+			for k in 4:
+				draw_line(m + Vector2(-14 + k * 9, -16), m + Vector2(-18 + k * 9, 14), c, 2.0)
+		"companion":
+			draw_colored_polygon(PackedVector2Array([m + Vector2(-20, -6), m, m + Vector2(-4, 6)]), c)
+			draw_colored_polygon(PackedVector2Array([m + Vector2(20, -6), m, m + Vector2(4, 6)]), c)
 		"raise", "grand_rite":
 			draw_circle(m + Vector2(0, -6), 10, c)
 			draw_rect(Rect2(m + Vector2(-12, 4), Vector2(24, 14)), c.darkened(0.4))

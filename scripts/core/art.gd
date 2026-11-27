@@ -103,4 +103,5 @@ const WEAPON_SPRITES := {
 	"ember_wand": "weapon_red_magic_staff", "kindled_wand": "weapon_green_magic_staff",
 	"war_maul": "weapon_hammer", "grave_maul": "weapon_big_hammer",
 	"kindling_crown": "weapon_lavish_sword",
+	"short_bow": "weapon_bow", "long_bow": "weapon_bow", "warden_bow": "weapon_bow",
 }

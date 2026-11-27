@@ -17,7 +17,23 @@ var class_id := "classic"
 var class2_id := ""              # second class (dual-class, level 10)
 var class_nodes := {}            # "class_id/branch:index" -> true
 var rite_specs := {}             # "skill_id/spec_id" -> ranks
-var spirit := 0.0
+var res := {"spirit": 0.0, "kindling": 0.0, "resolve": 0.0, "focus": 0.0}
+var spirit: float:
+	get: return res.spirit
+	set(v): res.spirit = v
+var buffs: Array = []          # [{id, stats, time}]
+var _combat_t := 0.0
+var _oath_fx := 0.0
+var _dash_cb := Callable()
+var _dash_speed := 0.0
+
+## Skill dashes (Shield Rush, Vault Shot) reuse the dodge movement.
+func start_dash(dir: Vector2, dist: float, duration: float, on_end: Callable) -> void:
+	_dodge_dir = dir.normalized()
+	_dodge_t = duration
+	_dash_speed = dist / duration
+	_dash_cb = on_end
+	invulnerable = true
 var _special_buffer := 0.0
 var _spec_cache := {}
 const DUAL_CLASS_LEVEL := 10
@@ -69,7 +85,10 @@ func build_stats(eq: Dictionary) -> StatBlock:
 	for id in passives:
 		if tree.has(id):
 			s.add_mods(tree[id].stats)
-	s.add_mods(ClassesDB.class_def(class_id).get("base", {}))
+	for c in classes():
+		s.add_mods(ClassesDB.class_def(c).get("base", {}))
+	for b in buffs:
+		s.add_mods(b.stats)
 	for key in class_nodes:
 		var parts: PackedStringArray = key.split("/")
 		var n := ClassesDB.node(parts[0], parts[1])
@@ -83,10 +102,107 @@ func classes() -> Array:
 	return [class_id] if class2_id == "" else [class_id, class2_id]
 
 func max_spirit() -> float:
+	return res_max("spirit")
+
+## Resources this character uses (from its classes).
+func resources() -> Array:
+	var out: Array = []
 	for c in classes():
-		if ClassesDB.class_def(c).get("resource", "") == "spirit":
-			return 100.0
-	return 0.0
+		var r: String = ClassesDB.class_def(c).get("resource", "")
+		if r != "" and not out.has(r):
+			out.append(r)
+	return out
+
+func res_max(r: String) -> float:
+	if not resources().has(r):
+		return 0.0
+	if r == "kindling":
+		return 5.0 + stats.get_stat("kindling_max_add")
+	return 100.0
+
+func gain_res(r: String, amount: float) -> void:
+	if resources().has(r):
+		res[r] = clampf(float(res[r]) + amount, 0.0, res_max(r))
+
+func can_pay(cost: Dictionary) -> bool:
+	for r in cost:
+		if float(res.get(r, 0.0)) < float(cost[r]) - 0.001:
+			return false
+	return true
+
+func pay(cost: Dictionary) -> void:
+	for r in cost:
+		res[r] = maxf(0.0, float(res[r]) - float(cost[r]))
+
+func add_buff(id: String, buff_stats: Dictionary, duration: float) -> void:
+	for b in buffs:
+		if b.id == id:
+			b.time = duration
+			return
+	buffs.append({"id": id, "stats": buff_stats, "time": duration})
+	recalc_stats()
+
+func has_buff(id: String) -> bool:
+	for b in buffs:
+		if b.id == id:
+			return true
+	return false
+
+## Called by SkillExec before a Rite resolves: Kindling and Empowered shots.
+func pre_cast(skill_id: String, s: Dictionary) -> void:
+	_combat_t = 5.0
+	var cls: String = s.get("class", "")
+	if cls == "magus" and s.kind == "spell" and not ["lance", "cataclysm"].has(s.behavior) and not s.has("res_cost"):
+		gain_res("kindling", 1.0)
+	if s.behavior == "lance" and resources().has("kindling"):
+		var k: float = res.kindling
+		var st := cast_stats.duplicate_block()
+		st.add("more_damage", 50.0 * k)
+		cast_stats = st
+		res.kindling = 0.0
+	if cls == "ranger" and resources().has("focus") and res.focus >= 100.0 and not s.has("res_cost") and s.behavior != "buff":
+		var st2 := cast_stats.duplicate_block()
+		st2.add("inc_crit_chance", 5000.0)
+		st2.add("pierce_add", 99.0)
+		cast_stats = st2
+		res.focus -= 50.0
+		FX.text(global_position, "EMPOWERED", Color(0.8, 1.0, 0.6), 20)
+		FX.ring(global_position, 60.0, Color(0.8, 1.0, 0.6), 0.3)
+
+func on_dealt_hit(_target: Actor, _amount: float) -> void:
+	_combat_t = 5.0
+	gain_res("resolve", 2.0 * (1.0 + stats.get_stat("resolve_gain") / 100.0))
+	gain_res("focus", 2.0 * (1.0 + stats.get_stat("focus_gain") / 100.0))
+
+func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO, knock_force: float = 0.0) -> float:
+	var dealt := super.take_hit(result, src, knock_dir, knock_force)
+	if dealt > 0.0:
+		_combat_t = 5.0
+		gain_res("resolve", 5.0 * (1.0 + stats.get_stat("resolve_gain") / 100.0))
+	return dealt
+
+func on_blocked() -> void:
+	gain_res("resolve", 4.0)
+
+func _tick_class(delta: float) -> void:
+	_combat_t -= delta
+	if _combat_t <= 0.0 and res.resolve > 0.0:
+		res.resolve = maxf(0.0, res.resolve - 4.0 * delta)
+	if velocity.length() > 60.0:
+		gain_res("focus", 5.0 * delta * (1.0 + stats.get_stat("focus_gain") / 100.0))
+	var changed := false
+	for i in range(buffs.size() - 1, -1, -1):
+		buffs[i].time -= delta
+		if buffs[i].time <= 0.0:
+			buffs.remove_at(i)
+			changed = true
+	if changed:
+		recalc_stats()
+	if has_buff("oathbreaker"):
+		_oath_fx -= delta
+		if _oath_fx <= 0.0:
+			_oath_fx = 0.08
+			FX.burst(global_position + Vector2(randf_range(-20, 20), -40), Color(1.0, 0.5, 0.2), 2, 60.0, 6.0, 0.5)
 
 func class_points() -> int:
 	return (level - 1) - class_nodes.size()
@@ -307,6 +423,8 @@ func recalc_stats(refill: bool = false) -> void:
 	_spec_cache.clear()
 	max_life = calc_max_life(stats)
 	max_mana = maxf(0.0, stats.get_stat("mana_flat"))
+	ward_max = stats.get_stat("ember_ward_flat") + stats.get_stat("ember_ward_per_level") * level
+	ward_pool = minf(ward_pool, ward_max) if not refill else ward_max
 	if refill:
 		life = max_life
 		mana = max_mana
@@ -339,6 +457,7 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		return
 	tick_common(delta)
+	_tick_class(delta)
 	_anim += delta
 	_dodge_cd = maxf(0.0, _dodge_cd - delta)
 	mana = minf(max_mana, mana + stats.get_stat("mana_regen") * stats.inc_mult(["inc_mana_regen"]) * delta)
@@ -352,18 +471,23 @@ func _physics_process(delta: float) -> void:
 	# Dodge
 	if _dodge_t > 0.0:
 		_dodge_t -= delta
-		velocity = _dodge_dir * (DODGE_DIST / DODGE_TIME)
+		velocity = _dodge_dir * (_dash_speed if _dash_speed > 0.0 else DODGE_DIST / DODGE_TIME)
 		move_and_slide()
 		if randf() < 0.6:
 			FX.burst(global_position, Color(1.0, 0.6, 0.3), 2, 40.0, 7.0, 0.35)
 		if _dodge_t <= 0.0:
 			invulnerable = false
+			if _dash_cb.is_valid():
+				var cb := _dash_cb
+				_dash_cb = Callable()
+				cb.call()
 		_update_visuals(delta)
 		queue_redraw()
 		return
 	if input.dodge and _dodge_cd <= 0.0:
 		_dodge_dir = input.move.normalized() if input.move.length() > 0.1 else facing
 		_dodge_t = DODGE_TIME
+		_dash_speed = 0.0
 		_dodge_cd = DODGE_CD
 		invulnerable = true
 		busy_time = 0.0
@@ -379,8 +503,13 @@ func _physics_process(delta: float) -> void:
 	# Skills (hold to repeat). Lower index wins when several are held.
 	var sp: String = ClassesDB.class_def(class_id).get("special", "")
 	if input.special and sp != "":
-		if spirit < float(SkillsDB.SKILLS[sp].get("spirit_cost", 0)):
-			FX.text(global_position, "Need %d Spirit" % int(SkillsDB.SKILLS[sp].get("spirit_cost", 0)), Color(0.6, 0.9, 0.5), 16)
+		var ss: Dictionary = SkillsDB.SKILLS[sp]
+		var cost: Dictionary = ss.get("res_cost", {"spirit": ss.get("spirit_cost", 0)})
+		if not can_pay(cost):
+			var r: String = cost.keys()[0]
+			FX.text(global_position, "Need %d %s" % [int(cost[r]), r.capitalize()], Color(0.6, 0.9, 0.5), 16)
+		elif cooldowns.get(sp, 0.0) > 0.0:
+			FX.text(global_position, "%s ready in %.0fs" % [ss.name, cooldowns[sp]], Color(0.8, 0.8, 0.8), 16)
 		else:
 			_special_buffer = 0.5   # fire as soon as the current cast ends
 	if _special_buffer > 0.0:
@@ -483,6 +612,7 @@ func _update_visuals(delta: float) -> void:
 	var left := facing.x < -0.05
 	_spr.flip_h = left
 	_spr.position = Vector2(0, -44) + _lunge
+	_spr.scale = Vector2.ONE * Art.PX * (1.3 if has_buff("oathbreaker") else 1.0)
 	_spr.modulate.a = 0.55 if invulnerable else 1.0
 	# weapon follows aim, swings on attacks
 	var hand := Vector2(-14.0 if left else 14.0, -22.0) + _lunge
@@ -517,7 +647,7 @@ func to_save() -> Dictionary:
 		inv.append(it.to_dict() if it else null)
 	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero,
 		"class": class_id, "class2": class2_id, "class_nodes": class_nodes.keys(), "rite_specs": rite_specs, "bar": bar,
-		"spirit": spirit}
+		"spirit": spirit, "res": res}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
@@ -537,7 +667,11 @@ func from_save(d: Dictionary) -> void:
 		bar = b.duplicate()
 	while bar.size() < SkillsDB.BAR_SIZE:
 		bar.append("")
-	spirit = float(d.get("spirit", 0.0))
+	var rd: Dictionary = d.get("res", {})
+	for k in rd:
+		res[k] = float(rd[k])
+	if d.has("spirit") and not rd.has("spirit"):
+		spirit = float(d.spirit)
 	passives = {"start": true}
 	for id in d.get("passives", []):
 		if PassivesDB.nodes().has(id):

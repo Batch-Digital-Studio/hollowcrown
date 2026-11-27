@@ -16,6 +16,9 @@ const BASES := {
 	"tempered_blade": {"name": "Tempered Blade", "slot": "weapon", "req": 9, "phys": [15, 28]},
 	"kindled_wand": {"name": "Kindled Wand", "slot": "weapon", "req": 9, "phys": [6, 11], "implicit": {"inc_spell_damage": 28}},
 	"grave_maul": {"name": "Grave Maul", "slot": "weapon", "req": 12, "phys": [28, 48], "implicit": {"inc_attack_speed": -12}},
+	"short_bow": {"name": "Short Bow", "slot": "weapon", "req": 1, "phys": [5, 11], "implicit": {"inc_attack_speed": 5}},
+	"long_bow": {"name": "Long Bow", "slot": "weapon", "req": 9, "phys": [13, 28]},
+	"warden_bow": {"name": "Warden Bow", "slot": "weapon", "req": 14, "phys": [20, 40], "implicit": {"inc_crit_chance": 20}},
 	# Armour
 	"iron_cap": {"name": "Iron Cap", "slot": "helm", "req": 1, "armour": 22},
 	"hollow_helm": {"name": "Hollow Helm", "slot": "helm", "req": 9, "armour": 60},
