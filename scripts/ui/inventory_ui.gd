@@ -27,6 +27,36 @@ var _shatter_idx := -1
 var _purse_rects := {}     # currency id -> Rect2
 var craft_sel := ""         # currency held on the cursor
 var _shop_rects := []       # [Rect2, kind, index]
+var filter_open := false     # left panel shows the loot filter
+var stash_tab := 0
+var _hover_stash := -1
+var _npc_rects := []          # [Rect2, action, value]
+var _salvage_pending := ""
+var _salvage_t := 0
+
+const RARITY_ORDER := ["normal", "magic", "rare", "unique"]
+
+## What the left-hand panel shows: shop / stash / salvage / filter / sheet.
+func npc_mode() -> String:
+	var g := Game.instance
+	if g == null or g.player == null:
+		return ""
+	if filter_open:
+		return "filter"
+	if shop_open():
+		return "shop"
+	if g.town_npc("stash"):
+		return "stash"
+	if g.town_npc("salvager"):
+		return "salvage"
+	return ""
+
+func _filter_btn() -> Rect2:
+	return Rect2(panel_rect().position + Vector2(PANEL_W - 140, 16), Vector2(124, 30))
+
+func _stash_rect(i: int) -> Rect2:
+	var sr := sheet_rect()
+	return Rect2(sr.position.x + 10 + (i % 8) * 40, sr.position.y + 92 + (i / 8) * 40, 37, 37)
 
 func shop_open() -> bool:
 	var g := Game.instance
@@ -86,7 +116,13 @@ func _process(_delta: float) -> void:
 			if _bag_rect(i).has_point(m):
 				_hover_bag = i
 				_hover_item = g.player.inventory[i]
-		if shop_open():
+		_hover_stash = -1
+		if npc_mode() == "stash":
+			for i in Game.STASH_SLOTS:
+				if _stash_rect(i).has_point(m):
+					_hover_stash = i
+					_hover_item = g.stash[stash_tab * Game.STASH_SLOTS + i]
+		if shop_open() and not filter_open:
 			var st: Array = g.peddler.stock
 			for i in st.size():
 				if st[i] and _shop_item_rect(i).has_point(m):
@@ -121,7 +157,31 @@ func _input(event: InputEvent) -> void:
 			if craft_sel != "":
 				_try_craft(p)
 				return
-			if shop_open() and _shop_click(p, mpos):
+			if _filter_btn().has_point(mpos):
+				filter_open = not filter_open
+				return
+			for e in _npc_rects:
+				if e[0].has_point(mpos):
+					_npc_action(p, e[1], e[2])
+					return
+			var mode := npc_mode()
+			if mode == "shop" and _shop_click(p, mpos):
+				return
+			if mode == "stash" and _hover_stash >= 0:
+				var si := stash_tab * Game.STASH_SLOTS + _hover_stash
+				var sit: Item = Game.instance.stash[si]
+				if sit and p.add_to_inventory(sit):
+					Game.instance.stash[si] = null
+					refresh()
+				elif sit:
+					FX.text(p.global_position, "Bag is full", Color(1.0, 0.5, 0.4), 16)
+				return
+			if mode == "stash" and _hover_bag >= 0 and p.inventory[_hover_bag]:
+				if _to_stash(p.inventory[_hover_bag]):
+					p.inventory[_hover_bag] = null
+					refresh()
+				else:
+					FX.text(p.global_position, "Stash is full", Color(1.0, 0.5, 0.4), 16)
 				return
 			if _hover_bag >= 0 and p.inventory[_hover_bag]:
 				p.equip_from_bag(_hover_bag)
@@ -195,10 +255,17 @@ func _draw() -> void:
 	# Character sheet / shop
 	var sr := sheet_rect()
 	_box(sr)
-	if shop_open():
-		_draw_shop(p, sr, f)
-	else:
-		_draw_sheet(sr, f)
+	_npc_rects.clear()
+	match npc_mode():
+		"shop": _draw_shop(p, sr, f)
+		"stash": _draw_stash(p, sr, f)
+		"salvage": _draw_salvage(p, sr, f)
+		"filter": _draw_filter(sr, f)
+		_: _draw_sheet(sr, f)
+	var fb := _filter_btn()
+	draw_rect(fb, Color(0.18, 0.14, 0.09) if filter_open or fb.has_point(Game.pointer()) else Color(0.09, 0.08, 0.07))
+	draw_rect(fb, Color(1.0, 0.75, 0.4), false, 1.5)
+	_t(f, fb.get_center() + Vector2(0, 5), "Loot Filter" + (" ✓" if filter_open else ""), 13, Color(1.0, 0.85, 0.55), true)
 	_draw_purse(p, sr, f)
 	if _hover_item:
 		_tooltip(_hover_item)
@@ -256,6 +323,109 @@ func _draw_shop(p: Player, sr: Rect2, f: Font) -> void:
 		_t(f, Vector2(rr.end.x - 8 - f.get_string_size(cs, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x, rr.position.y + 17), cs, 13, Color(0.75, 0.73, 0.7) if dust >= o.dust else Color(0.5, 0.35, 0.3), false)
 		_shop_rects.append([rr, "offer", k])
 	_t(f, Vector2(sr.position.x + 20, sr.end.y - 14), "%s buys  ·  shatter here to sell" % ("A" if PlayerInput.using_pad else "Click"), 12, Color(0.6, 0.58, 0.55), false)
+
+func _to_stash(it: Item) -> bool:
+	var g := Game.instance
+	var order: Array = []
+	for t in Game.STASH_TABS:
+		order.append((stash_tab + t) % Game.STASH_TABS)
+	for t in order:
+		for i in Game.STASH_SLOTS:
+			if g.stash[t * Game.STASH_SLOTS + i] == null:
+				g.stash[t * Game.STASH_SLOTS + i] = it
+				return true
+	return false
+
+func _btn(r: Rect2, label: String, action: String, value, on: bool, f: Font, col: Color = Color(1.0, 0.85, 0.55)) -> void:
+	_npc_rects.append([r, action, value])
+	var hov := r.has_point(Game.pointer())
+	draw_rect(r, Color(0.2, 0.15, 0.09) if on or hov else Color(0.08, 0.07, 0.07))
+	draw_rect(r, col if on or hov else col.darkened(0.5), false, 2.0 if on else 1.0)
+	_t(f, r.position + Vector2(10, r.size.y / 2 + 5), label, 14, col if on or hov else Color(0.7, 0.68, 0.64), false)
+
+func _draw_stash(_p: Player, sr: Rect2, f: Font) -> void:
+	var g := Game.instance
+	_t(f, sr.position + Vector2(20, 34), "EMBER VAULT", 18, Color(1.0, 0.82, 0.45), false)
+	for t in Game.STASH_TABS:
+		var n := 0
+		for i in Game.STASH_SLOTS:
+			if g.stash[t * Game.STASH_SLOTS + i]:
+				n += 1
+		_btn(Rect2(sr.position.x + 10 + t * 108, sr.position.y + 48, 102, 34), "Tab %d  (%d)" % [t + 1, n], "tab", t, t == stash_tab, f)
+	for i in Game.STASH_SLOTS:
+		var it: Item = g.stash[stash_tab * Game.STASH_SLOTS + i]
+		_cell(_stash_rect(i), it, i == _hover_stash)
+	_t(f, Vector2(sr.position.x + 20, sr.end.y - 40), ("A" if PlayerInput.using_pad else "Click") + " a stash item: to your bag", 12, Color(0.6, 0.58, 0.55), false)
+	_t(f, Vector2(sr.position.x + 20, sr.end.y - 20), ("A" if PlayerInput.using_pad else "Click") + " a bag item: into the stash", 12, Color(0.6, 0.58, 0.55), false)
+
+func _salvage_count(p: Player, upto: String) -> int:
+	var lim := RARITY_ORDER.find(upto)
+	var n := 0
+	for it in p.inventory:
+		if it and RARITY_ORDER.find(it.rarity) <= lim:
+			n += 1
+	return n
+
+func _draw_salvage(p: Player, sr: Rect2, f: Font) -> void:
+	_t(f, sr.position + Vector2(20, 34), "GRIMM THE SMELTER", 18, Color(1.0, 0.82, 0.45), false)
+	_t(f, sr.position + Vector2(20, 58), "Melts gear in your bag into Ash Dust.", 13, Color(0.7, 0.68, 0.64), false)
+	_t(f, sr.position + Vector2(20, 76), "Equipped items and the stash are safe.", 13, Color(0.7, 0.68, 0.64), false)
+	var labels := {"normal": "Common", "magic": "Magic and below", "rare": "Rare and below", "unique": "Everything (incl. Unique)"}
+	var y := sr.position.y + 100
+	for r in RARITY_ORDER:
+		var n := _salvage_count(p, r)
+		var pend: bool = _salvage_pending == r and Time.get_ticks_msec() - _salvage_t < 3000
+		var lab: String = ("PRESS AGAIN: melt %d items" % n) if pend else ("%s   (%d)" % [labels[r], n])
+		_btn(Rect2(sr.position.x + 14, y, sr.size.x - 28, 46), lab, "salvage", r, pend, f, Color(1.0, 0.5, 0.35) if pend else Item.RARITY_COLORS[r])
+		y += 56
+	_t(f, Vector2(sr.position.x + 20, sr.end.y - 20), "Two presses to confirm.", 12, Color(0.6, 0.58, 0.55), false)
+
+func _draw_filter(sr: Rect2, f: Font) -> void:
+	var lf: Dictionary = Game.instance.loot_filter
+	_t(f, sr.position + Vector2(20, 34), "LOOT FILTER", 18, Color(1.0, 0.82, 0.45), false)
+	_t(f, sr.position + Vector2(20, 56), "Hidden drops stay invisible and aren't picked up.", 12, Color(0.7, 0.68, 0.64), false)
+	var y := sr.position.y + 72
+	for r in LootFilter.RARITIES:
+		_btn(Rect2(sr.position.x + 14, y, sr.size.x - 28, 34), ("☑ " if lf.get(r, true) else "☐ ") + "Show " + LootFilter.RARITY_NAMES[r], "filter", r, bool(lf.get(r, true)), f, Item.RARITY_COLORS[r])
+		y += 40
+	y += 8
+	for c in LootFilter.CATEGORIES:
+		_btn(Rect2(sr.position.x + 14, y, sr.size.x - 28, 34), ("☑ " if lf.get(c, true) else "☐ ") + LootFilter.CATEGORY_NAMES[c], "filter", c, bool(lf.get(c, true)), f)
+		y += 40
+	y += 8
+	_btn(Rect2(sr.position.x + 14, y, sr.size.x - 28, 34), ("☑ " if lf.get("show_hidden", false) else "☐ ") + "Show hidden drops (dimmed)", "filter", "show_hidden", bool(lf.get("show_hidden", false)), f)
+	_t(f, Vector2(sr.position.x + 20, sr.end.y - 20), "Uniques ignore the category toggles.", 12, Color(0.6, 0.58, 0.55), false)
+
+func _npc_action(p: Player, action: String, value) -> void:
+	var g := Game.instance
+	match action:
+		"tab":
+			stash_tab = int(value)
+		"filter":
+			g.loot_filter[value] = not bool(g.loot_filter.get(value, true))
+			g.save_game()
+		"salvage":
+			var now := Time.get_ticks_msec()
+			if _salvage_pending == value and now - _salvage_t < 3000:
+				var lim := RARITY_ORDER.find(value)
+				var n := 0
+				var dust := 0
+				for i in p.inventory.size():
+					var it: Item = p.inventory[i]
+					if it and RARITY_ORDER.find(it.rarity) <= lim:
+						dust += {"normal": 1, "magic": 3, "rare": 8, "unique": 20}.get(it.rarity, 1)
+						p.inventory[i] = null
+						n += 1
+				if dust > 0:
+					p.add_currency("ash_dust", dust)
+				FX.text(p.global_position, "Melted %d items  (+%d Ash Dust)" % [n, dust], Color(1.0, 0.6, 0.35), 18)
+				FX.sound("die", null, -4.0)
+				_salvage_pending = ""
+				refresh()
+				g.save_game()
+			else:
+				_salvage_pending = value
+				_salvage_t = now
 
 func _shop_click(p: Player, mpos: Vector2) -> bool:
 	var pd: Peddler = Game.instance.peddler

@@ -82,3 +82,13 @@
 - [x] Respecs cost 4 x level Ember Shards per point from level 20 (class tree, Rite specs, Ascension, Constellation)
 - [x] Two loadouts (weapon + six Rites) on D-pad Left/Right, X key
 - [ ] Peddler is in every zone (the design guide said ~25%); kept for convenience, Jason to decide
+
+## Stage I — World, town and quality of life (done 2026-11-27)
+- [x] Seven regions x 3 depths, each with its own biome and generator: Ashfall Crypt (corridors), Whisperwood (forest clearings), Mirefen (swamp), Hollow Deep (caverns), Duskhold (castle halls), Frostmere (ice caverns), Cinder Wastes (ashlands). Then The Hollow Crown cycles them.
+- [x] Procedural pixel tiles for the non-dungeon biomes (`scripts/world/biome_art.gd`), biome decorations and themed lights
+- [x] Emberhold town: Ember Vault stash (3 x 48), Grimm the Smelter (salvage Common / Magic- / Rare- / everything, two presses), Ashen Peddler (moved here from the dungeons), Waystone, portal back to your depth
+- [x] World map: travel to any reached region, continue at deepest depth, or go home. Pause menu: Return to Emberhold, World Map. H key.
+- [x] Loot filter (rarity + category, show hidden); hidden drops are invisible and never auto-picked up
+- [x] Rite list on the class screen scrolls (right stick / wheel)
+- [ ] Biome-specific monsters (all regions still use the same monster pool)
+- [ ] Full isometric art conversion (Jason's choice, 2026-11-27) and the visual pass from his creative brief

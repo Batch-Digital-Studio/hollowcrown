@@ -3,6 +3,7 @@ extends Node2D
 ## An item lying on the ground. Walk over it to pick it up.
 
 var item: Item
+var filtered := false   # filtered out by the loot filter
 var _t := 0.0
 var _beam := 0.0
 var _vel := Vector2.ZERO
@@ -17,6 +18,10 @@ func setup(it: Item, pos: Vector2, scatter: Vector2) -> void:
 	z_index = 3
 
 func _ready() -> void:
+	if filtered:
+		_label_w = ThemeDB.fallback_font.get_string_size(item.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		modulate = Color(1, 1, 1, 0.45)
+		return
 	var c := item.color()
 	_glow = FX.make_glow(c, 70.0 if item.rarity in ["rare", "unique"] else 40.0)
 	_glow.modulate.a = 0.7
@@ -43,7 +48,9 @@ func _process(delta: float) -> void:
 	position += _vel * delta
 	_vel = _vel.move_toward(Vector2.ZERO, 900.0 * delta)
 	var g := Game.instance
-	if g and g.player and not g.player.dead and _t > 0.35:
+	var show_h: bool = g != null and bool(g.loot_filter.get("show_hidden", false))
+	visible = not filtered or show_h
+	if g and g.player and not g.player.dead and _t > 0.35 and visible:
 		if g.player.global_position.distance_to(global_position) < 42.0:
 			if g.player.add_to_inventory(item):
 				FX.text(global_position, item.name, item.color(), 18)

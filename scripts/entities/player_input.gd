@@ -48,6 +48,7 @@ static func setup_input_map() -> void:
 	_key("pause", [KEY_ESCAPE])
 	_key("passives", [KEY_P])
 	_key("loadout", [KEY_X])
+	_key("town", [KEY_H])
 	_key("respawn", [KEY_ENTER])
 	_mouse("skill_1", MOUSE_BUTTON_LEFT)
 	_mouse("skill_2", MOUSE_BUTTON_RIGHT)

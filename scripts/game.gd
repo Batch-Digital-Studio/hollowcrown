@@ -44,6 +44,13 @@ var _heart_at := -1.0
 var peddler: Peddler = null
 var _asc_arg := ""          # test: "<ascendancy>:<n1,n2,...>" sets trials + notables
 var writ: Writ = null
+var in_town := false
+var max_depth := 1
+var town_npcs: Array = []
+const STASH_TABS := 3
+const STASH_SLOTS := 48
+var stash: Array = []           # STASH_TABS * STASH_SLOTS items (null = empty)
+var loot_filter := LootFilter.defaults()
 var fog: EmberFog = null
 var recent_kills: Array = []   # type ids killed in this zone (Blood Altars raise them)
 var pad_cursor := Vector2(800, 450)   # virtual cursor for menus on a controller
@@ -156,6 +163,8 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 func start_game(continue_save: bool, hero: String = "", class_id: String = "classic") -> void:
+	stash.clear()
+	stash.resize(STASH_TABS * STASH_SLOTS)
 	if OS.get_environment("HC_DEBUG") != "": print("DBG start_game cont=", continue_save, " hero=", hero, " class=", class_id)
 	player = Player.new()
 	if hero != "":
@@ -166,15 +175,30 @@ func start_game(continue_save: bool, hero: String = "", class_id: String = "clas
 		var d = JSON.parse_string(f.get_as_text())
 		if d is Dictionary:
 			depth = int(d.get("depth", 1))
+			max_depth = maxi(depth, int(d.get("max_depth", depth)))
+			in_town = bool(d.get("in_town", false))
+			stash.clear()
+			for x in d.get("stash", []):
+				stash.append(Item.from_dict(x) if x != null else null)
+			stash.resize(STASH_TABS * STASH_SLOTS)
+			var lf: Dictionary = d.get("loot_filter", {})
+			for k in lf:
+				loot_filter[k] = lf[k]
 			player.from_save(d.get("player", {}))
+	max_depth = maxi(max_depth, depth)
+	if OS.get_cmdline_user_args().has("--town"):
+		in_town = true
 	player.died.connect(_on_player_died)
 	player.inventory_changed.connect(func(): inv_ui.refresh())
 	state = "play"
 	build_zone()
-	hud.show_message(zone_title(), "Area Level %d" % area_level())
+	if not in_town:
+		hud.show_message(zone_title(), "Area Level %d" % area_level())
 
 func zone_title() -> String:
-	return "Depth %d · %s" % [depth, ZONE_NAMES[(depth - 1) % ZONE_NAMES.size()]]
+	if in_town:
+		return WorldDB.TOWN_NAME
+	return "Depth %d · %s" % [depth, WorldDB.zone_name(depth)]
 
 func area_level() -> int:
 	return 1 + (depth - 1) * 3
@@ -203,8 +227,10 @@ func build_zone() -> void:
 	zone.z_index = -10
 	add_child(zone)
 	move_child(zone, 0)
-	zone.generate(rng.randi(), depth)
+	zone.generate(rng.randi(), depth, "town" if in_town else "")
+	ambient.color = zone.biome.ambient
 	_build_nav()
+	town_npcs.clear()
 	if player.get_parent() == null:
 		world_layer.add_child(player)
 	player.global_position = zone.cell_center(zone.start_cell)
@@ -222,17 +248,14 @@ func build_zone() -> void:
 		l.position = b
 		l.set_script(load("res://scripts/fx/flicker.gd"))
 		light_root.add_child(l)
-	# Ashen Peddler beside the start
 	peddler = null
-	var floor_set := {}
-	for fc in zone.floor_cells:
-		floor_set[fc] = true
-	for off in [Vector2i(2, -1), Vector2i(-2, -1), Vector2i(2, 1), Vector2i(-2, 1), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(0, 2), Vector2i(0, -2), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
-		if floor_set.has(zone.start_cell + off):
-			peddler = Peddler.new()
-			peddler.position = zone.cell_center(zone.start_cell + off)
-			fx_node.add_child(peddler)
-			break
+	writ = null
+	if in_town:
+		_setup_town()
+		hud.show_message(WorldDB.TOWN_NAME, "Safe haven")
+		inv_ui.refresh()
+		save_game()
+		return
 	# Hollow Rift seal in about a third of zones
 	var has_rift := false
 	var force_rift := OS.get_cmdline_user_args().has("--rift")
@@ -287,6 +310,59 @@ func build_zone() -> void:
 		writ.goal = 3
 	inv_ui.refresh()
 	save_game()
+
+# ---------------------------------------------------------------- town & travel
+
+func _setup_town() -> void:
+	var sp: Dictionary = zone.town_spots
+	peddler = Peddler.new()
+	peddler.position = zone.cell_center(sp.peddler)
+	fx_node.add_child(peddler)
+	for k in ["stash", "salvager", "waypoint"]:
+		var n := TownNPC.new()
+		n.kind = k
+		n.position = zone.cell_center(sp[k])
+		fx_node.add_child(n)
+		town_npcs.append(n)
+	var rp := TownNPC.ReturnPortal.new()
+	rp.position = zone.cell_center(sp.portal)
+	fx_node.add_child(rp)
+	# lamps round the square
+	for c in [Vector2i(28, 28), Vector2i(44, 28), Vector2i(28, 38), Vector2i(44, 38), Vector2i(33, 32), Vector2i(39, 32)]:
+		var l := FX.make_light(Color(1.0, 0.75, 0.45), 380.0, 1.1)
+		l.position = zone.cell_center(c)
+		light_root.add_child(l)
+		zone.braziers.append(zone.cell_center(c))
+	zone.queue_redraw()
+
+func town_npc(kind: String) -> TownNPC:
+	for n in town_npcs:
+		if is_instance_valid(n) and n.kind == kind and n.near(player):
+			return n
+	return null
+
+func go_to_town() -> void:
+	if in_town or state != "play":
+		return
+	in_town = true
+	FX.flash(player.global_position, Color(1.0, 0.8, 0.5), 400.0, 0.5)
+	build_zone()
+	hud.show_message(WorldDB.TOWN_NAME, "Vault, Smelter, Peddler and the Waystone.")
+
+func leave_town(to_depth: int) -> void:
+	in_town = false
+	depth = clampi(to_depth, 1, max_depth)
+	FX.flash(player.global_position, Color(0.7, 0.5, 1.0), 400.0, 0.5)
+	build_zone()
+	hud.show_message(zone_title(), "Area Level %d" % area_level())
+
+## Travel from the world map: a region start or the deepest depth reached.
+func travel_to(to_depth: int) -> void:
+	if to_depth <= 0:
+		if not in_town:
+			go_to_town()
+		return
+	leave_town(to_depth)
 
 ## A floor point at least min_start cells from the start and away from the boss.
 func _open_spot(min_start: float) -> Vector2:
@@ -542,6 +618,7 @@ func _on_enemy_died(a: Actor) -> void:
 
 func drop_item(it: Item, pos: Vector2) -> void:
 	var p := Pickup.new()
+	p.filtered = not LootFilter.allows(loot_filter, it)
 	p.setup(it, pos, Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(120, 260))
 	fx_node.add_child(p)
 
@@ -568,6 +645,7 @@ func on_item_picked(_it: Item) -> void:
 
 func _descend() -> void:
 	depth += 1
+	max_depth = maxi(max_depth, depth)
 	FX.flash(player.global_position, Color(0.7, 0.5, 1.0), 400.0, 0.5)
 	build_zone()
 	hud.show_message(zone_title(), "Area Level %d · monsters grow stronger" % area_level())
@@ -591,7 +669,11 @@ func save_game() -> void:
 		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"depth": depth, "player": player.to_save()}))
+		var sd: Array = []
+		for it in stash:
+			sd.append(it.to_dict() if it else null)
+		f.store_string(JSON.stringify({"depth": depth, "max_depth": max_depth, "in_town": in_town,
+			"stash": sd, "loot_filter": loot_filter, "player": player.to_save()}))
 
 # ---------- queries used by gameplay code ----------
 
@@ -745,10 +827,22 @@ func _process(delta: float) -> void:
 		hud.class_ui.toggle()
 	if Input.is_action_just_pressed("inventory") and state == "play" and not paused:
 		inv_ui.toggle()
+	# Waystone: stepping on it opens the world map (once per visit to the stone)
+	if in_town and state == "play" and not paused:
+		var ws := town_npc("waypoint")
+		if ws and not has_meta("ws_latch"):
+			set_meta("ws_latch", true)
+			hud.show_world_map()
+		elif ws == null and has_meta("ws_latch"):
+			remove_meta("ws_latch")
+	if Input.is_action_just_pressed("town") and state == "play" and not paused and not in_town:
+		go_to_town()
 	if Input.is_action_just_pressed("loadout") and state == "play" and not paused and not inv_ui.visible and player and not player.dead:
 		player.swap_loadout()
 	if Input.is_action_just_pressed("pause") and state == "play":
-		if hud.passives.visible:
+		if hud.world_map.visible:
+			hud.world_map.toggle()
+		elif hud.passives.visible:
 			hud.passives.toggle()
 		elif hud.class_ui.visible:
 			hud.class_ui.toggle()
@@ -771,11 +865,13 @@ func _input(event: InputEvent) -> void:
 ## Controller in the inventory / passive tree: left stick drives a virtual cursor,
 ## A = click, X = right-click, B = close, right stick pans the tree, LB/RB zoom.
 func _pad_menus(delta: float) -> void:
-	var menu_open := inv_ui.visible or hud.passives.visible or hud.class_ui.visible
+	var menu_open := inv_ui.visible or hud.passives.visible or hud.class_ui.visible or hud.world_map.visible
 	if not menu_open:
 		return
 	if Input.is_action_just_pressed("pad_close"):
-		if hud.class_ui.visible:
+		if hud.world_map.visible:
+			hud.world_map.toggle()
+		elif hud.class_ui.visible:
 			hud.class_ui.toggle()
 		elif hud.passives.visible:
 			hud.passives.toggle()
@@ -793,6 +889,10 @@ func _pad_menus(delta: float) -> void:
 		var m := pad_cursor + stick * speed * delta
 		var vs := vp.get_visible_rect().size
 		set_pad_cursor(Vector2(clampf(m.x, 0, vs.x), clampf(m.y, 0, vs.y)))
+	if hud.class_ui.visible:
+		var rsc := Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
+		if absf(rsc.y) > 0.25:
+			hud.class_ui.scroll_rites(rsc.y * 600.0 * delta)
 	if hud.passives.visible:
 		var rs := Input.get_vector("aim_left", "aim_right", "aim_up", "aim_down")
 		hud.passives.offset -= rs * 700.0 * delta
@@ -829,6 +929,17 @@ func _click(button: int) -> void:
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
+	if OS.get_cmdline_user_args().has("--all-rites") and state == "play" and player and not has_meta("allr"):
+		set_meta("allr", true)
+		player.level = 40
+		player.class2_id = "magus" if player.class_id != "magus" else "shaman"
+		for c in player.classes():
+			var cd: Dictionary = ClassesDB.class_def(c)
+			for b in cd.get("branches", []).size():
+				for i in cd.branches[b].nodes.size():
+					player.class_nodes["%s/%d:%d" % [c, b, i]] = true
+		player.recalc_stats(true)
+		print("TEST rites unlocked: %d" % player.unlocked_rites().size())
 	if OS.get_cmdline_user_args().has("--portal-test") and state == "play" and player:
 		for c in fx_node.get_children():
 			if c is Portal:

@@ -6,6 +6,9 @@ extends Control
 var _t := 0.0
 var _hover := {}          # what's under the cursor: {kind, ...}
 var _selected_rite := ""
+var rite_scroll := 0.0          # pixels scrolled in the Rite list (mouse wheel / right stick)
+var _rite_max_scroll := 0.0
+var _rite_area := Rect2()
 var _rects: Array = []    # [{rect, kind, ...}] rebuilt every draw
 var _class_tab := 0
 
@@ -29,8 +32,15 @@ func _process(delta: float) -> void:
 			_hover = r
 	queue_redraw()
 
+func scroll_rites(px: float) -> void:
+	rite_scroll = clampf(rite_scroll + px, 0.0, _rite_max_scroll)
+
 func _input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventMouseButton and event.pressed):
+		return
+	if event.button_index == MOUSE_BUTTON_WHEEL_DOWN or event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		get_viewport().set_input_as_handled()
+		scroll_rites(60.0 if event.button_index == MOUSE_BUTTON_WHEEL_DOWN else -60.0)
 		return
 	get_viewport().set_input_as_handled()
 	var p := Game.instance.player
@@ -176,10 +186,20 @@ func _draw() -> void:
 	_txt(f, Vector2(rx, 150), "Rites and specializations", 20, gold)
 	var y0 := 166.0
 	var rites: Array = p.unlocked_rites()
+	var area_bottom := vs.y - 150.0
+	_rite_area = Rect2(rx, y0, vs.x - rx, area_bottom - y0)
+	_rite_max_scroll = maxf(0.0, rites.size() * 52.0 - (area_bottom - y0))
+	rite_scroll = clampf(rite_scroll, 0.0, _rite_max_scroll)
+	if rite_scroll > 0.0:
+		_txt(f, Vector2(rx + 420, 150), "▲ more  (right stick / wheel)", 12, gold)
+	if rite_scroll < _rite_max_scroll:
+		_txt(f, Vector2(rx + 420, area_bottom + 14), "▼ more  (right stick / wheel)", 12, gold)
 	for ri in rites.size():
 		var sid: String = rites[ri]
 		var sk: Dictionary = SkillsDB.SKILLS[sid]
-		var rr := Rect2(rx, y0 + ri * 52, 200, 46)
+		var rr := Rect2(rx, y0 + ri * 52 - rite_scroll, 200, 46)
+		if rr.position.y < y0 - 1.0 or rr.end.y > area_bottom + 1.0:
+			continue
 		_rects.append({"rect": rr, "kind": "rite", "skill": sid})
 		var sel := _selected_rite == sid
 		draw_rect(rr, Color(0.14, 0.11, 0.08) if sel else Color(0.07, 0.065, 0.075))

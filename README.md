@@ -21,10 +21,11 @@ The first import takes a few seconds while Godot scans the files.
 | D-pad Up | Ember Constellation (A allocate, A again on a Mastery to switch it, X refund, right stick pan, LB/RB zoom, B close) |
 | D-pad Down | Class screen: class tree, Rite specializations, skill bar, Ascension tab (A take, X refund, B close) |
 | View | Inventory + purse (A equip / pick up currency / buy, X twice shatter or sell next to the Peddler, B drop currency or close) |
-| Menu | Pause |
+| Menu | Pause menu: Return to Emberhold, World Map, Save & Quit |
 
 Taps are buffered for 0.3 s, so pressing a skill during another cast still fires it. Rumble on hits, slams, level-ups, uniques, boss kill.
 Walk onto seals to use them (Rift Seal, Ascension Trial). Stand next to a Reliquary for one second to open it.
+In Emberhold, open the inventory next to the Ember Vault (stash), Grimm the Smelter (bulk salvage) or the Ashen Peddler (shop). Step on the Waystone for the world map. The Loot Filter button is at the top of the inventory.
 
 ## Controls (keyboard + mouse)
 | Input | Action |
@@ -39,7 +40,8 @@ Walk onto seals to use them (Rift Seal, Ascension Trial). Stand next to a Reliqu
 | I / Tab | Inventory + purse + Peddler shop |
 | P | Ember Constellation |
 | K | Class screen |
-| Esc | Pause |
+| H | Return to town (Emberhold) |
+| Esc | Pause (World Map is in the pause menu) |
 
 ## What's in it
 - Four classes (Bog Shaman, Ember Magus, Oathsworn, Hollow Ranger), each with a resource, a Special, a 3-branch class tree and its Rites with specialization trees. Pick a second class at level 10.
@@ -48,7 +50,9 @@ Walk onto seals to use them (Rift Seal, Ascension Trial). Stand next to a Reliqu
 - PoE-style damage: flat / increased / more, conversion, crits, armour, resistances, ignite / chill / shock / poison / freeze, curses.
 - Loot: normal / magic / rare / unique, tiered affixes, rift-only uniques. Crafting currencies and Essences. Two loadouts.
 - League-style mechanics: Hollow Rifts (and the Rift Lord), Reliquaries, Bound Embers, Writs of the Hollow King, the Ashen Peddler.
-- Endless descent: kill the Regent, take the portal, go deeper. Autosave.
+- Seven regions with their own biome and map shape (crypt, forest, swamp, caverns, castle, frost, ashlands), three depths each, then "The Hollow Crown" cycles them at higher levels. Five bosses rotate by depth.
+- Emberhold, the home town: stash (3 tabs), bulk salvage, shop, world map travel. Loot filter.
+- Endless descent: kill the boss, stand in the portal, go deeper. Autosave.
 - Controller-first: everything works on an Xbox pad (see the table above).
 
 ## For developers (and Claude)

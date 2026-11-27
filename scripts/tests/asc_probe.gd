@@ -24,6 +24,9 @@ func asc(id: String, nodes: Array) -> void:
 	p.ascendancy = id
 	p.asc_nodes = nodes.duplicate()
 	p.recalc_stats(true)
+	# measurements below must not depend on random block / evade rolls
+	p.stats.add("block_chance", -999.0)
+	p.stats.add("evade_chance", -999.0)
 
 func kp(id: String, on: bool) -> void:
 	if on:
@@ -112,16 +115,19 @@ func _process(delta: float) -> void:
 			asc("ashguard", [])
 			e1 = dummy("brute")
 			p.life = p.max_life
+			p.ward_pool = 0.0
 			p.take_hit({"damage": {"fire": 20.0}, "crit": false, "ailments": {}}, e1)
 			var base := p.max_life - p.life
 			asc("ashguard", [2])
 			p.life = p.max_life
+			p.ward_pool = 0.0
 			p.take_hit({"damage": {"fire": 20.0}, "crit": false, "ailments": {}}, e1)
 			var sw := p.max_life - p.life
 			check("Shieldwall: 12%% less damage (%.2f vs %.2f)" % [sw, base], absf(sw - base * 0.88) < 0.2)
 			asc("ashguard", [3])
 			p.asc.last_stand_cd = 0.0
 			p.life = p.max_life * 0.35
+			p.ward_pool = 0.0
 			p.take_hit({"damage": {"fire": p.max_life * 0.1}, "crit": false, "ailments": {}}, e1)
 			check("Last Stand triggers under 30%", p.asc.last_stand_t > 0.0)
 			p.life = p.max_life
@@ -262,17 +268,63 @@ func _process(delta: float) -> void:
 			for c in g.fx_node.get_children():
 				if c is Projectile:
 					before += 1
-			SkillExec.use("ember_bolt", p, p.global_position + Vector2(300, 0))
+			var aim := p.global_position + Vector2(300, 0)
+			for k in 16:
+				var cand := p.global_position + Vector2.RIGHT.rotated(k * TAU / 16.0) * 600.0
+				if g.clear_walk(p.global_position, cand, 12.0):
+					aim = p.global_position + Vector2.RIGHT.rotated(k * TAU / 16.0) * 300.0
+					break
+			mem["made"] = 0
+			g.fx_node.child_entered_tree.connect(func(nd):
+				if nd is Projectile:
+					mem["made"] = int(mem.made) + 1)
+			SkillExec.use("ember_bolt", p, aim)
 			mem["proj_before"] = before
 			step = 14
 			t = 0.0
 		14:
+			var nn := 0
+			for c in g.fx_node.get_children():
+				if c is Projectile:
+					nn += 1
+			mem["peak"] = maxi(int(mem.get("peak", 0)), nn)
 			if t > 0.3:
 				var n := 0
 				for c in g.fx_node.get_children():
 					if c is Projectile:
 						n += 1
-				check("Echo of the Crown: Ember Bolt cast twice (%d projectiles)" % (n - int(mem.proj_before)), n - int(mem.proj_before) >= 2)
+				check("Echo of the Crown: Ember Bolt cast twice (%d bolts created)" % int(mem.made), int(mem.made) >= 2)
 				kp("rime_key", false)
+				clear()
+				g.loot_filter = LootFilter.defaults()
+				g.loot_filter["normal"] = false
+				for i in p.inventory.size():
+					p.inventory[i] = null
+				mem["junk"] = Loot.make_item(3, g.rng, "normal")
+				mem["good"] = Loot.make_item(3, g.rng, "rare")
+				g.drop_item(mem.junk, p.global_position)
+				g.drop_item(mem.good, p.global_position)
+				step = 15
+				t = 0.0
+		15:
+			if t > 0.6 and t < 1.15:
+				for c in g.fx_node.get_children():
+					if c is Pickup and c.item == mem.good:
+						p.global_position = c.global_position
+			if t > 1.2:
+				for c in g.fx_node.get_children():
+					if c is Pickup and c.item == mem.junk:
+						p.global_position = c.global_position
+						mem["junk_pos"] = c.global_position
+				check("loot filter: rare picked up", p.inventory.has(mem.good))
+				check("loot filter: filtered common is NOT picked up", not p.inventory.has(mem.junk))
+				g.loot_filter["show_hidden"] = true
+				step = 16
+				t = 0.0
+		16:
+			if t > 0.2 and t < 0.9 and mem.has("junk_pos"):
+				p.global_position = mem.junk_pos
+			if t > 1.0:
+				check("loot filter: 'show hidden' lets you grab it", p.inventory.has(mem.junk))
 				print("ASC FAILURES: %d" % fails)
 				get_tree().quit(1 if fails > 0 else 0)

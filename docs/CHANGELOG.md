@@ -110,3 +110,8 @@
 - Raise Husk with no corpse nearby now raises an Ash Husk (60% life) for no Spirit.
 - Element visuals: burning enemies flicker with rising flames (more with Everburn stacks), chilled ones shed frost and get a blue ring, frozen ones are encased in ice, shocked ones crackle with sparks, poisoned ones bubble green, cursed ones trail purple. Hits flare by element (flames, ice shards + ring, lightning spark, chaos bubbles, blood).
 - Verified in the cloud: all 4 new bosses run without errors; the Magus bot (level 10, no gear) killed the Frostwarden, Pyre Brute and Gravecaller King and died once to the Rot Mother. Not yet played by Jason.
+
+## 2026-11-27 — World, town, stash, salvage, loot filter
+- See ROADMAP "Stage I". Save now also stores max depth, town state, the stash and the loot filter.
+- Tests: pad test 45 checks (adds stash in/out, loot filter toggle, bulk salvage, Waystone -> world map -> travel). Probe adds loot-filter pickup checks and no longer depends on random block/evade or bolt lifetimes. Every biome run with the bot: no script errors.
+- Not verified on Jason's PC.

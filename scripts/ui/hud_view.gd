@@ -113,7 +113,10 @@ func _draw() -> void:
 			draw_arc(vs0 / 2.0, rr, 0, TAU, 48, Color(0.5, 0.46, 0.42, 0.06 + 0.05 * k), 120.0)
 		var ft := "Ember Fog  %ds  ·  %d slain" % [int(ceil(EmberFog.DURATION - g.fog.t)), g.fog.kills]
 		_text_left(f, Vector2(vs0.x / 2 - 110, 120), ft, 18, Color(0.9, 0.82, 0.72))
-	_text_left(f, Vector2(24, 60), "Area Level %d   ·   Slain %d   ·   Remaining %d" % [g.area_level(), g.kills, g.enemies.size()], 14, Color(0.7, 0.68, 0.65))
+	if g.in_town:
+		_text_left(f, Vector2(24, 60), "Safe haven   ·   H / pause menu: town   ·   Waystone: world map", 14, Color(0.7, 0.68, 0.65))
+	else:
+		_text_left(f, Vector2(24, 60), "Area Level %d   ·   Slain %d   ·   Remaining %d" % [g.area_level(), g.kills, g.enemies.size()], 14, Color(0.7, 0.68, 0.65))
 	if g.writ:
 		var wc := Color(0.5, 0.95, 0.6) if g.writ.done else (Color(0.8, 0.4, 0.35) if g.writ.failed else Color(0.95, 0.8, 0.5))
 		_text_left(f, Vector2(24, 84), g.writ.text(), 14, wc)

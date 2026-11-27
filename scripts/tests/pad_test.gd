@@ -8,6 +8,7 @@ var fails := 0
 var x0 := 0.0
 var mana0 := 0.0
 var mem_id := ""
+var mem := {}
 var g: Game
 
 func _ready() -> void:
@@ -162,7 +163,8 @@ func _process(delta: float) -> void:
 		18:
 			if t > 9.30:
 				check("Menu closes pause", not get_tree().paused)
-				# set up: stand by the Peddler with a magic item and currency
+				# set up: go to town, stand by the Peddler with a magic item and currency
+				g.go_to_town()
 				g.player.add_currency("kindling_shard", 2)
 				g.player.add_currency("ember_shards", 999)
 				g.player.add_currency("ash_dust", 40)
@@ -318,5 +320,109 @@ func _process(delta: float) -> void:
 		46:
 			if t > 17.10:
 				check("D-pad Right swaps back (weapon and bar restored)", g.player.loadout == 0 and g.player.equipment.get("weapon") != null and g.player.bar[0] == mem_id)
+				g.go_to_town()
+				step = 147
+		147:
+			if t > 17.40:
+				check("travel to town", g.in_town and g.town_npcs.size() == 3)
+				# stand at the Vault, open the inventory, store a bag item
+				for n in g.town_npcs:
+					if n.kind == "stash":
+						g.player.global_position = n.global_position + Vector2(60, 40)
+				g.player.inventory[0] = Loot.make_item(5, g.rng, "rare")
+				tap(JOY_BUTTON_BACK)
+				step = 148
+		148:
+			if t > 17.70:
+				check("inventory beside the Vault shows the stash", g.inv_ui.visible and g.inv_ui.npc_mode() == "stash")
+				g.set_pad_cursor(g.inv_ui._bag_rect(0).get_center())
+				step = 149
+		149:
+			if t > 17.90:
+				tap(JOY_BUTTON_A)
+				step = 150
+		150:
+			if t > 18.20:
+				check("A moves a bag item into the stash", g.player.inventory[0] == null and g.stash[0] != null)
+				g.set_pad_cursor(g.inv_ui._stash_rect(0).get_center())
+				step = 151
+		151:
+			if t > 18.40:
+				tap(JOY_BUTTON_A)
+				step = 152
+		152:
+			if t > 18.70:
+				check("A takes it back out", g.stash[0] == null and g.player.inventory.find(null) != 0)
+				g.set_pad_cursor(g.inv_ui._filter_btn().get_center())
+				step = 153
+		153:
+			if t > 18.90:
+				tap(JOY_BUTTON_A)
+				step = 154
+		154:
+			if t > 19.20:
+				check("A on Loot Filter opens the filter panel", g.inv_ui.npc_mode() == "filter")
+				for e in g.inv_ui._npc_rects:
+					if e[1] == "filter" and e[2] == "normal":
+						g.set_pad_cursor(e[0].get_center())
+				mem["normal"] = bool(g.loot_filter.normal)
+				step = 155
+		155:
+			if t > 19.40:
+				tap(JOY_BUTTON_A)
+				step = 156
+		156:
+			if t > 19.70:
+				check("A toggles a filter rule", bool(g.loot_filter.normal) != bool(mem.normal))
+				g.inv_ui.filter_open = false
+				for n in g.town_npcs:
+					if n.kind == "salvager":
+						g.player.global_position = n.global_position + Vector2(60, 40)
+				for i in 3:
+					g.player.inventory[i] = Loot.make_item(5, g.rng, "magic")
+				step = 157
+		157:
+			if t > 19.95:
+				check("inventory beside the Smelter shows salvage", g.inv_ui.npc_mode() == "salvage")
+				for e in g.inv_ui._npc_rects:
+					if e[1] == "salvage" and e[2] == "magic":
+						g.set_pad_cursor(e[0].get_center())
+				step = 158
+		158:
+			if t > 20.15:
+				tap(JOY_BUTTON_A)
+				step = 159
+		159:
+			if t > 20.40:
+				tap(JOY_BUTTON_A)
+				step = 160
+		160:
+			if t > 20.70:
+				var left := 0
+				for it in g.player.inventory:
+					if it and it.rarity == "magic":
+						left += 1
+				check("A twice melts all magic-and-below items (%d left)" % left, left == 0)
+				tap(JOY_BUTTON_B)
+				step = 161
+		161:
+			if t > 21.00:
+				for n in g.town_npcs:
+					if n.kind == "waypoint":
+						g.player.global_position = n.global_position
+				step = 162
+		162:
+			if t > 21.40:
+				check("stepping on the Waystone opens the world map", g.hud.world_map.visible)
+				var cont: Dictionary = g.hud.world_map._rects[g.hud.world_map._rects.size() - 1]
+				g.set_pad_cursor(cont.rect.get_center())
+				step = 163
+		163:
+			if t > 21.60:
+				tap(JOY_BUTTON_A)
+				step = 164
+		164:
+			if t > 22.10:
+				check("A on Continue travels back to the dungeon", not g.in_town and not g.hud.world_map.visible)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

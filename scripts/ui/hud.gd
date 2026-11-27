@@ -7,6 +7,7 @@ var inventory: InventoryUI
 var passives: PassiveUI
 var class_ui: ClassUI
 var _overlay: Control
+var world_map: WorldMapUI
 var _title: Control
 var _vignette: TextureRect
 
@@ -37,6 +38,10 @@ func _ready() -> void:
 	class_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	class_ui.visible = false
 	add_child(class_ui)
+	world_map = WorldMapUI.new()
+	world_map.set_anchors_preset(Control.PRESET_FULL_RECT)
+	world_map.visible = false
+	add_child(world_map)
 	_show_title()
 
 func _make_vignette() -> Texture2D:
@@ -126,6 +131,10 @@ func _focus_first() -> void:
 			(n as BaseButton).grab_focus()
 			return
 		stack.append_array(n.get_children())
+
+func show_world_map() -> void:
+	if not world_map.visible:
+		world_map.toggle()
 
 func hide_overlays() -> void:
 	if _overlay:
@@ -222,6 +231,15 @@ func toggle_pause() -> void:
 	var box := _centered_box()
 	box.add_child(_label("PAUSED", 56, GOLD))
 	box.add_child(_button("Resume", hide_overlays))
+	var g := Game.instance
+	if g and g.state == "play":
+		if not g.in_town:
+			box.add_child(_button("Return to " + WorldDB.TOWN_NAME, func():
+				hide_overlays()
+				g.go_to_town()))
+		box.add_child(_button("World Map", func():
+			hide_overlays()
+			show_world_map()))
 	box.add_child(_button("Save & Quit", func():
 		Game.instance.save_game()
 		get_tree().quit()))
