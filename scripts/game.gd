@@ -40,6 +40,8 @@ var quit_after := -1.0
 var _inv_at := -1.0
 var _tree_at := -1.0
 var _class_at := -1.0
+var _heart_at := -1.0
+var _rift_log := 0.0
 var _near_boss_level := 0
 
 func _ready() -> void:
@@ -106,6 +108,8 @@ func _parse_args() -> void:
 			add_child(load("res://scripts/tests/pad_test.gd").new())
 		elif a.begins_with("--class-at="):
 			_class_at = float(a.substr(11))
+		elif a.begins_with("--heart-at="):
+			_heart_at = float(a.substr(11))
 		elif a == "--fresh":
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
@@ -203,6 +207,17 @@ func build_zone() -> void:
 		l.position = b
 		l.set_script(load("res://scripts/fx/flicker.gd"))
 		light_root.add_child(l)
+	# Hollow Rift seal in about a third of zones
+	var force_rift := OS.get_cmdline_user_args().has("--rift")
+	if force_rift or rng.randf() < 0.35:
+		for t in 200:
+			var c2: Vector2i = zone.floor_cells[rng.randi() % zone.floor_cells.size()]
+			var dmin := 6.0 if force_rift else 20.0
+			if Vector2(c2 - zone.start_cell).length() > dmin and Vector2(c2 - zone.boss_cell).length() > 12.0:
+				var seal := Rift.Seal.new()
+				seal.position = zone.cell_center(c2)
+				fx_node.add_child(seal)
+				break
 	for c in zone.chest_cells:
 		var ch := Chest.new()
 		ch.position = zone.cell_center(c)
@@ -344,6 +359,31 @@ func _on_enemy_died(a: Actor) -> void:
 		mult *= 0.25
 		drops = 0
 	add_corpse(e)
+	# Rifts: kills widen the rift and drop splinters
+	if e.has_meta("rift") and is_instance_valid(e.get_meta("rift")):
+		var rift: Rift = e.get_meta("rift")
+		rift.notify_kill()
+		drop_currency("rift_splinter", {"normal": rng.randi_range(1, 2), "magic": 4, "rare": 10, "boss": 60}.get(e.rarity, 1), e.global_position)
+		if e.rarity == "normal":
+			drops = 1 if rng.randf() < 0.08 else 0
+	if e.def.get("rift", false) and e.is_boss():
+		print("RIFT LORD killed at t=%.1f" % _clock)
+		hud.show_message("THE HAND FALLS", "The rift spills its treasures.")
+		var pool: Array = []
+		for uid in ItemsDB.UNIQUES:
+			if ItemsDB.UNIQUES[uid].get("rift", false):
+				pool.append(uid)
+		for k in 2:
+			if rng.randf() < 0.6:
+				drop_item(Loot.make_unique(pool[rng.randi() % pool.size()], e.level, rng), e.global_position)
+		drop_currency("hollow_ember", 2, e.global_position)
+		drop_currency("crown_fragment", 1, e.global_position)
+	# Ember Shards from everything
+	if rng.randf() < {"normal": 0.35, "magic": 0.8, "rare": 1.0, "boss": 1.0}.get(e.rarity, 0.3):
+		drop_currency("ember_shards", int({"normal": 2, "magic": 5, "rare": 15, "boss": 60}.get(e.rarity, 2) * (1.0 + depth * 0.25)), e.global_position)
+	if rng.randf() < {"normal": 0.03, "magic": 0.08, "rare": 0.35, "boss": 1.0}.get(e.rarity, 0.03):
+		var cs: Array = CurrencyDB.CRAFTING
+		drop_currency(cs[rng.randi() % cs.size()], 1, e.global_position)
 	if player and not player.dead and player.max_spirit() > 0.0 and e.global_position.distance_to(player.global_position) < 800.0:
 		var gain: float = {"normal": 2.0, "magic": 5.0, "rare": 12.0, "boss": 40.0}.get(e.rarity, 2.0)
 		player.spirit = minf(player.max_spirit(), player.spirit + gain)
@@ -355,7 +395,7 @@ func _on_enemy_died(a: Actor) -> void:
 		if e.rarity == "boss" and i == 0:
 			it = Loot.make_item(e.level, rng, "rare" if rng.randf() > 0.35 else "unique")
 		drop_item(it, e.global_position)
-	if e.is_boss():
+	if e.type_id == "regent":
 		print("BOSS killed at t=%.1f" % _clock)
 		hud.show_message("THE ASHEN REGENT FALLS", "A way down has opened.")
 		var portal := Portal.new()
@@ -371,6 +411,24 @@ func drop_item(it: Item, pos: Vector2) -> void:
 	var p := Pickup.new()
 	p.setup(it, pos, Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(120, 260))
 	fx_node.add_child(p)
+
+func drop_currency(id: String, n: int, pos: Vector2) -> void:
+	var c := CurrencyPickup.new()
+	c.setup(id, n, pos, Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(80, 200))
+	fx_node.add_child(c)
+
+func on_rift_closed(_r: Rift) -> void:
+	save_game()
+
+func open_rift_heart() -> bool:
+	if player == null or int(player.currency.get("rift_heart", 0)) <= 0:
+		return false
+	player.currency.rift_heart -= 1
+	var r := Rift.new()
+	r.lord_mode = true
+	r.global_position = player.global_position
+	fx_node.add_child(r)
+	return true
 
 func on_item_picked(_it: Item) -> void:
 	inv_ui.refresh()
@@ -552,6 +610,17 @@ func _click(button: int) -> void:
 	PlayerInput.using_pad = true   # the synthetic click shouldn't flip us back to mouse mode
 
 func _testing_hooks() -> void:
+	if _heart_at > 0.0 and _clock >= _heart_at and state == "play":
+		_heart_at = -1.0
+		player.add_currency("rift_splinter", 100)
+		print("TEST rift heart opened: ", open_rift_heart())
+	if bot and state == "play":
+		_rift_log += get_process_delta_time()
+		if _rift_log > 10.0:
+			_rift_log = 0.0
+			for c in fx_node.get_children():
+				if c is Rift:
+					print("TEST rift r=%.0f age=%.0f lord=%s enemies=%d splinters=%d" % [c.radius, c.age, c.lord_mode, enemies.size(), int(player.currency.get("rift_splinter", 0))])
 	if _class_at > 0.0 and _clock >= _class_at and state == "play":
 		_class_at = -1.0
 		hud.class_ui.toggle()

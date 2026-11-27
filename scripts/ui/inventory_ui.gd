@@ -24,6 +24,7 @@ var _hover_slot := ""
 var _hover_bag := -1
 var _compare_cache := {}
 var _shatter_idx := -1
+var _heart_rect := Rect2()
 var _shatter_t := 0
 
 func _ready() -> void:
@@ -51,7 +52,7 @@ func sheet_rect() -> Rect2:
 
 func mouse_over_panel() -> bool:
 	var m := get_viewport().get_mouse_position()
-	return panel_rect().has_point(m) or sheet_rect().has_point(m)
+	return panel_rect().has_point(m) or sheet_rect().has_point(m) or Rect2(sheet_rect().position.x, sheet_rect().end.y, sheet_rect().size.x, 270).has_point(m)
 
 func _bag_rect(i: int) -> Rect2:
 	var p := panel_rect().position + BAG_ORIGIN
@@ -84,6 +85,11 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventMouseButton and event.pressed:
+		if _heart_rect.size.x > 0.0 and _heart_rect.has_point(get_viewport().get_mouse_position()) and event.button_index == MOUSE_BUTTON_LEFT:
+			get_viewport().set_input_as_handled()
+			toggle()
+			Game.instance.open_rift_heart()
+			return
 		if not mouse_over_panel():
 			return
 		get_viewport().set_input_as_handled()
@@ -102,6 +108,7 @@ func _input(event: InputEvent) -> void:
 					var it: Item = p.inventory[_hover_bag]
 					p.inventory[_hover_bag] = null
 					FX.text(p.global_position, "Shattered " + it.name, Color(0.7, 0.7, 0.7), 16)
+					p.add_currency("ash_dust", {"normal": 1, "magic": 3, "rare": 8, "unique": 20}.get(it.rarity, 1))
 					FX.sound("die", null, -6.0)
 					_shatter_idx = -1
 					refresh()
@@ -147,6 +154,28 @@ func _draw() -> void:
 		var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 		_t(f, Vector2(sr.end.x - 20 - w, y), txt, 15, col, false)
 		y += 26
+	# Currency purse
+	var cy := sr.end.y + 30
+	_box(Rect2(sr.position.x, sr.end.y + 10, sr.size.x, 250))
+	_t(f, Vector2(sr.position.x + 20, cy + 10), "PURSE", 16, Color(1.0, 0.82, 0.45), false)
+	var row := 0
+	for cid in CurrencyDB.CURRENCY:
+		var n := int(p.currency.get(cid, 0))
+		if n <= 0 and cid != "ember_shards":
+			continue
+		var cc: Color = CurrencyDB.CURRENCY[cid].color
+		var yy := cy + 36 + row * 22
+		draw_circle(Vector2(sr.position.x + 28, yy - 5), 5, cc)
+		_t(f, Vector2(sr.position.x + 40, yy), CurrencyDB.CURRENCY[cid].name, 14, cc, false)
+		var ns := str(n)
+		_t(f, Vector2(sr.end.x - 20 - f.get_string_size(ns, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, yy), ns, 14, Color(0.9, 0.9, 0.9), false)
+		row += 1
+	_heart_rect = Rect2()
+	if int(p.currency.get("rift_heart", 0)) > 0:
+		_heart_rect = Rect2(sr.position.x + 20, sr.end.y + 214, sr.size.x - 40, 36)
+		draw_rect(_heart_rect, Color(0.2, 0.1, 0.3))
+		draw_rect(_heart_rect, Color(0.85, 0.55, 1.0), false, 2.0)
+		_t(f, _heart_rect.position + Vector2(_heart_rect.size.x / 2, 24), "Open a Rift Heart (face the Rift Lord)", 14, Color(0.9, 0.75, 1.0), true)
 	if _hover_item:
 		_tooltip(_hover_item)
 	if PlayerInput.using_pad:

@@ -38,6 +38,29 @@ const ENEMIES := {
 		"color": Color(0.3, 0.3, 0.35), "eye": Color(0.6, 1.0, 0.6),
 		"stats": {"res_fire": 20, "res_cold": 20, "res_lightning": 20},
 	},
+	# --- Hollow Rift monsters (violet, fast, many) ---
+	"rift_fiend": {
+		"name": "Rift Fiend", "life": 20, "speed": 240.0, "radius": 18.0, "xp": 9, "sprite": "chort", "px": 4.0,
+		"skills": ["rift_claw"], "ai": "melee", "range": 40.0, "rift": true,
+		"color": Color(0.6, 0.4, 0.9), "eye": Color(0.8, 0.5, 1.0), "stats": {"res_chaos": 40},
+	},
+	"rift_maw": {
+		"name": "Rift Maw", "life": 26, "speed": 150.0, "radius": 20.0, "xp": 11, "sprite": "wogol", "px": 4.0,
+		"skills": ["rift_spit"], "ai": "ranged", "range": 420.0, "keep_away": 240.0, "rift": true, "light": Color(0.7, 0.45, 1.0),
+		"color": Color(0.5, 0.35, 0.8), "eye": Color(0.8, 0.5, 1.0), "stats": {"res_chaos": 40},
+	},
+	"rift_brute": {
+		"name": "Rift Colossus", "life": 120, "speed": 110.0, "radius": 40.0, "xp": 30, "sprite": "big_zombie", "px": 4.0,
+		"skills": ["brute_slam"], "ai": "melee", "range": 100.0, "rift": true,
+		"color": Color(0.5, 0.35, 0.8), "eye": Color(0.8, 0.5, 1.0), "stats": {"res_chaos": 40, "armour": 150},
+	},
+	"rift_lord": {
+		"name": "The Hand That Wore the Crown", "life": 4200, "speed": 135.0, "radius": 66.0, "xp": 600, "sprite": "big_demon", "px": 6.0,
+		"skills": ["rift_sweep", "rift_nova", "rift_volley"], "ai": "boss", "range": 180.0, "rift": true, "light": Color(0.7, 0.45, 1.0),
+		"color": Color(0.4, 0.3, 0.6), "eye": Color(0.85, 0.55, 1.0), "enrage_text": "THE HOLLOW OPENS",
+		"stats": {"armour": 250, "res_chaos": 50, "res_fire": 30, "res_cold": 30, "res_lightning": 30},
+		"boss": true,
+	},
 	"regent": {
 		"name": "The Ashen Regent", "life": 3000, "speed": 125.0, "radius": 66.0, "sprite": "big_demon", "px": 6.0, "light": Color(1.0, 0.45, 0.15), "xp": 400,
 		"skills": ["regent_sweep", "regent_nova", "regent_volley"], "ai": "boss", "range": 180.0,

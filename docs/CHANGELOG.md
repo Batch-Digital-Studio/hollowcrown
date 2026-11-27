@@ -41,3 +41,9 @@
 - Hollow Ranger: bows (3 new bases), Focus (builds while moving; full Focus empowers the next Rite), evasion; Split Shot, Vault Shot, Rain of Ash, Pinning Shot, Thornvine Arrow, Caltrops, Spirit Hawk companion, Smoke Veil, Explosive Bolt, Windrunner; Hunter's Moon Special.
 - Generic systems: buffs, block, entropy evasion, Ember Ward, slows, brands, dashes, resource HUD.
 - Known: Magus is currently the strongest class in bot tests; needs a balance pass.
+
+## 2026-11-27 — Stage E: Hollow Rifts + currency
+- Rift Seals, spreading rifts with kill-to-widen timer ring, rift monsters, Rift Splinters → Rift Heart → Rift Lord encounter with rift uniques.
+- Currencies (Ember Shards, Kindling Shard, Coal of Ascension, Ash Salt, Hollow Ember, Crown Fragment, Ash Dust) as magnetized pickups, saved with the character, shown in the inventory purse. Shattering items gives Ash Dust.
+- Test flags: `--rift` (force a seal near the start), `--heart-at=T` (grant and open a Rift Heart).
+- Verified in the cloud: bot cleared forced rifts and killed the Rift Lord (Magus, 43 s); all tests pass. Not verified on Jason's PC/controller.

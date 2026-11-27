@@ -40,3 +40,11 @@
 - [x] Ember Magus, Oathsworn, Hollow Ranger with resources, Specials, trees, specs
 - [x] Dual-class live
 - [ ] Balance pass (Magus strong, Oathsworn early game slow)
+
+## Stage E — Hollow Rifts (done 2026-11-27)
+- [x] Rift Seals in ~35% of zones; walking up opens a rift that widens on kills, shrinks when idle, closes at 60 s
+- [x] Rift monsters (Rift Fiend, Maw, Brute) spawn at the edge, aggroed; violet tint
+- [x] Rift Splinters, 100 fuse into a Rift Heart; open it from the inventory purse to fight the Rift Lord
+- [x] Rift Lord "The Hand That Wore the Crown" (3-skill boss) drops the 3 rift-only uniques
+- [x] Currency system: Ember Shards + 5 crafting currencies + Ash Dust drop as magnetized pickups; purse panel in the inventory
+- [ ] Crafting currencies are collected but not usable yet (stage F)

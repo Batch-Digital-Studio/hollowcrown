@@ -56,6 +56,10 @@ func drive(p: Player, g: Game) -> void:
 		if d < best:
 			best = d
 			target = e
+	for c in g.fx_node.get_children():
+		if c is Rift.Seal and c.global_position.distance_to(p.global_position) * 1.3 < best:
+			target = c
+			best = c.global_position.distance_to(p.global_position) * 1.3
 	if target == null:
 		for c in g.fx_node.get_children():
 			if c is Portal:

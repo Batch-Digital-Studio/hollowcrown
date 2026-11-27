@@ -22,6 +22,19 @@ var spirit: float:
 	get: return res.spirit
 	set(v): res.spirit = v
 var buffs: Array = []          # [{id, stats, time}]
+var currency := {}             # id -> count
+
+func add_currency(id: String, n: int) -> void:
+	currency[id] = int(currency.get(id, 0)) + n
+	if id == "rift_splinter" and currency.rift_splinter >= 100:
+		currency.rift_splinter -= 100
+		currency["rift_heart"] = int(currency.get("rift_heart", 0)) + 1
+		FX.text(global_position, "RIFT HEART FORMED", Color(0.85, 0.55, 1.0), 26)
+		FX.sound("drop_unique", null, -4.0, 0.0)
+		if game() and game().hud:
+			game().hud.show_message("A RIFT HEART FORMS", "Open it from the inventory to face the Rift Lord.")
+	elif CurrencyDB.CURRENCY.has(id) and id != "ember_shards":
+		FX.text(global_position, "+%d %s" % [n, CurrencyDB.CURRENCY[id].name], CurrencyDB.CURRENCY[id].color, 15)
 var _combat_t := 0.0
 var _oath_fx := 0.0
 var _dash_cb := Callable()
@@ -647,7 +660,7 @@ func to_save() -> Dictionary:
 		inv.append(it.to_dict() if it else null)
 	return {"level": level, "xp": xp, "equipment": eq, "inventory": inv, "passives": passives.keys(), "hero": hero,
 		"class": class_id, "class2": class2_id, "class_nodes": class_nodes.keys(), "rite_specs": rite_specs, "bar": bar,
-		"spirit": spirit, "res": res}
+		"spirit": spirit, "res": res, "currency": currency}
 
 func from_save(d: Dictionary) -> void:
 	level = int(d.get("level", 1))
@@ -667,6 +680,10 @@ func from_save(d: Dictionary) -> void:
 		bar = b.duplicate()
 	while bar.size() < SkillsDB.BAR_SIZE:
 		bar.append("")
+	currency = {}
+	var cd: Dictionary = d.get("currency", {})
+	for k in cd:
+		currency[k] = int(cd[k])
 	var rd: Dictionary = d.get("res", {})
 	for k in rd:
 		res[k] = float(rd[k])

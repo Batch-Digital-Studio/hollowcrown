@@ -29,7 +29,7 @@ static func make_item(ilvl: int, rng: RandomNumberGenerator, rarity: String = ""
 	if rarity == "unique":
 		var pool: Array = []
 		for uid in ItemsDB.UNIQUES:
-			if ItemsDB.UNIQUES[uid].req <= ilvl + 2:
+			if ItemsDB.UNIQUES[uid].req <= ilvl + 2 and not ItemsDB.UNIQUES[uid].get("rift", false):
 				pool.append(uid)
 		if pool.is_empty():
 			rarity = "rare"

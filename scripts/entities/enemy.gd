@@ -165,7 +165,7 @@ func _ai_boss(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 		stats.add("inc_attack_speed", 30)
 		stats.add("inc_cast_speed", 30)
 		stats.add("inc_move_speed", 20)
-		FX.text(global_position, "THE CROWN BURNS", Color(1.0, 0.5, 0.2), 36)
+		FX.text(global_position, def.get("enrage_text", "THE CROWN BURNS"), Color(1.0, 0.5, 0.2), 36)
 		FX.ring(global_position, 400.0, Color(1.0, 0.4, 0.1), 0.8, 14.0)
 		FX.shake(16.0)
 	_summon_cd -= delta
@@ -173,17 +173,20 @@ func _ai_boss(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 		_summon_cd = 11.0 if _boss_phase == 1 else 8.0
 		game().spawn_adds(global_position, 3 if _boss_phase == 1 else 5, level)
 	# Rotate through special attacks; sweep when close.
-	if dist < 170.0 and can_use("regent_sweep") and game().rng.randf() < 0.6:
-		SkillExec.use("regent_sweep", self, p.global_position)
+	var sk_sweep: String = def.skills[0]
+	var sk_nova: String = def.skills[1]
+	var sk_volley: String = def.skills[2]
+	if dist < 170.0 and can_use(sk_sweep) and game().rng.randf() < 0.6:
+		SkillExec.use(sk_sweep, self, p.global_position)
 		return Vector2.ZERO
 	_boss_cycle += 1
-	if _boss_cycle % 2 == 0 and cooldowns.get("regent_nova", 0.0) <= 0.0 and dist < 300.0:
-		SkillExec.use("regent_nova", self, p.global_position)
-		cooldowns["regent_nova"] = 6.0 if _boss_phase == 1 else 4.0
+	if _boss_cycle % 2 == 0 and cooldowns.get(sk_nova, 0.0) <= 0.0 and dist < 300.0:
+		SkillExec.use(sk_nova, self, p.global_position)
+		cooldowns[sk_nova] = 6.0 if _boss_phase == 1 else 4.0
 		return Vector2.ZERO
-	if cooldowns.get("regent_volley", 0.0) <= 0.0:
-		SkillExec.use("regent_volley", self, p.global_position)
-		cooldowns["regent_volley"] = 5.0 if _boss_phase == 1 else 3.0
+	if cooldowns.get(sk_volley, 0.0) <= 0.0:
+		SkillExec.use(sk_volley, self, p.global_position)
+		cooldowns[sk_volley] = 5.0 if _boss_phase == 1 else 3.0
 		return Vector2.ZERO
 	if dist > 130.0:
 		return to_p.normalized() * (1.6 if dist > 380.0 else 1.0)
@@ -250,6 +253,8 @@ func _draw() -> void:
 		draw_arc(Vector2(0, 2), radius * 1.35, _anim, _anim + PI * 1.5, 24, c, 2.0, true)
 	if is_boss():
 		var crown_c := Color(1.0, 0.75, 0.3) if _boss_phase == 1 else Color(1.0, 0.35, 0.1)
+		if def.get("rift", false):
+			crown_c = Color(0.75, 0.5, 1.0)
 		var top := -sprite_height() - 6.0 + sin(_anim * 2.0) * 4.0
 		var cpts := PackedVector2Array()
 		for i in 9:
@@ -304,6 +309,8 @@ func _update_visuals() -> void:
 		tint = tint * Color(0.85, 0.9, 1.15)
 	if is_boss() and _boss_phase == 2:
 		tint = tint * Color(1.25, 0.8, 0.7)
+	if def.get("rift", false):
+		tint = tint * Color(0.85, 0.6, 1.3)
 	_mat.set_shader_parameter("tint", tint)
 	_mat.set_shader_parameter("flash", 0.75 if hit_flash > 0.0 else 0.0)
 	# attack lunge
