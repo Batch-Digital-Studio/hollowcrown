@@ -39,9 +39,15 @@ func _draw() -> void:
 		if e.rarity == "rare":
 			var s: String = e.display_name
 			var tw := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-			var pos := Vector2(x - tw / 2, top - 8)
+			var pos := Vector2(x - tw / 2, top - 10)
 			draw_string_outline(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color(0, 0, 0, 0.9))
 			draw_string(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.85, 0.4))
+			if e.has_meta("rare_desc"):   # Chapter I rares: what they can do
+				var d: String = e.get_meta("rare_desc")
+				var dw := f.get_string_size(d, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+				var dp := Vector2(x - dw / 2, top + 6)
+				draw_string_outline(f, dp, d, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color(0, 0, 0, 0.9))
+				draw_string(f, dp, d, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.75, 1.0))
 	if iso:
 		# minion life bars (the 2D versions are hidden in this view)
 		for m in g.allies:

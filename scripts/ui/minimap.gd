@@ -26,18 +26,21 @@ func update(player_pos: Vector2, delta: float) -> void:
 		return
 	_t = 0.0
 	var c := Vector2i(player_pos / Zone.CELL)
-	for y in range(c.y - REVEAL, c.y + REVEAL + 1):
-		for x in range(c.x - REVEAL, c.x + REVEAL + 1):
+	var rv := REVEAL if not zone.is_chapter else 13
+	for y in range(c.y - rv, c.y + rv + 1):
+		for x in range(c.x - rv, c.x + rv + 1):
 			if x < 0 or y < 0 or x >= Zone.W or y >= Zone.H:
 				continue
-			if Vector2(x - c.x, y - c.y).length() > REVEAL:
+			if Vector2(x - c.x, y - c.y).length() > rv:
 				continue
 			var i := y * Zone.W + x
 			if revealed[i] == 1:
 				continue
 			revealed[i] = 1
 			_dirty = true
-			if zone.is_floor_cell(x, y):
+			if zone.is_chapter and zone.chapter.water[i] == 2 and not zone.is_floor_cell(x, y):
+				img.set_pixel(x, y, Color(0.25, 0.45, 0.65, 0.8))
+			elif zone.is_floor_cell(x, y):
 				img.set_pixel(x, y, Color(0.55, 0.5, 0.45, 0.75))
 			else:
 				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:

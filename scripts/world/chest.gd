@@ -3,6 +3,7 @@ extends Node2D
 ## Treasure chest: walk up to it and it bursts open with loot.
 
 var opened := false
+var hidden_cache := false    # Chapter 1: off the path, better loot, drawn as a 3D chest
 var _spr: AnimatedSprite2D
 var _light: PointLight2D
 
@@ -32,7 +33,13 @@ func open() -> void:
 	FX.flash(global_position, Color(1.0, 0.8, 0.4), 90.0, 0.35)
 	FX.shake(4.0)
 	var n := g.rng.randi_range(1, 3)
+	var bonus := 90.0
+	if hidden_cache:
+		n = g.rng.randi_range(3, 4)
+		bonus = 220.0
+		if g.chapter:
+			g.chapter.cache_opened(global_position)
 	for i in n:
-		var it := Loot.make_item(g.area_level() + 1, g.rng, "", 90.0)
+		var it := Loot.make_item(g.area_level() + 1, g.rng, "", bonus)
 		g.drop_item(it, global_position + Vector2(0, 10))
 	g.player.add_flask_charge(1.0)

@@ -11,6 +11,16 @@ var enabled := true
 var _shake := 0.0
 var _hitstop_until := 0.0
 var glow_tex: Texture2D
+## Presentation bridge for the 3D view: simulation code reports what happened (a nova, a strike,
+## a field, a beam...) with its element; IsoView turns it into the element's 3D visuals.
+signal spell_event(kind: String, pos: Vector2, element: String, radius: float, extra: Dictionary)
+
+## True while the isometric 3D view is on: bursts, rings, flashes and sparks are drawn in 3D
+## (SpellView3D) instead of as flat 2D overlays on the ground.
+var iso3d := false
+
+func event3d(kind: String, pos: Vector2, element: String, radius: float, extra: Dictionary = {}) -> void:
+	spell_event.emit(kind, pos, element, radius, extra)
 var sfx: Sfx
 var soft_tex: Texture2D
 
@@ -107,6 +117,9 @@ func text(pos: Vector2, s: String, color: Color, size: int = 22) -> void:
 func burst(pos: Vector2, color: Color, count: int = 14, speed: float = 260.0, size: float = 6.0, life: float = 0.45) -> void:
 	if not world:
 		return
+	if iso3d:
+		event3d("burst", pos, "", speed, {"color": color, "count": count, "size": size, "life": life})
+		return
 	var p := CPUParticles2D.new()
 	p.position = pos
 	p.one_shot = true
@@ -138,6 +151,9 @@ func burst(pos: Vector2, color: Color, count: int = 14, speed: float = 260.0, si
 ## Particles that drift up (flames, bubbles) or down (gravity > 0: frost, snow).
 func rise(pos: Vector2, color: Color, count: int = 4, size: float = 7.0, life: float = 0.6, gravity: float = -260.0, spread_px: float = 16.0) -> void:
 	if not world or not enabled:
+		return
+	if iso3d:
+		event3d("rise", pos, "", spread_px, {"color": color, "count": count, "size": size, "life": life, "gravity": gravity})
 		return
 	var p := CPUParticles2D.new()
 	p.position = pos
@@ -172,6 +188,9 @@ func rise(pos: Vector2, color: Color, count: int = 4, size: float = 7.0, life: f
 func spark(pos: Vector2, color: Color, length: float = 40.0) -> void:
 	if not world or not enabled:
 		return
+	if iso3d:
+		event3d("spark", pos, "lightning", length, {"color": color})
+		return
 	var lf := LightningFX.new()
 	var a := randf() * TAU
 	lf.points = [pos - Vector2.RIGHT.rotated(a) * length * 0.5, pos + Vector2.RIGHT.rotated(a) * length * 0.5]
@@ -180,6 +199,9 @@ func spark(pos: Vector2, color: Color, length: float = 40.0) -> void:
 
 func ring(pos: Vector2, radius: float, color: Color, duration: float = 0.35, width: float = 6.0) -> void:
 	if not world:
+		return
+	if iso3d:
+		event3d("ring", pos, "", radius, {"color": color, "duration": duration})
 		return
 	var r := RingFX.new()
 	r.position = pos
@@ -191,6 +213,9 @@ func ring(pos: Vector2, radius: float, color: Color, duration: float = 0.35, wid
 
 func flash(pos: Vector2, color: Color, radius: float = 90.0, duration: float = 0.2) -> void:
 	if not world:
+		return
+	if iso3d:
+		event3d("flash", pos, "", radius, {"color": color, "duration": duration})
 		return
 	var s := Sprite2D.new()
 	s.texture = glow_tex

@@ -3,8 +3,8 @@ extends Node2D
 ## Generated zone: winding paths, side caves, rooms and a boss arena at the far end.
 
 const CELL := 64
-const W := 90
-const H := 70
+static var W := 90
+static var H := 70
 
 var grid := PackedByteArray()   # 1 = floor, 0 = solid
 var start_cell := Vector2i.ZERO
@@ -24,11 +24,15 @@ var biome_id := "crypt"
 var biome: Dictionary = {}
 var is_town := false
 var is_slice := false
+var is_chapter := false
+var chapter: Dictionary = {}   # ChapterGen output (region/water/props/packs/...)
 var slice: Dictionary = {}
 const SLICE_CENTER := Vector2(45 * 64, 35 * 64)   # px; the layout's (0, 0)
 var town_spots := {}   # town: name -> cell (stash, salvager, peddler, waypoint, portal)
 
 func generate(seed_value: int, depth: int, biome_override: String = "") -> void:
+	W = 90
+	H = 70
 	rng = RandomNumberGenerator.new()
 	rng.seed = seed_value
 	grid.resize(W * H)
@@ -68,6 +72,8 @@ static func slice_px(x: float, z: float) -> Vector2:
 	return SLICE_CENTER + Vector2(x, z) * 32.0
 
 func generate_slice(layout: Dictionary) -> void:
+	W = 90
+	H = 70
 	is_slice = true
 	slice = layout
 	rng = RandomNumberGenerator.new()
@@ -110,6 +116,46 @@ func generate_slice(layout: Dictionary) -> void:
 	chest_cells.clear()
 	_build_chunks()
 	queue_redraw()
+
+## Chapter 1: one large open map (ChapterDB / ChapterGen).
+func generate_chapter() -> void:
+	is_chapter = true
+	is_town = false
+	biome_id = "forest"
+	biome = WorldDB.BIOMES[biome_id]
+	theme_tint = Color.WHITE
+	theme_accent = biome.accent
+	ChapterGen.build(self)
+	floor_cells.clear()
+	for y in H:
+		for x in W:
+			if is_floor_cell(x, y):
+				floor_cells.append(Vector2i(x, y))
+	_build_collision()
+	var body := StaticBody2D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	add_child(body)
+	for b in chapter.blockers:
+		var cs := CollisionShape2D.new()
+		var c := CircleShape2D.new()
+		c.radius = float(b[2])
+		cs.shape = c
+		cs.position = Vector2(float(b[0]), float(b[1]))
+		body.add_child(cs)
+	_deco.clear()
+	braziers.clear()
+	chest_cells.clear()
+	_build_chunks()
+	queue_redraw()
+
+## Chapter: region index (0 forest, 1 swamp, 2 barrow) at a world position.
+func region_at(pos: Vector2) -> int:
+	if not is_chapter:
+		return 0
+	var x := clampi(int(pos.x / CELL), 0, W - 1)
+	var y := clampi(int(pos.y / CELL), 0, H - 1)
+	return chapter.region[y * W + x]
 
 # ---------------------------------------------------------------- layouts
 

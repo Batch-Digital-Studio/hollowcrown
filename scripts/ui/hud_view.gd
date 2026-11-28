@@ -3,6 +3,10 @@ extends Control
 
 var message := ""
 var sub_message := ""
+var boss_intro_t := 0.0
+var boss_intro_name := ""
+var boss_intro_title := ""
+var _boss_trail := 1.0
 var message_t := 0.0
 var _t := 0.0
 
@@ -120,19 +124,28 @@ func _draw() -> void:
 	if g.writ:
 		var wc := Color(0.5, 0.95, 0.6) if g.writ.done else (Color(0.8, 0.4, 0.35) if g.writ.failed else Color(0.95, 0.8, 0.5))
 		_text_left(f, Vector2(24, 84), g.writ.text(), 14, wc)
-	_text_left(f, Vector2(vs.x - Zone.W * 3.0 - 20, 40), "View — Inventory   ·   D-pad ↑ — Tree" if PlayerInput.using_pad else "I / Tab — Inventory   ·   P — Tree", 14, Color(0.6, 0.58, 0.55))
+	var ms0 := 3.0 if Zone.W <= 90 else 250.0 / Zone.W
+	_text_left(f, Vector2(vs.x - Zone.W * ms0 - 20, 40), "View — Inventory   ·   D-pad ↑ — Tree" if PlayerInput.using_pad else "I / Tab — Inventory   ·   P — Tree", 14, Color(0.6, 0.58, 0.55))
 	if p.passive_points() > 0:
 		var a := 0.6 + 0.4 * sin(_t * 4.0)
 		_text(f, Vector2(vs.x / 2.0, y0 - 34), "%s — %d unspent Ember Point%s" % ["D-pad ↑" if PlayerInput.using_pad else "P", p.passive_points(), "s" if p.passive_points() > 1 else ""], 16, Color(1.0, 0.75, 0.35, a))
 	# Minimap
 	if g.minimap.tex and not g.inv_ui.visible:
-		var ms := 3.0
+		var ms := ms0
 		var mr := Rect2(vs.x - Zone.W * ms - 20, 56, Zone.W * ms, Zone.H * ms)
 		draw_rect(mr.grow(4), Color(0.02, 0.02, 0.03, 0.55))
 		draw_texture_rect(g.minimap.tex, mr, false)
 		draw_rect(mr.grow(4), Color(0.6, 0.42, 0.22, 0.8), false, 1.5)
 		var pp := mr.position + p.global_position / Zone.CELL * ms
 		draw_circle(pp, 4.0, Color(1.0, 0.85, 0.4))
+		if g.chapter_mode and g.chapter:   # waystones found, caches opened, the throne
+			var C: Dictionary = g.zone.chapter
+			for i in C.waypoints.size():
+				if g.chapter.found.has(i):
+					draw_circle(mr.position + (C.waypoints[i] as Vector2) / Zone.CELL * ms, 3.5, Color(0.45, 0.8, 1.0))
+			for c in g.world_layer.get_children():
+				if c is Chest and c.hidden_cache and c.opened:
+					draw_circle(mr.position + c.global_position / Zone.CELL * ms, 2.5, Color(1.0, 0.85, 0.4, 0.8))
 		if g.boss and is_instance_valid(g.boss) and not g.boss.dead:
 			var bc := Vector2i(g.boss.global_position / Zone.CELL)
 			if g.minimap.is_revealed(bc) or g.zone and bc == g.zone.boss_cell:
@@ -145,8 +158,47 @@ func _draw() -> void:
 		for c in g.fx_node.get_children():
 			if c is Portal:
 				draw_circle(mr.position + c.global_position / Zone.CELL * ms, 5.0, Color(0.7, 0.5, 1.0))
-	# Boss bar
-	if g.boss and is_instance_valid(g.boss) and not g.boss.dead and g.boss.aggro:
+	# Boss entrance (letterbox + name card)
+	if boss_intro_t > 0.0:
+		boss_intro_t -= get_process_delta_time()
+		var k := clampf(minf(4.0 - boss_intro_t, boss_intro_t) * 2.0, 0.0, 1.0)
+		var bh := vs.y * 0.11 * k
+		draw_rect(Rect2(0, 0, vs.x, bh), Color(0, 0, 0, 0.92))
+		draw_rect(Rect2(0, vs.y - bh, vs.x, bh), Color(0, 0, 0, 0.92))
+		var a := clampf((3.3 - boss_intro_t) * 2.0, 0.0, 1.0) * clampf(boss_intro_t * 1.5, 0.0, 1.0)
+		_text(f, Vector2(vs.x / 2, vs.y * 0.72), boss_intro_name, 54, Color(0.75, 0.9, 1.0, a))
+		draw_rect(Rect2(vs.x / 2 - 260 * a, vs.y * 0.72 + 14, 520 * a, 2), Color(0.6, 0.8, 1.0, a * 0.8))
+		_text(f, Vector2(vs.x / 2, vs.y * 0.72 + 46), boss_intro_title, 22, Color(0.8, 0.78, 0.72, a))
+	# Big boss bar (Chapter 1 king): phase marks, damage trail, name and title
+	if g.boss and is_instance_valid(g.boss) and not g.boss.dead and g.boss.aggro and g.boss.def.get("brain", "") == "king" and boss_intro_t < 2.5:
+		var bw := minf(980.0, vs.x * 0.6)
+		var br := Rect2(vs.x / 2 - bw / 2, 44, bw, 22)
+		var frac: float = g.boss.life / g.boss.max_life
+		_boss_trail = maxf(frac, move_toward(_boss_trail, frac, get_process_delta_time() * 0.35))
+		draw_rect(br.grow(5), Color(0, 0, 0, 0.88))
+		draw_rect(br, Color(0.08, 0.1, 0.14))
+		draw_rect(Rect2(br.position, Vector2(bw * _boss_trail, 22)), Color(0.95, 0.95, 1.0, 0.75))
+		var ph: int = g.boss.brain.phase if g.boss.brain else 1
+		var bc: Color = [Color(0.3, 0.55, 0.85), Color(0.35, 0.7, 0.95), Color(0.55, 0.85, 1.0)][clampi(ph - 1, 0, 2)]
+		draw_rect(Rect2(br.position, Vector2(bw * frac, 22)), bc)
+		draw_rect(Rect2(br.position, Vector2(bw * frac, 6)), Color(1, 1, 1, 0.18))
+		for m in [0.7, 0.4]:
+			draw_rect(Rect2(br.position + Vector2(bw * m - 1.5, -4), Vector2(3, 30)), Color(0.9, 0.95, 1.0, 0.8))
+		draw_rect(br.grow(5), Color(0.55, 0.75, 1.0), false, 2.0)
+		for s in [-1, 1]:   # end caps
+			var cx: float = br.position.x - 14.0 if s < 0 else br.end.x + 14.0
+			draw_colored_polygon(PackedVector2Array([Vector2(cx, br.position.y + 11 - 16), Vector2(cx + 10 * s, br.position.y + 11), Vector2(cx, br.position.y + 11 + 16), Vector2(cx - 10 * s, br.position.y + 11)]), Color(0.55, 0.75, 1.0))
+		_text(f, Vector2(vs.x / 2, 34), String(g.boss.def.name).to_upper(), 20, Color(0.8, 0.92, 1.0))
+		var state := ""
+		if g.boss.invulnerable:
+			state = "UNTOUCHABLE"
+		elif g.boss.brain and g.boss.brain.stagger > 0.0:
+			state = "STAGGERED"
+		elif g.boss.brain and g.boss.brain.enraged:
+			state = "ENRAGED"
+		if state != "":
+			_text(f, Vector2(vs.x / 2, 92), state, 16, Color(1.0, 0.6, 0.4))
+	elif g.boss and is_instance_valid(g.boss) and not g.boss.dead and g.boss.aggro and g.boss.def.get("brain", "") != "king":
 		var bw := 640.0
 		var br := Rect2(vs.x / 2 - bw / 2, 34, bw, 18)
 		draw_rect(br.grow(3), Color(0, 0, 0, 0.85))

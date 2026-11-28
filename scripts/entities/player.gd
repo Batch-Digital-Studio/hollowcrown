@@ -250,7 +250,7 @@ func pre_cast(skill_id: String, s: Dictionary) -> void:
 		var stx := cast_stats.duplicate_block()
 		stx.add_mods(extra)
 		cast_stats = stx
-	if s.behavior == "lance" and resources().has("kindling"):
+	if s.behavior == "lance" and s.get("tags", []).has("spender") and resources().has("kindling"):
 		var k: float = res.kindling
 		var st := cast_stats.duplicate_block()
 		st.add("more_damage", 50.0 * k)
@@ -340,9 +340,11 @@ func _pay_respec() -> void:
 		currency["ember_shards"] = int(currency.get("ember_shards", 0)) - c
 		FX.text(global_position, "-%d Ember Shards" % c, Color(1.0, 0.78, 0.3), 15)
 
+var extra_rites: Array = []   # Chapter 1: the Mage's full spellbook
+
 ## Rites you can put on the bar: starting Rites of your classes + Rites unlocked in class trees.
 func unlocked_rites() -> Array:
-	var out: Array = []
+	var out: Array = extra_rites.duplicate()
 	for c in classes():
 		for r in ClassesDB.class_def(c).get("starting_rites", []):
 			if not out.has(r):

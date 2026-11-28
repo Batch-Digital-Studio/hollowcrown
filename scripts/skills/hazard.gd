@@ -44,7 +44,7 @@ func hits(p: Vector2) -> bool:
 			return d.length() <= r
 
 func _physics_process(delta: float) -> void:
-	if not is_instance_valid(user) or user.dead:
+	if not is_instance_valid(user) or (user.dead and not has_meta("keep")):
 		queue_free()
 		return
 	_t += delta
@@ -66,7 +66,7 @@ func _fire() -> void:
 		var reach := r if shape != "line" else length + width
 		for t in g.targets_in_circle(user.faction, global_position, reach):
 			if hits(t.global_position):
-				var res := Damage.roll_hit(skill, user.stats, g.rng)
+				var res := Damage.roll_hit(skill, get_meta("stats", user.stats), g.rng)
 				t.take_hit(res, user, t.global_position - global_position, knock)
 	match shape:
 		"line":
@@ -80,6 +80,7 @@ func _fire() -> void:
 			FX.burst(global_position, color, 26, r * 2.2, 8.0, 0.45)
 	FX.sound("boom", global_position, -4.0)
 	FX.shake(6.0)
+	FX.event3d(String(get_meta("fx3d", "strike" if shape == "circle" else shape)), global_position, ElementFx.of_skill(skill), r if shape != "line" else width, {"dir": dir, "length": length, "inner": inner})
 	if not pool.is_empty():
 		user.cast_stats = user.stats
 		var ge := GroundEffect.new()

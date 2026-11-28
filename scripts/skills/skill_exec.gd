@@ -16,7 +16,7 @@ static func use(skill_id: String, user: Actor, target_pos: Vector2) -> bool:
 			return false
 		if s.behavior == "lance" and float(user.res.get("kindling", 0.0)) < 1.0:
 			return false
-	if s.behavior == "lance" and user.has_method("can_pay") and float(user.res.get("kindling", 0.0)) < 1.0:
+	if s.behavior == "lance" and s.get("tags", []).has("spender") and user.has_method("can_pay") and float(user.res.get("kindling", 0.0)) < 1.0:
 		FX.text(user.global_position, "No Kindling", Color(1.0, 0.6, 0.3), 14)
 		return false
 	if user.has_method("pre_cast"):
@@ -72,6 +72,7 @@ static func _behave(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2, t
 		"lance": _lance(s, user, origin, dir)
 		"cataclysm": _cataclysm(s, user)
 		"rush": _rush(s, user, origin, target_pos)
+		"smite": _smite(s, user, origin, target_pos)
 		"fissure": _fissure(s, user, origin, dir)
 		"warcry": _warcry(s, user, origin)
 		"buff": _buff(s, user, origin)
@@ -149,6 +150,7 @@ static func _nova(s: Dictionary, user: Actor, origin: Vector2) -> void:
 		t.take_hit(res, user, t.global_position - origin, 300.0)
 		hits += 1
 	FX.sound("nova", origin, 0.0)
+	FX.event3d("nova", origin, ElementFx.of_skill(s), r)
 	FX.ring(origin, r, s.color, 0.4, 10.0)
 	FX.burst(origin, s.color, 40, r * 2.2, 8.0, 0.5)
 	FX.flash(origin, s.color, r * 0.8, 0.25)
@@ -201,8 +203,9 @@ static func _chain(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vect
 	if is_player(user):
 		FX.shake(3.0 + n)
 
-static func _lightning(g: Game, points: Array, color: Color) -> void:
+static func _lightning(g: Game, points: Array, color: Color, element: String = "lightning") -> void:
 	FX.sound("zap", points[0], -3.0)
+	FX.event3d("chain", points[0], element, 0.0, {"points": points})
 	var fx := LightningFX.new()
 	fx.points = points
 	fx.color = color
@@ -368,7 +371,7 @@ static func _beam(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vecto
 					nxt = t
 		cur = nxt
 	user.heal(heal * float(s.heal) / 100.0)
-	_lightning(g, points, s.color)
+	_lightning(g, points, s.color, ElementFx.of_skill(s))
 	FX.sound("zap", null, -20.0, 0.2)
 
 static func _eruption(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
@@ -446,6 +449,7 @@ static func _blink(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vect
 		dest = p
 	_hit_area(s, user, origin, float(s.radius))
 	FX.burst(origin, s.color, 24, 220.0, 7.0, 0.4)
+	FX.event3d("blink", origin, ElementFx.of_skill(s), float(s.radius), {"to": dest})
 	user.global_position = dest
 	FX.flash(dest, s.color, 70.0, 0.2)
 	if user.stats.get_stat("thunderstep") > 0.0:
@@ -498,6 +502,7 @@ static func _prison(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vec
 		best.root_time = maxf(best.root_time, float(s.duration))
 		best.busy_time = maxf(best.busy_time, float(s.duration))
 	FX.ring(best.global_position, 70.0, s.color, 0.5, 8.0)
+	FX.event3d("prison", best.global_position, ElementFx.of_skill(s), best.radius * 1.6)
 	FX.burst(best.global_position, s.color, 30, 200.0, 8.0, 0.6)
 	FX.sound("nova", best.global_position, -6.0)
 
@@ -515,6 +520,7 @@ static func _lance(s: Dictionary, user: Actor, origin: Vector2, dir: Vector2) ->
 		var proj := clampf((p - origin).dot(dir), 0.0, length)
 		if p.distance_to(origin + dir * proj) <= w + t.radius:
 			t.take_hit(Damage.roll_hit(s, user.cast_stats, g.rng), user, dir, 200.0)
+	FX.event3d("lance", origin, ElementFx.of_skill(s), w, {"end": end})
 	var fx := LightningFX.new()
 	fx.points = [origin, end]
 	fx.color = s.color
@@ -659,3 +665,20 @@ static func _hunters_moon(s: Dictionary, user: Actor, origin: Vector2) -> void:
 	FX.text(origin, "HUNTER'S MOON", s.color, 34)
 	FX.rumble(0.4, 0.4, 0.5)
 	FX.sound("portal", null, 0.0, 0.0)
+
+## Strike from the sky at the target after a short delay (Thunderfall, Judgment): hits a circle.
+static func _smite(s: Dictionary, user: Actor, origin: Vector2, target_pos: Vector2) -> void:
+	var g := user.game()
+	var pos := _clamp_target(s, origin, target_pos)
+	var n := int(s.get("count", 1))
+	for i in n:
+		var p := pos
+		if i > 0:
+			p += Vector2.RIGHT.rotated(g.rng.randf() * TAU) * g.rng.randf_range(60.0, float(s.radius) * 1.6)
+		var h := Hazard.make(user, "circle", p, s, float(s.get("windup", 0.35)) + i * 0.12)
+		h.r = float(s.radius) * user.cast_stats.inc_mult(["inc_area"])
+		h.knock = 120.0
+		h.set_meta("fx3d", "strike")
+		h.set_meta("stats", user.cast_stats)
+		g.fx_node.add_child(h)
+	FX.sound("windup", pos, -10.0, 0.0)

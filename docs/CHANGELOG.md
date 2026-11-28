@@ -135,3 +135,12 @@
 - Godot: title-screen "Playtest: Whisperwood Clearing" (`--slice`): fixed layout, round colliders, skeleton waves, wildlife, dusk mood, falling leaves, fireflies, FPS readout; never writes the save. `--slice-probe` 9/9.
 - Unreal (HollowcrownUE): `s10_import.py`, `s11_build_level.py`, `s12_play.py` (Python game director in Play-In-Editor). Ran on Jason's PC: walking, Ember Bolt hits/kills, skeleton attacks, waves; ~60 fps (editor cap), GPU ~4-6 ms by `stat unit`. Controller not tested by me.
 - Regression: pad test 0 failures, menu probe 37/37, iso probe 16/16.
+
+## 2026-11-27 — Chapter I: The Hollow Crown (new build)
+- See ROADMAP "Stage L". Title screen button "Chapter I: The Hollow Crown" or `--chapter`. Never writes the save.
+- New: `chapter_db.gd`, `chapter_gen.gd`, `chapter_run.gd`, `rare_brain.gd`, `view3d/chapter3d.gd`, `view3d/element_fx.gd`,
+  `view3d/spell_view3d.gd`, terrain and water shaders, `tools/blender/chapter1.py` (16 props + wolf/spider/toad/thornling),
+  `tools/blender/terrain_textures.py`, boss brain "king", 7 new Mage spells, Light damage + Blind.
+- Zone size is now variable (classic zones stay 90 x 70; the chapter is 180 x 180 cells).
+- Tests: chapter probe 0 failures; pad test 0 failures (now 9 chapter checks too); menu 37/37; iso 16/16; slice 9/9; nav, asc, damage, items, crafting pass.
+- Not verified on Jason's PC.

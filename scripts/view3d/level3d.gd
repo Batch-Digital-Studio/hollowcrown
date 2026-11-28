@@ -150,6 +150,12 @@ func _fireflies(col: Color) -> CPUParticles3D:
 
 func build(z: Zone) -> void:
 	zone = z
+	if z.is_chapter:
+		var c3 := Chapter3D.new()
+		c3.name = "Chapter3D"
+		add_child(c3)
+		c3.build(z)
+		return
 	if z.is_slice:
 		build_slice(z)
 		return

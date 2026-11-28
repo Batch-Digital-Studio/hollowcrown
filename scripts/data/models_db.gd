@@ -38,6 +38,17 @@ const ENEMIES := {
 	"frostwarden": {"model": "Skeleton_Warrior", "weapon": "Blade", "shield": "Shield_Small_A", "tint": Color(0.65, 0.85, 1.2)},
 	"pyre_brute":  {"model": "Skeleton_Warrior", "weapon": "Axe", "tint": Color(1.2, 0.7, 0.45)},
 	"grave_king":  {"model": "Skeleton_Mage", "weapon": "Staff", "tint": Color(0.85, 0.7, 1.15)},
+	# Chapter 1 (creatures are original Blender models in assets/chapter1; they face -Z, hence yaw)
+	"dusk_wolf":     {"path": "res://assets/chapter1/wolf.glb", "yaw": PI, "scale": 1.15},
+	"briar_spider":  {"path": "res://assets/chapter1/spider.glb", "yaw": PI, "scale": 0.95},
+	"thornling":     {"path": "res://assets/chapter1/thornling.glb", "yaw": PI, "scale": 0.8},
+	"bog_toad":      {"path": "res://assets/chapter1/toad.glb", "yaw": PI, "scale": 0.95},
+	"drowned":       {"model": "Skeleton_Minion", "weapon": "Blade", "tint": Color(0.55, 0.85, 0.8)},
+	"marsh_wisp":    {"wisp": true, "color": Color(0.6, 0.9, 1.0)},
+	"barrow_guard":  {"model": "Skeleton_Warrior", "weapon": "Blade", "shield": "Shield_Small_A", "tint": Color(0.85, 0.9, 1.05)},
+	"barrow_archer": {"model": "Skeleton_Rogue", "weapon": "Crossbow", "tint": Color(0.9, 0.92, 1.0)},
+	"barrow_hexer":  {"model": "Skeleton_Mage", "weapon": "Staff", "tint": Color(0.8, 0.7, 1.1)},
+	"hollow_king":   {"model": "Skeleton_Warrior", "weapon": "Axe", "tint": Color(0.7, 0.82, 1.1), "fx": "soulfire", "crown": true},
 }
 
 ## Player minions by Minion.kind ("hawk" is drawn as a glowing wisp, not a model).

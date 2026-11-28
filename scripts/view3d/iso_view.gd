@@ -35,6 +35,7 @@ var bolts := {}           # Projectile -> Node3D
 var light_pool: Array = []
 var ash: CPUParticles3D
 var _target := Vector2.ZERO
+var spell_view: SpellView3D
 var _have_target := false
 var _sprites_hidden := {}
 
@@ -145,10 +146,14 @@ func _ready() -> void:
 	ash.color_ramp = g
 	ash.local_coords = false
 	add_child(ash)
+	spell_view = SpellView3D.new()
+	add_child(spell_view)
+	spell_view.setup(self)
 
 ## Turn the view on/off (pause menu toggle, --2d flag).
 func set_active(on: bool) -> void:
 	active = on
+	FX.iso3d = on
 	visible = on
 	cam.current = on
 	game.camera.enabled = not on
@@ -202,6 +207,23 @@ func build(z: Zone) -> void:
 		env.ambient_light_energy = 0.7
 	env.fog_light_color = bg.lightened(0.05)
 	env.fog_density = 0.014 if z.biome_id == "crypt" else 0.008
+	if z.is_chapter:   # Chapter 1: low golden sun; SpellView3D blends the region moods from here
+		var R: Dictionary = ChapterDB.REGIONS[0]
+		env.background_color = (R.fog as Color).darkened(0.65)
+		env.fog_light_color = R.fog
+		env.fog_density = 0.0035
+		env.ambient_light_color = R.ambient
+		env.ambient_light_energy = 1.0
+		env.tonemap_exposure = 1.2
+		sun.light_color = R.sun
+		sun.light_energy = 1.6
+		sun.rotation = Vector3(deg_to_rad(-34.0), deg_to_rad(210.0), 0.0)
+		sun.directional_shadow_max_distance = 60.0
+		_leaves(true)
+		ash.amount = 36
+		(ash.mesh as QuadMesh).size = Vector2(0.12, 0.09)
+		_have_target = false
+		return
 	if z.is_slice:   # Whisperwood dusk, from the shared layout
 		var md: Dictionary = z.slice.mood
 		var fc: Array = md.fog_color
@@ -260,6 +282,7 @@ func _process(delta: float) -> void:
 	_update_camera(delta)
 	_sync_puppets(delta)
 	_sync_bolts(delta)
+	spell_view.update(delta)
 	_sync_lights()
 	_upright()
 
@@ -373,16 +396,16 @@ func _sync_bolts(delta: float) -> void:
 			live[c] = true
 			var v: Node3D = bolts.get(c)
 			if v == null:
-				v = SpellFx3D.make_bolt(c)
+				v = ElementFx.make_bolt(c)
 				add_child(v)
 				bolts[c] = v
 			c.visible = false
-			SpellFx3D.update_bolt(v, c, delta)
+			ElementFx.update_bolt(v, c, delta)
 	for p in bolts.keys():
 		if not live.has(p):
 			var v: Node3D = bolts[p]
 			bolts.erase(p)
-			SpellFx3D.finish_bolt(self, v)
+			ElementFx.finish_bolt(self, v)
 
 # ---------- lights ----------
 

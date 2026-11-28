@@ -111,6 +111,43 @@ Jason's creative brief + choice "Real-time 3D, KayKit". The simulation is unchan
 
 ## Stage K — Godot vs Unreal playtest (2026-11-27)
 - [x] Original Whisperwood kit from Blender scripts; shared layout; Godot slice + Unreal slice; how-to in docs/PLAYTEST.md
-- [ ] Jason plays both on his PC (controller), compares look and frame time, decides on the engine
+- [x] Engine decided: Godot (Jason, 2026-11-27)
+- [ ] Jason plays both on his PC (controller), compares look and frame time
 - [ ] If Godot: bring the Whisperwood kit into the real Whisperwood region (generated zones) and add tree canopy fade near the hero
 - [ ] If Unreal: plan a real port (C++/Blueprint gameplay, Niagara effects); needs Visual Studio installed
+
+## Stage L — Chapter I: The Hollow Crown (new build, 2026-11-27)
+Jason's brief: a full-scale, open-world-feeling first chapter (PoE / Last Epoch flow), biome monsters, rares that feel rare,
+one Mage with Ice, Fire, Lightning, Chaos and Light spells that look like their element, a boss that feels like a boss.
+The rest of the game is set aside; this is the build to perfect and then roll out. Title screen: "Chapter I: The Hollow Crown" (`--chapter`).
+- [x] One large map, 360 m x 360 m (`scripts/data/chapter_db.gd`, `scripts/world/chapter_gen.gd`): a winding route through
+      the Whisperwood (forest) -> Mirefen (swamp) -> the Barrow Hills; seeded, so everyone gets the same world
+- [x] Glades on the route: Wayfarer's Camp, the Hollow Oak, Ring of Listening Stones, Drowned Shrine, Stillwater lake,
+      Fallen Watchtower, Field of Cairns, Throne of the Hollow King; 4 waystones (touch = respawn point + full heal)
+- [x] Water: a river with a plank bridge, swamp lakes and shallows (`scripts/view3d/shaders/water.gdshader`); terrain with
+      region textures, height (banks dip into the water, hills under the tree walls), path dirt, wet shores (`terrain.gdshader`)
+- [x] Vegetation: ~11,000 props batched per 32 m chunk and culled around the camera; tree walls stay low on the camera side
+- [x] 11 hidden side trails; about 10 end in a hidden cache (chest with a faint glint, 3-4 better items); found count on the minimap
+- [x] Region moods blend as you walk (fog, sun, ambient), region banners, fireflies / marsh mist
+- [x] Biome monsters: Dusk Wolf, Briar Spider, Thornling (forest); Bloated Bogtoad, Drowned Vigil, Marsh Wisp (swamp);
+      Barrow Guard, Barrow Archer, Barrow Hexer (barrow). New Blender models: wolf, spider, toad, thornling (animated)
+- [x] Named rares ("Grimfang, the Hungering") with two of ten real abilities (Stormcaller, Frostbound, Infernal, Vile,
+      Warcaller, Broodmother, Phasing, Volatile, Juggernaut, Soulwarded), an aura in their colour, ability list under the name
+- [x] Mage spellbook, 17 spells over five elements on two loadouts (D-pad left/right): new Thunderfall, Blight Orb,
+      Withering Mire, Soul Rend, Radiant Lance, Sunburst, Judgment. New damage type Light with Blind (35% miss)
+- [x] Element visuals for every spell (`scripts/view3d/element_fx.gd`): fire flames/embers/smoke/scorch, ice crystals/shards/frost
+      mist/ice spikes, forked flickering lightning, void orbs/bubbles/dark smoke, radiant beams/rays/motes; novas, chains,
+      lances, sky strikes, lingering fields
+- [x] Ailments on monsters: burning, frozen (ice shell), chilled, shocked (crawling arcs), poisoned, blinded
+- [x] 2D bursts / rings / flashes are drawn in 3D while the 3D view is on (no more flat circles over the fight)
+- [x] Boss: Morrhal, the Hollow King. The arena seals with soulfire; letterbox entrance; big bar with phase marks and a
+      damage trail; phase 1 Crownbreaker spin, chasing triple slam with a punish window, Grave Rend fissures; phase 2 (70%)
+      soul volleys, Crown of Rime (in, then out), summoned guard; phase 3 (40%) leaps to the centre, soulfire ring shrinks
+      the arena, chasing Pale Lightning; enrage at 15%; loot shower and "Chapter I complete"
+- [x] Tests: `--chapter-probe` (21 checks: map, connectivity, monsters, named rares, 17 spells cast, boss phases, arena seal/open);
+      pad test adds 9 chapter checks (title focus, stick, RT/X/B/Y casts, loadout swap, spellbook open/close)
+- [ ] Not verified on Jason's PC: frame rate, look, controller feel. Screenshots taken with software rendering (1-2 fps)
+- [ ] Monster balance and boss tuning are first guesses; needs play
+- [ ] Wind sway on vegetation, canopy fade near the hero, footstep/ambience sounds per region
+- [ ] Spell icons on the bar for the new spells are placeholders from the old set
+- [ ] Waystone travel menu (now: respawn points only); co-op

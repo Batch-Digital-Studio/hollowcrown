@@ -56,6 +56,8 @@ var brand_owner: Actor = null
 var _evade_acc := 0.0
 # Ascension-driven states
 var frozen_time := 0.0
+var blind_time := 0.0          # Light: blinded actors miss some attacks
+const BLIND_MISS := 35.0
 var chill_mult := 1.0          # Winter's Grasp
 var shock_mult := 1.0          # Overcharge
 var empower_t := 0.0           # Shared Oath: more damage while > 0
@@ -146,6 +148,9 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 	if dead or invulnerable:
 		return 0.0
 	var source: Actor = src if is_instance_valid(src) else null
+	if source and source.blind_time > 0.0 and source.faction != faction and game().rng.randf() * 100.0 < BLIND_MISS:
+		FX.text(global_position, "Miss", Color(1.0, 0.95, 0.7), 15)
+		return 0.0
 	# Block (shields/stances) and evasion (entropy-based so it can't streak)
 	var block := minf(stats.get_stat("block_chance"), 60.0 + stats.get_stat("block_cap_add"))
 	if block > 0.0 and game().rng.randf() * 100.0 < block:
@@ -166,7 +171,7 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 	var pen := {}
 	var po := Asc.owner_player(source)
 	if po and faction != "player":
-		for pt in ["fire", "cold", "lightning", "chaos"]:
+		for pt in ["fire", "cold", "lightning", "chaos", "light"]:
 			var pv := po.stats.get_stat(pt + "_pen")
 			if pv > 0.0:
 				pen[pt] = pv
@@ -183,6 +188,10 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 		return 0.0
 	if po and faction != "player" and po.stats.get_stat("hit_less") > 0.0:
 		amount *= 1.0 - po.stats.get_stat("hit_less") / 100.0
+	if has_method("absorb_hit"):
+		amount = call("absorb_hit", amount)
+		if amount <= 0.0:
+			return 0.0
 	if ward_pool > 0.0:
 		var absorbed := minf(ward_pool, amount)
 		ward_pool -= absorbed
@@ -240,6 +249,8 @@ func take_hit(result: Dictionary, src: Actor, knock_dir: Vector2 = Vector2.ZERO,
 		shock_mult = 2.0 if os and os.get_stat("overcharge") > 0.0 and result.get("crit", false) else maxf(1.0, shock_mult)
 		if os and os.get_stat("inc_shock_effect") > 0.0:
 			shock_mult = maxf(shock_mult, 1.0 + os.get_stat("inc_shock_effect") / 100.0)
+	if dmg.get("light", 0.0) > 0.0 and rng.randf() * 100.0 < ail.get("blind", 0.0):
+		blind_time = 3.0
 	var pc: float = dmg.get("physical", 0.0) + dmg.get("chaos", 0.0)
 	if pc > 0.0 and rng.randf() * 100.0 < ail.get("poison", 0.0):
 		var inc := 1.0 + (source.stats.get_stat("inc_poison_damage") if source else 0.0) / 100.0
@@ -347,6 +358,7 @@ func tick_common(delta: float) -> void:
 		cooldowns[k] = maxf(0.0, cooldowns[k] - delta)
 	hit_flash = maxf(0.0, hit_flash - delta)
 	chill_time = maxf(0.0, chill_time - delta)
+	blind_time = maxf(0.0, blind_time - delta)
 	shock_time = maxf(0.0, shock_time - delta)
 	frozen_time = maxf(0.0, frozen_time - delta)
 	empower_t = maxf(0.0, empower_t - delta)

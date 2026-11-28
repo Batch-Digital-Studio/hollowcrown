@@ -48,11 +48,12 @@ func setup(a: Actor, def: Dictionary, size: float) -> void:
 		_collect(p)
 		height = 2.0
 		return
-	var path: String = ModelsDB.CHAR_DIR + String(def.model) + ".glb"
-	_is_skeleton = String(def.model).begins_with("Skeleton")
+	var path: String = def.path if def.has("path") else ModelsDB.CHAR_DIR + String(def.model) + ".glb"
+	_is_skeleton = String(def.get("model", "")).begins_with("Skeleton")
 	model = scene(path).instantiate()
 	add_child(model)
 	model.scale = Vector3.ONE * size
+	model.rotation.y = float(def.get("yaw", 0.0))
 	height = 2.3 * size
 	var show: Array = def.get("show", [])
 	_collect(model)
@@ -172,10 +173,10 @@ func update(delta: float) -> void:
 	_lock = maxf(0.0, _lock - delta)
 	if actor.act_serial != _serial:
 		_serial = actor.act_serial
-		if actor.last_act_fx == "ember" and get_parent() is Node3D:
+		if actor.last_act_kind == "spell" and actor is Player and get_parent() is Node3D and SkillsDB.SKILLS.has(actor.last_act):
 			var fwd := Vector3(actor.facing.x, 0, actor.facing.y).normalized()
 			_yaw = atan2(fwd.x, fwd.z)
-			SpellFx3D.cast_flare(get_parent(), position + fwd * 0.55 * model.scale.x + Vector3(0, 1.3 * model.scale.x, 0), Color(1.0, 0.55, 0.2))
+			ElementFx.cast_flare(get_parent(), position + fwd * 0.55 * model.scale.x + Vector3(0, 1.3 * model.scale.x, 0), ElementFx.of_skill(SkillsDB.SKILLS[actor.last_act]))
 		var n := _attack_anim()
 		var busy := maxf(0.12, actor.busy_time)
 		var length := ap.get_animation(n).length

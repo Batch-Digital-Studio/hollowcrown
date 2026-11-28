@@ -58,6 +58,12 @@ func _make_vignette() -> Texture2D:
 	t.height = 256
 	return t
 
+## Boss entrance: letterbox bars and a big name card (Chapter 1).
+func show_boss_intro(name_text: String, title: String) -> void:
+	view.boss_intro_t = 4.0
+	view.boss_intro_name = name_text
+	view.boss_intro_title = title
+
 func show_message(big: String, small: String = "") -> void:
 	view.message = big
 	view.sub_message = small
@@ -152,6 +158,9 @@ func _show_title() -> void:
 	sp.custom_minimum_size = Vector2(0, 30)
 	box.add_child(sp)
 	var g := Game.instance
+	box.add_child(_button("Chapter I: The Hollow Crown", func():
+		hide_overlays()
+		Game.instance.start_chapter()))
 	if g.has_save():
 		box.add_child(_button("Continue", func(): _start(true)))
 	box.add_child(_button("New Kindled" if g.has_save() else "Begin", func(): _start(false)))

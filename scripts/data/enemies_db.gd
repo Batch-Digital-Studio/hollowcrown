@@ -38,6 +38,61 @@ const ENEMIES := {
 		"color": Color(0.3, 0.3, 0.35), "eye": Color(0.6, 1.0, 0.6),
 		"stats": {"res_fire": 20, "res_cold": 20, "res_lightning": 20},
 	},
+	# --- Chapter 1: The Hollow Crown (biome monsters) ---
+	"dusk_wolf": {
+		"name": "Dusk Wolf", "life": 20, "speed": 270.0, "radius": 20.0, "xp": 9, "sprite": "chort", "px": 4.0,
+		"skills": ["wolf_bite"], "ai": "melee", "range": 44.0,
+		"color": Color(0.35, 0.33, 0.32), "eye": Color(1.0, 0.55, 0.2), "stats": {"res_cold": 20},
+	},
+	"briar_spider": {
+		"name": "Briar Spider", "life": 24, "speed": 215.0, "radius": 24.0, "xp": 11, "sprite": "wogol", "px": 4.0,
+		"skills": ["spider_bite", "web_spit"], "ai": "skirmish", "range": 46.0,
+		"color": Color(0.25, 0.2, 0.18), "eye": Color(0.6, 1.0, 0.3), "stats": {"res_chaos": 30},
+	},
+	"thornling": {
+		"name": "Thornling", "life": 95, "speed": 110.0, "radius": 34.0, "xp": 26, "sprite": "ogre", "px": 4.0,
+		"skills": ["thorn_slam"], "ai": "melee", "range": 92.0,
+		"color": Color(0.45, 0.38, 0.3), "eye": Color(0.6, 1.0, 0.3), "stats": {"armour": 140, "res_fire": -25, "res_cold": 20},
+	},
+	"bog_toad": {
+		"name": "Bloated Bogtoad", "life": 34, "speed": 150.0, "radius": 26.0, "xp": 12, "sprite": "wogol", "px": 4.0,
+		"skills": ["toad_spit"], "ai": "ranged", "range": 470.0, "keep_away": 230.0,
+		"color": Color(0.3, 0.4, 0.18), "eye": Color(1.0, 0.6, 0.2), "stats": {"res_chaos": 40},
+	},
+	"drowned": {
+		"name": "Drowned Vigil", "life": 42, "speed": 125.0, "radius": 22.0, "xp": 12, "sprite": "zombie", "px": 4.0,
+		"skills": ["drowned_claw"], "ai": "melee", "range": 46.0,
+		"color": Color(0.35, 0.5, 0.48), "eye": Color(0.5, 0.95, 0.9), "stats": {"res_cold": 40, "armour": 60},
+	},
+	"marsh_wisp": {
+		"name": "Marsh Wisp", "life": 22, "speed": 175.0, "radius": 18.0, "xp": 13, "sprite": "imp", "px": 4.0,
+		"skills": ["wisp_zap"], "ai": "ranged", "range": 430.0, "keep_away": 260.0, "light": Color(0.6, 0.9, 1.0),
+		"color": Color(0.6, 0.9, 1.0), "eye": Color(0.8, 1.0, 1.0), "stats": {"res_lightning": 60, "evade_chance": 20},
+	},
+	"barrow_guard": {
+		"name": "Barrow Guard", "life": 58, "speed": 140.0, "radius": 24.0, "xp": 16, "sprite": "skelet", "px": 4.0,
+		"skills": ["guard_cleave"], "ai": "melee", "range": 60.0,
+		"color": Color(0.8, 0.8, 0.75), "eye": Color(0.5, 0.8, 1.0), "stats": {"armour": 220, "res_cold": 30},
+	},
+	"barrow_archer": {
+		"name": "Barrow Archer", "life": 30, "speed": 150.0, "radius": 20.0, "xp": 14, "sprite": "skelet", "px": 4.0,
+		"skills": ["bone_arrow"], "ai": "ranged", "range": 580.0, "keep_away": 300.0,
+		"color": Color(0.8, 0.8, 0.75), "eye": Color(0.5, 0.8, 1.0), "stats": {"res_cold": 30},
+	},
+	"barrow_hexer": {
+		"name": "Barrow Hexer", "life": 40, "speed": 125.0, "radius": 20.0, "xp": 18, "sprite": "necromancer", "px": 4.0,
+		"skills": ["hex_bolt", "raise_dead"], "ai": "hexer", "range": 520.0, "keep_away": 320.0, "light": Color(0.7, 0.45, 1.0),
+		"color": Color(0.4, 0.3, 0.5), "eye": Color(0.75, 0.5, 1.0), "stats": {"res_chaos": 40, "res_cold": 20},
+	},
+	"hollow_king": {
+		"name": "Morrhal, the Hollow King", "life": 5200, "speed": 150.0, "radius": 64.0, "xp": 900, "sprite": "big_demon", "px": 6.5,
+		"skills": ["king_cleave", "king_slam", "king_fissure", "king_souls", "king_frost", "king_strike"],
+		"ai": "brain", "brain": "king", "range": 200.0, "light": Color(0.45, 0.8, 1.0),
+		"color": Color(0.5, 0.55, 0.6), "eye": Color(0.5, 0.85, 1.0), "tint": Color(0.75, 0.85, 1.1),
+		"stats": {"armour": 300, "res_cold": 40, "res_lightning": 25, "res_fire": 15, "res_chaos": 25, "res_light": 0},
+		"boss": true, "title": "First of the Barrow Lords",
+		"intro": "He wore the crown until it wore him.", "enrage_text": "THE CROWN DEMANDS TRIBUTE",
+	},
 	# --- Hollow Rift monsters (violet, fast, many) ---
 	"rift_fiend": {
 		"name": "Rift Fiend", "life": 20, "speed": 240.0, "radius": 18.0, "xp": 9, "sprite": "chort", "px": 4.0,

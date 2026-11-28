@@ -58,6 +58,8 @@ var _rift_log := 0.0
 var _near_boss_level := 0
 var iso_view: IsoView
 var _menu_block := false
+var chapter_mode := false        # Chapter 1: The Hollow Crown (the new large open map)
+var chapter: ChapterRun = null
 var slice_mode := false          # Whisperwood Clearing playtest (Godot side of the Unreal comparison)
 var slice_layout: Dictionary = {}
 var _slice_wave := -1.0
@@ -142,6 +144,13 @@ func _parse_args() -> void:
 			add_child(load("res://scripts/tests/slice_probe.gd").new())
 		elif a == "--slice":
 			set_meta("autoslice", true)
+		elif a == "--chapter":
+			set_meta("autochapter", true)
+		elif a == "--tour":
+			add_child(load("res://scripts/tests/chapter_tour.gd").new())
+		elif a == "--chapter-probe":
+			set_meta("autochapter", true)
+			add_child(load("res://scripts/tests/chapter_probe.gd").new())
 		elif a == "--iso-probe":
 			add_child(load("res://scripts/tests/iso_probe.gd").new())
 		elif a == "--nav-probe":
@@ -164,7 +173,10 @@ func _parse_args() -> void:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 		elif a.begins_with("--depth="):
 			depth = int(a.substr(8))
-	if has_meta("autoslice"):
+	if has_meta("autochapter"):
+		hud.hide_overlays()
+		start_chapter()
+	elif has_meta("autoslice"):
 		hud.hide_overlays()
 		start_slice(OS.get_environment("HC_CLASS") if OS.get_environment("HC_CLASS") != "" else "magus")
 	elif bot:
@@ -269,6 +281,42 @@ func start_slice(class_id: String = "magus") -> void:
 		_fps_label.add_theme_constant_override("outline_size", 5)
 		cl.add_child(_fps_label)
 
+## Chapter 1: The Hollow Crown. A fresh level-1 Mage with the full five-element spellbook
+## (Fire, Ice, Lightning, Chaos, Light) on two loadouts. No save is touched.
+const CHAPTER_SPELLS := ["ember_bolt", "cinder_field", "flame_wall", "pyre_lance", "frost_lance", "frost_nova", "glacial_prison",
+	"arc_spark", "ball_lightning", "thunderfall", "void_orb", "withering_mire", "soul_rend", "radiant_lance", "sunburst", "judgment", "blink"]
+const CHAPTER_BAR_A := ["ember_bolt", "frost_nova", "arc_spark", "void_orb", "radiant_lance", "blink"]
+const CHAPTER_BAR_B := ["frost_lance", "cinder_field", "thunderfall", "withering_mire", "judgment", "sunburst"]
+
+func start_chapter(class_id: String = "magus") -> void:
+	chapter_mode = true
+	slice_mode = false
+	stash.clear()
+	stash.resize(STASH_TABS * STASH_SLOTS)
+	in_town = false
+	depth = 1
+	player = Player.new()
+	var heroes: Array = ClassesDB.class_def(class_id).heroes
+	player.hero = heroes[0]
+	player.set_class(class_id)
+	player.extra_rites = CHAPTER_SPELLS.duplicate()
+	player.bar = CHAPTER_BAR_A.duplicate()
+	player.alt_bar = CHAPTER_BAR_B.duplicate()
+	player.died.connect(_on_player_died)
+	player.inventory_changed.connect(func(): inv_ui.refresh())
+	state = "play"
+	build_zone()
+	if _fps_label == null:
+		var cl := CanvasLayer.new()
+		cl.layer = 20
+		add_child(cl)
+		_fps_label = Label.new()
+		_fps_label.position = Vector2(20, 110)
+		_fps_label.add_theme_font_size_override("font_size", 16)
+		_fps_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		_fps_label.add_theme_constant_override("outline_size", 5)
+		cl.add_child(_fps_label)
+
 func _spawn_slice_packs() -> void:
 	var lvl := 3
 	for pk in slice_layout.packs:
@@ -278,6 +326,9 @@ func _spawn_slice_packs() -> void:
 			spawn_enemy("husk", lvl, "magic" if i == 0 else "normal", [], c + off)
 
 func zone_title() -> String:
+	if chapter_mode:
+		var r := zone.region_at(player.global_position) if zone and player else 0
+		return "Chapter I · %s" % ChapterDB.REGIONS[r].name
 	if slice_mode:
 		return "Whisperwood Clearing · Playtest"
 	if in_town:
@@ -285,6 +336,8 @@ func zone_title() -> String:
 	return "Depth %d · %s" % [depth, WorldDB.zone_name(depth)]
 
 func area_level() -> int:
+	if chapter_mode and chapter:
+		return chapter.area_level()
 	return 1 + (depth - 1) * 3
 
 func build_zone() -> void:
@@ -311,7 +364,9 @@ func build_zone() -> void:
 	zone.z_index = -10
 	add_child(zone)
 	move_child(zone, 0)
-	if slice_mode:
+	if chapter_mode:
+		zone.generate_chapter()
+	elif slice_mode:
 		zone.generate_slice(slice_layout)
 	else:
 		zone.generate(rng.randi(), depth, "town" if in_town else "")
@@ -338,6 +393,15 @@ func build_zone() -> void:
 		light_root.add_child(l)
 	peddler = null
 	writ = null
+	if chapter_mode:
+		if chapter:
+			chapter.queue_free()
+		chapter = ChapterRun.new()
+		add_child(chapter)
+		chapter.setup(self)
+		chapter.spawn_world()
+		inv_ui.refresh()
+		return
 	if slice_mode:
 		_spawn_slice_packs()
 		_slice_wave = -1.0
@@ -754,11 +818,27 @@ func respawn() -> void:
 	player.visible = true
 	state = "play"
 	hud.hide_overlays()
+	if chapter_mode and chapter:
+		# the world stays as it is; you wake at the last waystone you touched
+		player.dead = false
+		player.global_position = chapter.respawn_point() + Vector2(0, 90)
+		player.recalc_stats(true)
+		player.life = player.max_life
+		player.flask_charges = player.flask_max
+		player.ignite_time = 0.0
+		player.chill_time = 0.0
+		player.shock_time = 0.0
+		player.poisons.clear()
+		camera.global_position = player.global_position
+		camera.reset_smoothing()
+		iso_view._have_target = false
+		hud.show_message("The waystone remembers you", "")
+		return
 	build_zone()
 	hud.show_message(zone_title(), "The embers carry you back.")
 
 func save_game() -> void:
-	if player == null or slice_mode:
+	if player == null or slice_mode or chapter_mode:
 		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -922,6 +1002,11 @@ func _process(delta: float) -> void:
 		if _save_t > 30.0:
 			_save_t = 0.0
 			save_game()
+	if chapter_mode and state == "play" and chapter:
+		chapter.tick(delta)
+		if _fps_label and Engine.get_process_frames() % 15 == 0:
+			var fps2 := Engine.get_frames_per_second()
+			_fps_label.text = "%d fps · %.1f ms" % [fps2, 1000.0 / maxf(1.0, fps2)]
 	if slice_mode and state == "play":
 		if enemies.is_empty():
 			if _slice_wave < 0.0:

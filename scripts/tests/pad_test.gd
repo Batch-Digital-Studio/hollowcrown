@@ -41,6 +41,13 @@ func _rect_of(kind: String, key: String, val) -> Rect2:
 			return r.rect
 	return Rect2()
 
+func _count(cls) -> int:
+	var n := 0
+	for c in g.fx_node.get_children():
+		if is_instance_of(c, cls):
+			n += 1
+	return n
+
 func check(name: String, ok: bool) -> void:
 	print(("  PASS " if ok else "  FAIL ") + name)
 	if not ok:
@@ -52,6 +59,12 @@ func _process(delta: float) -> void:
 	match step:
 		0:
 			if t > 0.50:
+				var f0 := get_viewport().gui_get_focus_owner()
+				check("title opens on Chapter I with the pad", f0 is Button and (f0 as Button).text.begins_with("Chapter I"))
+				tap(JOY_BUTTON_DPAD_DOWN)   # Chapter I -> Begin
+				step = 300
+		300:
+			if t > 0.75:
 				tap(JOY_BUTTON_A)   # "Begin" on the title screen
 				step = 1
 		1:
@@ -447,5 +460,60 @@ func _process(delta: float) -> void:
 				check("A on View switches between isometric 3D and classic 2D", IsoView.active != bool(mem.iso0) and not get_tree().paused)
 				if IsoView.active != bool(mem.iso0):
 					g.set_view_3d(bool(mem.iso0))   # leave the setting as it was
+				# Chapter I: the new open map, played on the pad
+				g.hud.hide_overlays()
+				g.start_chapter()
+				step = 170
+		170:
+			if t > 27.5:
+				check("Chapter I starts a Mage on the big map", g.chapter_mode and g.zone.is_chapter and g.player.class_id == "magus")
+				g.player.invulnerable = true
+				x0 = g.player.global_position.y
+				axis(JOY_AXIS_LEFT_Y, -1.0)
+				step = 171
+		171:
+			if t > 28.3:
+				axis(JOY_AXIS_LEFT_Y, 0.0)
+				check("left stick walks the chapter map (%.0f px)" % absf(g.player.global_position.y - x0), absf(g.player.global_position.y - x0) > 60.0)
+				mem["proj"] = _count(Projectile)
+				axis(JOY_AXIS_TRIGGER_RIGHT, 1.0)   # RT: Ember Bolt (fire)
+				step = 172
+		172:
+			if t > 28.7:
+				axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
+				check("RT casts Ember Bolt", _count(Projectile) > int(mem.proj) or g.player.last_act == "ember_bolt")
+				tap(JOY_BUTTON_DPAD_RIGHT)   # loadout 2: Frost Lance, Cinderfall, Thunderfall, Mire, Judgment, Sunburst
+				step = 173
+		173:
+			if t > 29.2:
+				check("D-pad swaps to the second spell loadout", g.player.bar == Game.CHAPTER_BAR_B)
+				g.player.mana = 999.0
+				tap(JOY_BUTTON_X)   # X: Thunderfall (lightning)
+				step = 174
+		174:
+			if t > 29.8:
+				check("X casts Thunderfall", g.player.last_act == "thunderfall")
+				g.player.busy_time = 0.0
+				tap(JOY_BUTTON_B)   # B: Withering Mire (chaos)
+				step = 175
+		175:
+			if t > 30.4:
+				check("B casts Withering Mire", g.player.last_act == "withering_mire")
+				g.player.busy_time = 0.0
+				tap(JOY_BUTTON_Y)   # Y: Judgment (light)
+				step = 176
+		176:
+			if t > 31.0:
+				check("Y casts Judgment", g.player.last_act == "judgment")
+				tap(JOY_BUTTON_DPAD_DOWN)   # class screen: the spellbook
+				step = 177
+		177:
+			if t > 31.6:
+				check("D-pad down opens the spellbook (%d spells)" % g.player.unlocked_rites().size(), g.hud.class_ui.visible and g.player.unlocked_rites().size() >= 16)
+				tap(JOY_BUTTON_B)
+				step = 178
+		178:
+			if t > 32.2:
+				check("B closes the spellbook", not g.hud.class_ui.visible)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

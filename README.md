@@ -3,6 +3,11 @@
 A co-op dark-fantasy ARPG prototype, built in Godot 4.7. Built with Claude, one stage at a time (see `docs/ROADMAP.md`).
 
 ## Play it
+**Chapter I: The Hollow Crown** is the new build: pick it on the title screen (or run with `--chapter`).
+One big map (forest, swamp, barrow hills), a Mage with Fire, Ice, Lightning, Chaos and Light spells on two loadouts
+(D-pad left/right or X swaps), named rares, hidden caches off the trails, and Morrhal, the Hollow King, at the end.
+Touch a waystone to make it your respawn point.
+
 1. Open Godot 4.7.2 → **Import** → pick this folder's `project.godot` → **Import & Edit**.
 2. Press **F5** (or the ▶ Play button, top right).
 
@@ -70,4 +75,6 @@ In Emberhold, open the inventory next to the Ember Vault (stash), Grimm the Smel
   - Isometric 3D view probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --iso-probe`
   - Menu input probe: `godot --headless --path . --fixed-fps 60 -- --fresh --seed=3 --menu-probe`
   - Whisperwood playtest probe: `godot --headless --path . --fixed-fps 60 -- --slice-probe`
+  - Chapter I probe: `godot --headless --path . --fixed-fps 60 -- --chapter-probe`
+  - Chapter I screenshot tour: `... -- --chapter --tour --shots=DIR --shot-times=...` (`HC_TOUR=camp,lake,boss` picks stops)
   - Bot smoke test: `godot --headless --path . --fixed-fps 60 -- --autoplay --fresh --quit-after=300`

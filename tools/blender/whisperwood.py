@@ -602,4 +602,5 @@ def main():
         export(arm, os.path.join(out, name + ".glb"), anim=True)
 
 
-main()
+if __name__ == "__main__":
+    main()

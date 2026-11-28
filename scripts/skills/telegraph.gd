@@ -29,6 +29,7 @@ func _physics_process(delta: float) -> void:
 			var res := Damage.roll_hit(skill, user.stats, g.rng)
 			t.take_hit(res, user, t.global_position - global_position, 420.0)
 		FX.ring(global_position, radius, skill.color, 0.4, 12.0)
+		FX.event3d("slam", global_position, ElementFx.of_skill(skill), radius)
 		FX.burst(global_position, skill.color, 40, radius * 2.5, 9.0, 0.5)
 		FX.shake(10.0)
 		FX.sound("boom", global_position, 0.0)

@@ -5,6 +5,9 @@ extends RefCounted
 ##   frost - The Frostwarden: alternates "get in" rings and "get out" bursts, fans of ice lances, chilling aura in phase 2.
 ##   pyre  - The Pyre Brute: telegraphed charge that leaves fire; hitting a wall staggers him (takes 50% more damage).
 ##   grave - The Gravecaller King: shielded while his guard lives, bone-spear bursts, blinks away leaving a blast.
+##   king  - Morrhal, the Hollow King (Chapter 1): three phases (70% / 40%), telegraphed cleaves, slam chains
+##           with a punish window, grave fissures, soul volleys, rime rings, summoned guard, a soulfire ring that
+##           shrinks the arena, chasing lightning, and an enrage at 15%.
 ## Phase 2 starts at 50% life. All randomness from Game.rng.
 
 var e: Enemy
@@ -22,6 +25,10 @@ var stagger := 0.0
 var _charge_hit := false
 # grave
 var guards: Array = []
+# king
+var enraged := false
+var _seq: Array = []          # queued attacks: [time_left, Callable]
+var _home := Vector2.ZERO
 
 func setup(enemy: Enemy) -> void:
 	e = enemy
@@ -53,6 +60,8 @@ func _cool(k: String, p1: float, p2: float) -> void:
 func tick(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 	for k in cd:
 		cd[k] -= delta
+	if kind == "king":
+		return _king(p, to_p, dist, delta)
 	if phase == 1 and e.life < e.max_life * 0.5:
 		phase = 2
 		FX.text(e.global_position, e.def.get("enrage_text", "ENRAGED"), Color(1.0, 0.5, 0.2), 34)
@@ -278,3 +287,190 @@ func _grave(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	if dist > 520.0:
 		return to_p.normalized()
 	return Vector2.ZERO
+
+# ------------------------------------------------------------------ Morrhal, the Hollow King
+func _kcool(k: String, base: float) -> void:
+	var m: float = [1.0, 0.85, 0.7][phase - 1]
+	if enraged:
+		m *= 0.75
+	cd[k] = base * m
+
+func _king_hz(shape: String, pos: Vector2, sk: String, windup: float, fx: String) -> Hazard:
+	var h := _hz(shape, pos, sk, windup)
+	h.set_meta("fx3d", fx)
+	return h
+
+func _king(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
+	if _home == Vector2.ZERO:
+		_home = e.global_position
+		cd = {"cleave": 2.0, "slam": 4.0, "rend": 7.0, "souls": 9.0, "rime": 12.0, "adds": 16.0, "storm": 6.0}
+	# queued follow-ups (slam chains, strike chains)
+	for i in range(_seq.size() - 1, -1, -1):
+		_seq[i][0] -= delta
+		if _seq[i][0] <= 0.0:
+			var cb: Callable = _seq[i][1]
+			_seq.remove_at(i)
+			cb.call()
+	if stagger > 0.0:
+		stagger -= delta
+		return Vector2.ZERO
+	var frac := e.life / e.max_life
+	if phase == 1 and frac < 0.7:
+		_king_phase2()
+		return Vector2.ZERO
+	if phase == 2 and frac < 0.4:
+		_king_phase3()
+		return Vector2.ZERO
+	if not enraged and frac < 0.15:
+		enraged = true
+		e.stats.add("inc_attack_speed", 30)
+		e.stats.add("inc_cast_speed", 30)
+		e.stats.add("inc_move_speed", 25)
+		FX.text(e.global_position, "MORRHAL IS ENRAGED", Color(1.0, 0.45, 0.3), 34)
+		FX.event3d("nova", e.global_position, "cold", 360.0)
+		FX.shake(14.0)
+	if e.busy_time > 0.0 or not _seq.is_empty():
+		return Vector2.ZERO
+	# Crownbreaker: a huge spin around him. Get out.
+	if dist < 250.0 and cd.cleave <= 0.0:
+		var h := _king_hz("circle", e.global_position, "king_cleave", 0.85 if phase < 3 else 0.7, "spin")
+		h.r = 250.0
+		h.anchor = e
+		e.busy_time = 1.1
+		e.act_serial += 1
+		e.last_act_kind = "attack"
+		e.last_act_behavior = "melee_arc"
+		FX.text(e.global_position, "Crownbreaker", Color(0.7, 0.88, 1.0), 18)
+		_kcool("cleave", 3.4)
+		return Vector2.ZERO
+	# Barrow Slam: three slams that follow you, then he is open for a moment.
+	if cd.slam <= 0.0 and dist < 700.0:
+		var n := 3 if phase < 3 else 4
+		for i in n:
+			var h := _king_hz("circle", p.global_position, "king_slam", 0.95 + i * 0.5, "slam")
+			h.r = 135.0 if phase < 3 else 150.0
+			h.follow = p
+			h.lock = 0.45
+		e.busy_time = 0.95 + n * 0.5
+		e.act_serial += 1
+		e.last_act_kind = "attack"
+		e.last_act_behavior = "telegraph"
+		_seq.append([0.95 + n * 0.5, func():
+			stagger = 1.4
+			FX.text(e.global_position, "Opening!", Color(1.0, 0.9, 0.5), 20)])
+		_kcool("slam", 7.5)
+		return Vector2.ZERO
+	# Grave Rend: fissures tear out from him in a fan.
+	if cd.rend <= 0.0:
+		var n2 := 3 if phase == 1 else 5
+		var base := to_p.angle()
+		for i in n2:
+			var h := _king_hz("line", e.global_position, "king_fissure", 1.1, "fissure")
+			h.dir = Vector2.RIGHT.rotated(base + (i - (n2 - 1) / 2.0) * 0.38)
+			h.length = 950.0
+			h.width = 95.0
+			h.anchor = e
+		e.busy_time = 1.2
+		e.act_serial += 1
+		e.last_act_kind = "spell"
+		e.last_act_behavior = "nova"
+		FX.text(e.global_position, "Grave Rend", Color(0.7, 0.88, 1.0), 18)
+		_kcool("rend", 8.0)
+		return Vector2.ZERO
+	if phase >= 2:
+		# Soul Volley: two staggered rings of soul bolts.
+		if cd.souls <= 0.0:
+			SkillExec.use("king_souls", e, p.global_position)
+			_seq.append([0.6, func(): if not e.dead: SkillExec._radial(SkillsDB.SKILLS["king_souls"], e, e.global_position)])
+			_kcool("souls", 9.0)
+			return Vector2.ZERO
+		# Crown of Rime: the ring around him freezes (stand close), then he bursts (run).
+		if cd.rime <= 0.0:
+			var ring := _king_hz("ring", e.global_position, "king_frost", 1.6, "rime_ring")
+			ring.inner = 190.0
+			ring.r = 620.0
+			ring.anchor = e
+			ring.color = Color(0.55, 0.85, 1.0)
+			_seq.append([1.75, func():
+				if e.dead:
+					return
+				var burst := _king_hz("circle", e.global_position, "king_frost", 1.0, "nova")
+				burst.r = 210.0
+				burst.anchor = e])
+			e.busy_time = 2.9
+			e.act_serial += 1
+			e.last_act_kind = "spell"
+			e.last_act_behavior = "nova"
+			FX.text(e.global_position, "Crown of Rime: come close, then run", Color(0.6, 0.88, 1.0), 18)
+			_kcool("rime", 15.0)
+			return Vector2.ZERO
+		if cd.adds <= 0.0:
+			_king_guard(2 if phase == 2 else 3)
+			_kcool("adds", 22.0)
+			return Vector2.ZERO
+	if phase >= 3 and cd.storm <= 0.0:
+		# Pale Lightning: strikes chase you.
+		for i in 5:
+			_seq.append([0.35 * i, func():
+				if e.dead or not is_instance_valid(p):
+					return
+				var h := _king_hz("circle", p.global_position + p.velocity * 0.4, "king_strike", 0.75, "strike")
+				h.r = 95.0])
+		FX.text(e.global_position, "Pale Lightning", Color(0.8, 0.88, 1.0), 18)
+		_kcool("storm", 9.0)
+	var keep := 170.0
+	return to_p.normalized() * (1.35 if dist > 450.0 else 1.0) if dist > keep else Vector2.ZERO
+
+func _king_guard(n: int) -> void:
+	var ar: Dictionary = g().zone.chapter.arena if g().zone.is_chapter else {}
+	for i in n:
+		var a := g().rng.randf() * TAU
+		var pos: Vector2 = (ar.pos if not ar.is_empty() else e.global_position) + Vector2.RIGHT.rotated(a) * (ar.r_px * 0.7 if not ar.is_empty() else 300.0)
+		if g().is_wall(pos):
+			pos = e.global_position + Vector2.RIGHT.rotated(a) * 160.0
+		var id := "barrow_guard" if i % 2 == 0 else "barrow_archer"
+		var m := g().spawn_enemy(id, e.level - 3, "magic" if i == 0 and phase == 3 else "normal", ["hasted"] if i == 0 and phase == 3 else [], pos)
+		m.aggro = true
+		FX.event3d("summon", pos, "cold", 60.0)
+	FX.text(e.global_position, "Rise, my guard!", Color(0.7, 0.88, 1.0), 22)
+
+func _king_phase2() -> void:
+	phase = 2
+	e.stats.add("inc_attack_speed", 15)
+	e.stats.add("inc_cast_speed", 15)
+	e.busy_time = 1.6
+	e.invulnerable = true
+	_seq.append([1.6, func(): e.invulnerable = false])
+	FX.text(e.global_position, "THE BARROW WAKES", Color(0.6, 0.85, 1.0), 34)
+	FX.event3d("nova", e.global_position, "cold", 420.0)
+	FX.shake(16.0)
+	FX.rumble(0.5, 0.8, 0.5)
+	_king_guard(4)
+	cd.souls = 2.5
+	cd.rime = 6.0
+
+func _king_phase3() -> void:
+	phase = 3
+	e.invulnerable = true
+	e.busy_time = 3.0
+	e.stats.add("inc_move_speed", 20)
+	var ar: Dictionary = g().zone.chapter.arena if g().zone.is_chapter else {}
+	var center: Vector2 = ar.pos if not ar.is_empty() else e.global_position
+	FX.event3d("leap", e.global_position, "cold", 0.0, {"to": center})
+	e.global_position = center
+	_seq.append([3.0, func(): e.invulnerable = false])
+	FX.text(center, e.def.get("enrage_text", "ENRAGED"), Color(0.55, 0.85, 1.0), 36)
+	FX.shake(20.0)
+	FX.rumble(0.8, 1.0, 0.8)
+	FX.hitstop(0.15)
+	# soulfire closes in: the arena's outer ring burns for the rest of the fight
+	if not ar.is_empty():
+		var rr: float = ar.r_px - 150.0
+		e.cast_stats = e.stats
+		for i in 18:
+			var pos: Vector2 = center + Vector2.RIGHT.rotated(TAU * i / 18.0) * rr
+			var ge := GroundEffect.new()
+			ge.setup(SkillsDB.SKILLS["king_wall"], e, pos)
+			g().fx_node.add_child(ge)
+	cd.storm = 3.5
+	cd.slam = 5.0

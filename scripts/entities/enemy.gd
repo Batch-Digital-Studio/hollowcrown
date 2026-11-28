@@ -13,6 +13,7 @@ var _boss_phase := 1
 var _boss_cycle := 0
 var _summon_cd := 8.0
 var brain: BossBrain = null
+var rare: RareBrain = null     # Chapter 1 named rares
 var _intro_done := false
 
 
@@ -62,6 +63,9 @@ func _ready() -> void:
 	_strafe = 1.0 if game().rng.randf() < 0.5 else -1.0
 	_build_visuals()
 
+func absorb_hit(amount: float) -> float:
+	return rare.absorb(amount) if rare else amount
+
 func damage_taken_mult() -> float:
 	var m := super()
 	if brain:
@@ -76,6 +80,8 @@ func _physics_process(delta: float) -> void:
 		return
 	tick_common(delta)
 	if dead:
+		return
+	if has_meta("dormant"):
 		return
 	_anim += delta
 	var g := game()
@@ -113,9 +119,13 @@ func _physics_process(delta: float) -> void:
 				move = brain.tick(p, to_p, dist, delta)
 				_boss_phase = brain.phase
 			"summoner": move = _ai_summoner(p, to_p, dist)
+			"skirmish": move = _ai_skirmish(p, to_p, dist)
+			"hexer": move = _ai_hexer(p, to_p, dist)
+		if rare:
+			rare.tick(p, dist, delta)
 	elif aggro and brain and (brain.charge_left > 0.0 or brain.charge_wind > 0.0 or brain.stagger > 0.0):
 		move = brain.tick(p, to_p, dist, delta)
-	if aggro and is_boss() and not _intro_done:
+	if aggro and is_boss() and not _intro_done and def.get("brain", "") != "king":
 		_intro_done = true
 		g.hud.show_message(String(def.name).to_upper(), def.get("intro", ""))
 	# separation from other monsters
@@ -168,6 +178,21 @@ func _ai_ranged(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 		return to_p.normalized()
 	return to_p.normalized().orthogonal() * _strafe * 0.6
 
+## Melee, but spits its second skill from range (spiders).
+func _ai_skirmish(p: Actor, to_p: Vector2, dist: float) -> Vector2:
+	var far_sk: String = def.skills[1]
+	if dist > 180.0 and dist < 520.0 and can_use(far_sk) and game().has_line_of_sight(global_position, p.global_position):
+		SkillExec.use(far_sk, self, p.global_position + p.velocity * 0.2)
+		return Vector2.ZERO
+	return _ai_melee(p, to_p, dist)
+
+## Ranged caster that also raises the dead (barrow hexers).
+func _ai_hexer(p: Actor, to_p: Vector2, dist: float) -> Vector2:
+	if dist < def.range and can_use("raise_dead") and game().rng.randf() < 0.3:
+		SkillExec.use("raise_dead", self, p.global_position)
+		return Vector2.ZERO
+	return _ai_ranged(p, to_p, dist)
+
 func _ai_summoner(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	if dist < def.range and can_use("raise_dead"):
 		SkillExec.use("raise_dead", self, p.global_position)
@@ -214,6 +239,8 @@ func _ai_boss(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 func die(killer: Actor) -> void:
 	if dead:
 		return
+	if rare:
+		rare.on_death()
 	super.die(killer)
 	var c: Color = def.get("eye", def.get("light", Color(1.0, 0.75, 0.3)))
 	FX.burst(global_position, c, 26 if rarity == "normal" else 50, 300.0, 8.0, 0.6)

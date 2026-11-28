@@ -2,7 +2,7 @@ class_name Damage
 extends RefCounted
 ## Hit calculation. Pure logic, no nodes, so it can run on a co-op host and in tests.
 
-const TYPES := ["physical", "lightning", "cold", "fire", "chaos"]  # conversion order
+const TYPES := ["physical", "lightning", "cold", "fire", "chaos", "light"]  # conversion order
 const ELEMENTAL := ["lightning", "cold", "fire"]
 const RES_CAP := 75.0
 
@@ -113,6 +113,7 @@ static func roll_hit(skill: Dictionary, stats: StatBlock, rng: RandomNumberGener
 		"chill": stats.get_stat("chill_chance") + float(skill.get("chill_chance", 0.0)),
 		"shock": stats.get_stat("shock_chance") + float(skill.get("shock_chance", 0.0)),
 		"poison": stats.get_stat("poison_chance") + float(skill.get("poison_chance", 0.0)),
+		"blind": stats.get_stat("blind_chance") + float(skill.get("blind_chance", 0.0)),
 	}
 	if crit:
 		for a in ["ignite", "chill", "shock"]:
@@ -158,4 +159,5 @@ const COLORS := {
 	"cold": Color(0.45, 0.8, 1.0),
 	"lightning": Color(1.0, 0.92, 0.3),
 	"chaos": Color(0.75, 0.3, 1.0),
+	"light": Color(1.0, 0.95, 0.7),
 }
