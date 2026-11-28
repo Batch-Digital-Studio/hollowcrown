@@ -885,6 +885,7 @@ func respawn() -> void:
 		camera.global_position = player.global_position
 		camera.reset_smoothing()
 		iso_view._have_target = false
+		chapter.on_player_respawn()
 		hud.show_message("The waystone remembers you", "")
 		return
 	build_zone()

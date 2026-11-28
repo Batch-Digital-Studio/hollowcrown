@@ -147,9 +147,31 @@ func _process(delta: float) -> void:
 	if step == 6 and t > 18.0:
 		step = 7
 		ok(g.boss.brain.enraged, "boss enraged at 10%")
-		g.boss.take_hit({"damage": {"physical": 1e9}, "crit": false, "ailments": {}}, g.player)
-	if step == 7 and t > 20.0:
+		# die in the fight: the arena must open again and Morrhal keep his wounds
+		set_meta("boss_life", g.boss.life)
+		g.player.invulnerable = false
+		g.player.life = 1.0
+		g.player.take_hit({"damage": {"physical": 1e6}, "crit": false, "ailments": {}}, g.boss)
+	if step == 7 and t > 19.0:
 		step = 8
+		ok(g.state == "dead", "hero died in the arena")
+		g.respawn()
+		ok(g.chapter.boss_state == "idle" and g.chapter.gate == null, "arena unsealed after respawn")
+		ok(absf(g.boss.life - float(get_meta("boss_life"))) < 1.0, "boss keeps his health")
+		var A: Dictionary = g.zone.chapter.arena
+		ok(g.player.global_position.distance_to(A.pos) > A.r_px, "respawned outside the arena")
+	if step == 8 and t > 20.0:
+		step = 9
+		var A2: Dictionary = g.zone.chapter.arena
+		g.player.invulnerable = true
+		g.player.global_position = A2.pos + Vector2(0, A2.r_px * 0.5)
+	if step == 9 and t > 21.0:
+		step = 10
+		ok(g.chapter.boss_state == "sealed", "re-entering seals the arena again")
+		g.boss.invulnerable = false
+		g.boss.take_hit({"damage": {"physical": 1e9}, "crit": false, "ailments": {}}, g.player)
+	if step == 10 and t > 23.0:
+		step = 11
 		ok(g.chapter.boss_state == "dead", "boss dead, arena opens")
 		print("CHAPTER PROBE: %d failures" % fails)
 		get_tree().quit(1 if fails > 0 else 0)

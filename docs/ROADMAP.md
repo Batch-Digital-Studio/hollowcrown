@@ -156,6 +156,8 @@ The rest of the game is set aside; this is the build to perfect and then roll ou
       barrow side), Leaning Deadwood (knock the dead tree down across the water)
 - [x] Readability: every normal monster attack has a short tell (melee arc / shot line / cast ring) in the test chapter;
       trees and tall props between the camera and the hero dither-fade; flash lights capped at 10 and impact floods drawn small
+- [x] Playtest 1 (Jason, 2026-11-27): boss arena reopens after death and reseals on re-entry; boss slowed; open areas with
+      linear connectors; river bridge spans the water
 - [ ] Not verified on Jason's PC: frame rate, look, controller feel. Screenshots taken with software rendering (1-2 fps)
 - [ ] Monster balance and boss tuning are first guesses; needs play
 - [ ] Wind sway on vegetation, canopy fade near the hero, footstep/ambience sounds per region

@@ -22,7 +22,7 @@ const REGION_END := [0.36, 0.70, 1.0]
 const REGIONS := [
 	{
 		"id": "whisperwood", "name": "The Whisperwood", "sub": "Old trees that remember the crown",
-		"half_width": [6.0, 10.0], "ground": Color(0.34, 0.36, 0.2),
+		"half_width": [2.4, 3.4], "ground": Color(0.34, 0.36, 0.2),
 		"fog": Color(0.36, 0.3, 0.24), "sun": Color(1.0, 0.72, 0.46), "ambient": Color(0.38, 0.36, 0.36), "sun_energy": 1.6,
 		"monsters": [["dusk_wolf", 5], ["briar_spider", 3], ["thornling", 2]],
 		"wall": [["tree_dying_1", 4], ["tree_dying_2", 3], ["tree_dying_3", 2], ["tree_dead_1", 1]],
@@ -33,7 +33,7 @@ const REGIONS := [
 	},
 	{
 		"id": "mirefen", "name": "Mirefen", "sub": "Where the drowned still keep their vigil",
-		"half_width": [8.0, 13.0], "ground": Color(0.26, 0.28, 0.18),
+		"half_width": [2.8, 3.8], "ground": Color(0.26, 0.28, 0.18),
 		"fog": Color(0.16, 0.2, 0.18), "sun": Color(0.62, 0.72, 0.6), "ambient": Color(0.24, 0.3, 0.3), "sun_energy": 0.85,
 		"monsters": [["bog_toad", 4], ["drowned", 4], ["marsh_wisp", 2]],
 		"wall": [["swamp_cypress", 5], ["swamp_snag", 2], ["tree_dead_1", 1]],
@@ -44,7 +44,7 @@ const REGIONS := [
 	},
 	{
 		"id": "barrow", "name": "The Barrow Hills", "sub": "Graves of the first kings",
-		"half_width": [6.0, 9.0], "ground": Color(0.3, 0.29, 0.24),
+		"half_width": [2.4, 3.2], "ground": Color(0.3, 0.29, 0.24),
 		"fog": Color(0.2, 0.2, 0.27), "sun": Color(0.62, 0.66, 0.9), "ambient": Color(0.28, 0.28, 0.36), "sun_energy": 1.05,
 		"monsters": [["barrow_guard", 4], ["barrow_archer", 3], ["barrow_hexer", 2]],
 		"wall": [["tree_dead_1", 3], ["dead_large", 3], ["rock_2", 2], ["tree_dying_1", 1]],
@@ -58,15 +58,19 @@ const REGIONS := [
 ## Open places along the route: index into SPINE, radius in cells, what is there.
 const GLADES := [
 	{"at": 0, "r": 11, "kind": "camp", "name": "Wayfarer's Camp"},
-	{"at": 2, "r": 13, "kind": "oak", "name": "The Hollow Oak"},
+	{"at": 2, "r": 12, "kind": "oak", "name": "The Hollow Oak"},
 	{"at": 4, "r": 10, "kind": "stones", "name": "Ring of Listening Stones"},
-	{"at": 7, "r": 14, "kind": "shrine", "name": "Drowned Shrine"},
-	{"at": 9, "r": 12, "kind": "lake", "name": "Stillwater"},
+	{"at": 7, "r": 12, "kind": "shrine", "name": "Drowned Shrine"},
+	{"at": 9, "r": 13, "kind": "lake", "name": "Stillwater"},
 	{"at": 11, "r": 10, "kind": "ruins", "name": "Fallen Watchtower"},
 	{"at": 13, "r": 11, "kind": "graves", "name": "Field of Cairns"},
 	{"at": 15, "r": 10, "kind": "arena", "name": "Throne of the Hollow King"},
 ]
-const WAYPOINTS := [0, 4, 9, 13]   # spine indices with a waypoint stone
+const WAYPOINTS := [0, 4, 9, 13]
+
+## Open areas between the glades (Jason: open spaces joined by linear connectors). Each is an irregular
+## clearing built from a few overlapping blobs around a route point: [spine index, radius cells].
+const OPEN_AREAS := [[1, 8.0], [6, 9.0], [10, 8.5], [14, 7.0]]   # spine indices with a waypoint stone
 
 ## The river between the forest and the swamp: a curve in cells; crossed by a bridge on the route.
 const RIVER := [Vector2(40, 150), Vector2(62, 136), Vector2(82, 120), Vector2(100, 122), Vector2(120, 116), Vector2(150, 120), Vector2(178, 112)]

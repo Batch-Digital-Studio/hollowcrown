@@ -293,12 +293,20 @@ func _kcool(k: String, base: float) -> void:
 	var m: float = [1.0, 0.85, 0.7][phase - 1]
 	if enraged:
 		m *= 0.75
-	cd[k] = base * m
+	cd[k] = base * m * float(e.def.get("pace", 1.0))   # "pace" > 1 slows a boss down (first boss of a run)
+
+func _tp() -> float:
+	return float(e.def.get("tell_pace", 1.0))
 
 func _king_hz(shape: String, pos: Vector2, sk: String, windup: float, fx: String) -> Hazard:
-	var h := _hz(shape, pos, sk, windup)
+	var h := _hz(shape, pos, sk, windup * _tp())
 	h.set_meta("fx3d", fx)
 	return h
+
+## The player died: drop every queued attack (the fight resumes when they come back).
+func king_reset() -> void:
+	_seq.clear()
+	stagger = 0.0
 
 func _king(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 	if _home == Vector2.ZERO:
@@ -351,11 +359,11 @@ func _king(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 			h.r = 135.0 if phase < 3 else 150.0
 			h.follow = p
 			h.lock = 0.45
-		e.busy_time = 0.95 + n * 0.5
+		e.busy_time = (0.95 + n * 0.5) * _tp()
 		e.act_serial += 1
 		e.last_act_kind = "attack"
 		e.last_act_behavior = "telegraph"
-		_seq.append([0.95 + n * 0.5, func():
+		_seq.append([(0.95 + n * 0.5) * _tp(), func():
 			stagger = 1.4
 			FX.text(e.global_position, "Opening!", Color(1.0, 0.9, 0.5), 20)])
 		_kcool("slam", 7.5)
@@ -391,7 +399,7 @@ func _king(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 			ring.r = 620.0
 			ring.anchor = e
 			ring.color = Color(0.55, 0.85, 1.0)
-			_seq.append([1.75, func():
+			_seq.append([1.75 * _tp(), func():
 				if e.dead:
 					return
 				var burst := _king_hz("circle", e.global_position, "king_frost", 1.0, "nova")
@@ -411,7 +419,7 @@ func _king(p: Actor, to_p: Vector2, dist: float, delta: float) -> Vector2:
 	if phase >= 3 and cd.storm <= 0.0:
 		# Pale Lightning: strikes chase you.
 		for i in 5:
-			_seq.append([0.35 * i, func():
+			_seq.append([0.45 * i, func():
 				if e.dead or not is_instance_valid(p):
 					return
 				var h := _king_hz("circle", p.global_position + p.velocity * 0.4, "king_strike", 0.75, "strike")

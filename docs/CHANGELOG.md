@@ -154,3 +154,14 @@
 - Tests: chapter probe 0 failures (adds herbs, shortcuts, brewing, tells); pad test 0 failures (adds chest/item with A,
   auto-loot, herb gather, kettle open, D-pad recipe, brew, close); menu 37/37, iso 16/16, slice 9/9, nav, asc, unit tests pass.
 - Not verified on Jason's PC.
+
+## 2026-11-27 — Jason's first playtest fixes (test chapter)
+- Dying in the boss fight now reopens the arena: you wake at the last waystone, the soulfire seal drops, Morrhal returns to
+  his throne keeping the damage you did, and walking back in seals the arena again (short "rises again", no second intro).
+- Morrhal is slower for a first boss: cooldowns x1.35 (`pace`), telegraph windups x1.2 (`tell_pace`), Pale Lightning
+  strikes spaced out. Both are data in `enemies_db.gd`.
+- Map layout: open areas joined by narrower linear connectors (connector half-width about 5-7 m instead of 12-26 m; four
+  extra irregular clearings between the glades). Shortcut ends snap to the nearest land.
+- River bridge: the deck now spans the whole river plus both banks and is wider (the walkable strip matches it).
+- Tests: chapter probe 0 failures (adds: die in the arena, unsealed after respawn, boss keeps health, respawn outside,
+  re-entry seals again).

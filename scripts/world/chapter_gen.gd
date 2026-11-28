@@ -81,6 +81,7 @@ func run() -> void:
 	_route()
 	_stamp_route()
 	_carve_land()
+	_open_areas()
 	_glades()
 	_branches()
 	_river()
@@ -202,6 +203,15 @@ func _disc(c: Vector2, r: float, rough: float = 1.4) -> void:
 			if d < r + noise2.get_noise_2d(x * 3.0, y * 3.0) * rough:
 				grid[idx(x, y)] = 1
 
+func _open_areas() -> void:
+	for oa in ChapterDB.OPEN_AREAS:
+		var c := _glade_center(int(oa[0]))
+		var r: float = float(oa[1])
+		_disc(c, r * 0.75, 2.0)
+		for k in 3:   # lobes make it irregular, not a circle
+			var a := rng.randf() * TAU
+			_disc(c + Vector2(cos(a), sin(a)) * r * 0.45, r * rng.randf_range(0.45, 0.6), 2.0)
+
 func _glades() -> void:
 	for gl in ChapterDB.GLADES:
 		var c := _glade_center(int(gl.at))
@@ -266,14 +276,16 @@ func _river() -> void:
 			start = c
 		elif not wet and crossing:
 			crossing = false
-			var a := start - (c - start).normalized() * 1.5
-			var b := c + (c - start).normalized() * 1.5
-			bridges.append({"a": _px(a), "b": _px(b)})
+			var dirc := (c - start).normalized()
+			var a := start - dirc * 1.5
+			var b := c + dirc * 1.5
+			# the deck covers the whole wet span plus the banks, so it never ends in the water
+			bridges.append({"a": _px(start - dirc * 3.5), "b": _px(c + dirc * 3.5)})
 			for k in 12:
 				var q := a.lerp(b, k / 11.0)
 				for y in range(int(q.y) - 2, int(q.y) + 3):
 					for x in range(int(q.x) - 2, int(q.x) + 3):
-						if inb(x, y) and q.distance_to(Vector2(x, y)) <= 1.8:
+						if inb(x, y) and q.distance_to(Vector2(x, y)) <= 1.1:
 							water[idx(x, y)] = 3   # bridge deck: walkable over water
 	for k in W * H:
 		if water[k] == 2:
@@ -509,8 +521,8 @@ func _arena() -> Dictionary:
 
 func _shortcuts() -> void:
 	for sc in ChapterDB.SHORTCUTS:
-		var a: Vector2 = sc.a
-		var b: Vector2 = sc.b
+		var a: Vector2 = _nearest_land(sc.a, sc.b)
+		var b: Vector2 = _nearest_land(sc.b, sc.a)
 		var n := int(a.distance_to(b))
 		for i in n + 1:
 			var q := a.lerp(b, float(i) / n)
@@ -545,6 +557,22 @@ func _shortcuts() -> void:
 		lever_at += dir.orthogonal() * 2.0 + (dir if sc.lever == "a" else -dir) * 1.0
 		shortcuts.append({"kind": sc.kind, "name": sc.name, "a": _px(a), "b": _px(b), "mid": _px(mid), "dir": dir,
 			"span_px": span * Zone.CELL, "lever": _px(lever_at), "lever_side": sc.lever})
+
+## The walkable cell nearest to p (searching outward), preferring the side away from `other`.
+func _nearest_land(p: Vector2, other: Vector2) -> Vector2:
+	for r in range(0, 26):
+		var best := Vector2(-1, -1)
+		var bd := 1e9
+		for y in range(int(p.y) - r, int(p.y) + r + 1):
+			for x in range(int(p.x) - r, int(p.x) + r + 1):
+				if inb(x, y) and grid[idx(x, y)] == 1 and water[idx(x, y)] != 2:
+					var d := Vector2(x, y).distance_to(p) + Vector2(x, y).distance_to(other) * 0.1
+					if d < bd:
+						bd = d
+						best = Vector2(x, y)
+		if best.x >= 0:
+			return best
+	return p
 
 func _herbs() -> Array:
 	var out: Array = []

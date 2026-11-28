@@ -369,7 +369,7 @@ func _bridges() -> void:
 		var node: Node3D = Puppet.scene(C1 % "bridge").instantiate()
 		node.position = IsoView.to3d(mid, -0.25)
 		node.rotation.y = atan2(d.x, d.y) + PI
-		node.scale = Vector3(1.0, 1.0, maxf(1.0, length / 8.0))
+		node.scale = Vector3(1.3, 1.0, maxf(1.0, length / 8.0))
 		_chunk(mid).add_child(node)
 
 func _omni(px: Vector2, h: float, col: Color, rng: float, energy: float, flicker: bool = false) -> OmniLight3D:

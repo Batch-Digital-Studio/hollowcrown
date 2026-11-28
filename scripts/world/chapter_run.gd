@@ -123,6 +123,33 @@ func tick(delta: float) -> void:
 		if _complete_t <= 0.0:
 			g.hud.show_message("CHAPTER I COMPLETE", "The Hollow Crown is broken  ·  Caches found: %d / %d" % [caches_found, zone.chapter.caches.size()])
 
+var _intro_done := false
+
+## You died in the arena: the seal drops so you can walk back in from the waystone. Morrhal keeps the
+## damage you did; he returns to his throne and waits. Entering again seals the arena again.
+func on_player_respawn() -> void:
+	if boss_state != "sealed":
+		return
+	boss_state = "idle"
+	if gate and is_instance_valid(gate):
+		gate.queue_free()
+	gate = null
+	FX.event3d("gate", arena.gate_mid, "cold", 0.0, {"on": false})
+	var b: Enemy = g.boss
+	if b and is_instance_valid(b) and not b.dead:
+		b.aggro = false
+		b.set_meta("dormant", true)
+		b.invulnerable = false
+		b.busy_time = 0.0
+		b.velocity = Vector2.ZERO
+		b.global_position = arena.pos + Vector2(0, -arena.r_px * 0.45)
+		if b.brain:
+			b.brain.king_reset()
+	for c in g.fx_node.get_children():
+		if c is Hazard or c is Projectile:
+			if is_instance_valid(c.user) and c.user == b:
+				c.queue_free()
+
 func _seal_arena() -> void:
 	boss_state = "sealed"
 	var b: Enemy = g.boss
@@ -144,12 +171,17 @@ func _seal_arena() -> void:
 	if b and is_instance_valid(b):
 		b.remove_meta("dormant")
 		b.aggro = true
-		b.busy_time = 2.4       # rises from the throne
+		b.busy_time = 2.4 if not _intro_done else 1.2       # rises from the throne
 		b.invulnerable = true
 		g.get_tree().create_timer(2.4, false).timeout.connect(func():
 			if is_instance_valid(b):
 				b.invulnerable = false)
-	g.hud.show_boss_intro(String(b.def.name).to_upper(), String(b.def.get("title", "")))
+	if not _intro_done:
+		g.hud.show_boss_intro(String(b.def.name).to_upper(), String(b.def.get("title", "")))
+		_intro_done = true
+	else:
+		g.hud.show_message(String(b.def.name), "rises again")
+		b.busy_time = 1.2
 	FX.shake(18.0)
 	FX.rumble(0.7, 0.9, 0.8)
 	FX.sound("boom", null, 2.0)

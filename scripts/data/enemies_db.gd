@@ -90,7 +90,7 @@ const ENEMIES := {
 		"ai": "brain", "brain": "king", "range": 200.0, "light": Color(0.45, 0.8, 1.0),
 		"color": Color(0.5, 0.55, 0.6), "eye": Color(0.5, 0.85, 1.0), "tint": Color(0.75, 0.85, 1.1),
 		"stats": {"armour": 300, "res_cold": 40, "res_lightning": 25, "res_fire": 15, "res_chaos": 25, "res_light": 0},
-		"boss": true, "title": "First of the Barrow Lords",
+		"boss": true, "title": "First of the Barrow Lords", "pace": 1.35, "tell_pace": 1.2,
 		"intro": "He wore the crown until it wore him.", "enrage_text": "THE CROWN DEMANDS TRIBUTE",
 	},
 	# --- Hollow Rift monsters (violet, fast, many) ---
