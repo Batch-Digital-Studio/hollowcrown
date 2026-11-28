@@ -8,6 +8,7 @@ var passives: PassiveUI
 var class_ui: ClassUI
 var _overlay: Control
 var world_map: WorldMapUI
+var brew_ui: BrewUI
 var _title: Control
 var _vignette: TextureRect
 
@@ -42,6 +43,9 @@ func _ready() -> void:
 	world_map.set_anchors_preset(Control.PRESET_FULL_RECT)
 	world_map.visible = false
 	add_child(world_map)
+	brew_ui = BrewUI.new()
+	brew_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(brew_ui)
 	_show_title()
 
 func _make_vignette() -> Texture2D:
@@ -256,6 +260,14 @@ func toggle_pause() -> void:
 		box.add_child(_button("View: Isometric 3D" if IsoView.active else "View: Classic 2D", func():
 			g.set_view_3d(not IsoView.active)
 			hide_overlays()))
+		box.add_child(_button("Auto-loot: On" if g.auto_loot else "Auto-loot: Off (click / A)", func():
+			g.set_auto("loot", not g.auto_loot)
+			hide_overlays()
+			toggle_pause.call_deferred()))
+		box.add_child(_button("Auto-gather: On" if g.auto_gather else "Auto-gather: Off (click / A)", func():
+			g.set_auto("gather", not g.auto_gather)
+			hide_overlays()
+			toggle_pause.call_deferred()))
 	box.add_child(_button("Save & Quit", func():
 		Game.instance.save_game()
 		get_tree().quit()))

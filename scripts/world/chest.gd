@@ -8,6 +8,7 @@ var _spr: AnimatedSprite2D
 var _light: PointLight2D
 
 func _ready() -> void:
+	add_to_group("interactable")
 	_spr = AnimatedSprite2D.new()
 	var sf := Art.prop_frames("chest_full_open_anim", 10.0)
 	sf.set_animation_loop("default", false)
@@ -17,12 +18,19 @@ func _ready() -> void:
 	_spr.frame = 0
 	add_child(_spr)
 
-func _process(_delta: float) -> void:
-	if opened:
-		return
-	var g := Game.instance
-	if g and g.player and not g.player.dead and g.player.global_position.distance_to(global_position) < 70.0:
-		open()
+# --- Interact: click / A to open; Auto-loot opens it when you walk up ---
+func can_interact() -> bool:
+	return not opened
+func interact_label() -> String:
+	return "Open Hidden Cache" if hidden_cache else "Open Chest"
+func interact_kind() -> String:
+	return "loot"
+func interact_range() -> float:
+	return 110.0
+func auto_range() -> float:
+	return 70.0
+func interact(_p: Player) -> void:
+	open()
 
 func open() -> void:
 	opened = true

@@ -32,6 +32,9 @@ const KEY_LABELS := ["LMB", "RMB", "Q", "E", "R", "F"]
 const PAD_LABELS := ["RT", "A", "X", "B", "Y", "RB"]
 const DEADZONE := 0.22
 
+## A skill button taken over by interaction this frame (Interact): -1 none, 0 click, 1 pad A.
+static var claim := -1
+
 static func setup_input_map() -> void:
 	_key("move_up", [KEY_W, KEY_UP])
 	_key("move_down", [KEY_S, KEY_DOWN])
@@ -50,6 +53,7 @@ static func setup_input_map() -> void:
 	_key("passives", [KEY_P])
 	_key("loadout", [KEY_X])
 	_key("town", [KEY_H])
+	_key("interact", [KEY_G])
 	_key("respawn", [KEY_ENTER])
 	_mouse("skill_1", MOUSE_BUTTON_LEFT)
 	_mouse("skill_2", MOUSE_BUTTON_RIGHT)
@@ -196,7 +200,7 @@ func poll_local(world_mouse: Vector2, ui_blocking: bool, me: Actor = null) -> vo
 		_latched = false
 	var now := int(Game.instance._clock * 1000.0) if Game.instance else Time.get_ticks_msec()
 	for i in SKILL_ACTIONS.size():
-		var blocked := ui_blocking and (using_pad or i < 2)
+		var blocked := (ui_blocking and (using_pad or i < 2)) or i == claim
 		if Input.is_action_just_pressed(SKILL_ACTIONS[i]) and not blocked:
 			_buffered[i] = now
 		var buffered: bool = now - int(_buffered[i]) < BUFFER_MS

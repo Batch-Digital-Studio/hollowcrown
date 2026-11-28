@@ -146,6 +146,16 @@ The rest of the game is set aside; this is the build to perfect and then roll ou
       the arena, chasing Pale Lightning; enrage at 15%; loot shower and "Chapter I complete"
 - [x] Tests: `--chapter-probe` (21 checks: map, connectivity, monsters, named rares, 17 spells cast, boss phases, arena seal/open);
       pad test adds 9 chapter checks (title focus, stick, RT/X/B/Y casts, loadout swap, spellbook open/close)
+- [x] Chapter I is the test chapter (Jason): all spells unlocked; pacing and spell-earning come later for the real campaign
+- [x] Interaction (Jason): chests, items, currency, herbs, levers, kettle are used with A (pad, context prompt), click
+      (walk to it) or G; pause-menu toggles Auto-loot and Auto-gather, off by default, saved in settings
+- [x] Herbalism, the first trade: Emberhood (forest), Bogbloom (swamp), Gravemoss (barrow), about 70 patches that regrow;
+      herbs live in the purse with where they grow and what they brew; the Herbalist's Kettle in the camp: Steeped Flask
+      (3 ranks), four 3-minute tonics, Wardstone Philter (needs all three regions). Costs and effects shown before brewing
+- [x] World shortcuts: Old Drawbridge (lever on the swamp side lowers it over the river), Barrow Gate (opened from the
+      barrow side), Leaning Deadwood (knock the dead tree down across the water)
+- [x] Readability: every normal monster attack has a short tell (melee arc / shot line / cast ring) in the test chapter;
+      trees and tall props between the camera and the hero dither-fade; flash lights capped at 10 and impact floods drawn small
 - [ ] Not verified on Jason's PC: frame rate, look, controller feel. Screenshots taken with software rendering (1-2 fps)
 - [ ] Monster balance and boss tuning are first guesses; needs play
 - [ ] Wind sway on vegetation, canopy fade near the hero, footstep/ambience sounds per region

@@ -18,6 +18,7 @@ func setup(it: Item, pos: Vector2, scatter: Vector2) -> void:
 	z_index = 3
 
 func _ready() -> void:
+	add_to_group("interactable")
 	if filtered:
 		_label_w = ThemeDB.fallback_font.get_string_size(item.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 		modulate = Color(1, 1, 1, 0.45)
@@ -50,16 +51,31 @@ func _process(delta: float) -> void:
 	var g := Game.instance
 	var show_h: bool = g != null and bool(g.loot_filter.get("show_hidden", false))
 	visible = not filtered or show_h
-	if g and g.player and not g.player.dead and _t > 0.35 and visible:
-		if g.player.global_position.distance_to(global_position) < 42.0:
-			if g.player.add_to_inventory(item):
-				FX.text(global_position, item.name, item.color(), 18)
-				FX.burst(global_position, item.color(), 12, 160.0, 6.0, 0.4)
-				FX.sound("pickup", null, -10.0)
-				g.on_item_picked(item)
-				queue_free()
-				return
 	queue_redraw()
+
+# --- Interact: click / A to pick up; Auto-loot picks it up when you walk over it ---
+func can_interact() -> bool:
+	return _t > 0.35 and visible and not is_queued_for_deletion()
+func interact_label() -> String:
+	return "Pick up " + item.name
+func interact_kind() -> String:
+	return "loot"
+func interact_range() -> float:
+	return 90.0
+func auto_range() -> float:
+	return 42.0
+func hover_offset() -> Vector2:
+	return Vector2(0, _label_y)
+func interact(p: Player) -> void:
+	var g := Game.instance
+	if p.add_to_inventory(item):
+		FX.text(global_position, item.name, item.color(), 18)
+		FX.burst(global_position, item.color(), 12, 160.0, 6.0, 0.4)
+		FX.sound("pickup", null, -10.0)
+		g.on_item_picked(item)
+		queue_free()
+	else:
+		FX.text(p.global_position, "Inventory full", Color(1.0, 0.5, 0.4), 18)
 
 func _draw() -> void:
 	var c := item.color()

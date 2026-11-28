@@ -35,6 +35,18 @@ func spawn_world() -> void:
 		g.world_layer.add_child(c)
 	_spawn_boss()
 	found[0] = true
+	for hb in C.herbs:
+		var h := ChapterNodes.Herb.new()
+		h.id = hb.id
+		h.position = hb.pos
+		g.world_layer.add_child(h)
+	for i in C.shortcuts.size():
+		var sc := ChapterNodes.ShortcutGate.new()
+		sc.setup(C.shortcuts[i], i)
+		g.world_layer.add_child(sc)
+	var k := ChapterNodes.Kettle.new()
+	k.position = C.kettle
+	g.world_layer.add_child(k)
 
 func _spawn_pack(pk: Dictionary) -> void:
 	var lvl: int = ChapterDB.AREA_LEVEL[int(pk.region)]
@@ -158,6 +170,14 @@ func cache_opened(pos: Vector2) -> void:
 	caches_found += 1
 	g.hud.show_message("Hidden Cache", "%d of %d found" % [caches_found, zone.chapter.caches.size()])
 	FX.event3d("cache", pos, "light", 0.0)
+
+## One-time tips that teach a mechanic the first time it comes up.
+var _hints := {}
+func hint(key: String, big: String, small: String) -> void:
+	if _hints.has(key):
+		return
+	_hints[key] = true
+	g.hud.show_message(big, small)
 
 func respawn_point() -> Vector2:
 	var wps: Array = zone.chapter.waypoints

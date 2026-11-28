@@ -57,3 +57,23 @@ func _draw() -> void:
 			var w := 34.0
 			draw_rect(Rect2(hp.x - w / 2, hp.y - 6, w, 4), Color(0, 0, 0, 0.7))
 			draw_rect(Rect2(hp.x - w / 2, hp.y - 6, w * m.life / m.max_life, 4), Color(0.45, 0.9, 0.35))
+	_draw_interact(g, f, iso)
+
+## The usable thing in reach: a ring under it and a button prompt ("A  Open Chest").
+func _draw_interact(g: Game, f: Font, iso: bool) -> void:
+	var n: Node2D = g.interact_hover if g.interact_hover else g.interact_focus
+	if n == null or not is_instance_valid(n) or g.state != "play":
+		return
+	var t := Time.get_ticks_msec() * 0.001
+	var pos := n.global_position
+	var sp := IsoView.screen_of(IsoView.to3d(pos, 0.0)) if iso else pos
+	var col := Color(1.0, 0.85, 0.45)
+	draw_arc(sp, 26.0 + 3.0 * sin(t * 5.0), 0, TAU, 32, Color(col.r, col.g, col.b, 0.8), 2.0, true)
+	var key := "A" if PlayerInput.using_pad else ("Click" if n == g.interact_hover else "G")
+	var txt: String = "%s   %s" % [key, n.interact_label()]
+	var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	var at := sp + Vector2(-w / 2, 52)
+	draw_rect(Rect2(at + Vector2(-8, -15), Vector2(w + 16, 22)), Color(0, 0, 0, 0.72))
+	draw_rect(Rect2(at + Vector2(-8, -15), Vector2(w + 16, 22)), col.darkened(0.3), false, 1.0)
+	draw_string(f, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, col)
+

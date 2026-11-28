@@ -45,6 +45,8 @@ static func parse_essence(id: String) -> Array:
 static func info(id: String) -> Dictionary:
 	if CURRENCY.has(id):
 		return CURRENCY[id]
+	if BrewingDB.HERBS.has(id):
+		return BrewingDB.HERBS[id]
 	var e := parse_essence(id)
 	if e.is_empty() or not ESSENCES.has(e[0]):
 		return {"name": id, "color": Color.GRAY, "desc": ""}
@@ -60,6 +62,9 @@ static func ordered(have: Dictionary) -> Array:
 	var out: Array = []
 	for k in CURRENCY:
 		if int(have.get(k, 0)) > 0 or k == "ember_shards":
+			out.append(k)
+	for k in BrewingDB.HERBS:
+		if int(have.get(k, 0)) > 0:
 			out.append(k)
 	var ess: Array = []
 	for k in have:

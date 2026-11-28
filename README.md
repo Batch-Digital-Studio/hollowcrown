@@ -6,7 +6,11 @@ A co-op dark-fantasy ARPG prototype, built in Godot 4.7. Built with Claude, one 
 **Chapter I: The Hollow Crown** is the new build: pick it on the title screen (or run with `--chapter`).
 One big map (forest, swamp, barrow hills), a Mage with Fire, Ice, Lightning, Chaos and Light spells on two loadouts
 (D-pad left/right or X swaps), named rares, hidden caches off the trails, and Morrhal, the Hollow King, at the end.
-Touch a waystone to make it your respawn point.
+Touch a waystone to make it your respawn point. Chapter I is the **test chapter**: everything is unlocked there.
+
+**Interacting:** chests, items, herbs, levers and the brewing kettle wait for you. Controller: walk up and press **A**
+(the prompt shows; A only casts when nothing is in reach). Mouse: click it. Keyboard: **G** uses the nearest.
+Pause menu: **Auto-loot** and **Auto-gather** (off by default) collect them when you walk close.
 
 1. Open Godot 4.7.2 → **Import** → pick this folder's `project.godot` → **Import & Edit**.
 2. Press **F5** (or the ▶ Play button, top right).

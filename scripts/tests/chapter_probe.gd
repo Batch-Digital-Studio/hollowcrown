@@ -12,8 +12,14 @@ func ok(cond: bool, what: String) -> void:
 		fails += 1
 		print("FAIL ", what)
 
+var saw_tell := false
+
 func _process(delta: float) -> void:
 	t += delta
+	if Game.instance and Game.instance.fx_node:
+		for c in Game.instance.fx_node.get_children():
+			if c is TellMark:
+				saw_tell = true
 	var g := Game.instance
 	if g == null or g.player == null or g.zone == null:
 		return
@@ -66,10 +72,53 @@ func _process(delta: float) -> void:
 				print("  could not cast ", s)
 		ok(cast >= g.player.unlocked_rites().size() - 1, "cast %d spells" % cast)
 		set_meta("tgt", tgt)
+		# herbalism: herbs placed per region, one gathered
+		var herbs: Array = []
+		var shorts: Array = []
+		var kettle = null
+		for c in g.world_layer.get_children():
+			if c is ChapterNodes.Herb:
+				herbs.append(c)
+			elif c is ChapterNodes.ShortcutGate:
+				shorts.append(c)
+			elif c is ChapterNodes.Kettle:
+				kettle = c
+		var per := {}
+		for h in herbs:
+			per[h.id] = int(per.get(h.id, 0)) + 1
+		ok(herbs.size() >= 45 and per.size() == 3, "herbs placed %s" % str(per))
+		ok(shorts.size() == 3, "3 shortcuts")
+		ok(kettle != null, "kettle in camp")
+		var h0: ChapterNodes.Herb = herbs[0]
+		set_meta("herb", h0)
+		set_meta("before", int(g.player.currency.get(h0.id, 0)))
+		g.player.global_position = h0.global_position + Vector2(40, 0)
+		Interact.use(g, h0)
+		for sc in shorts:
+			ok(sc._body != null and is_instance_valid(sc._body), "%s blocks the way before opening" % sc.data.name)
+			Interact.use(g, sc)
+		set_meta("shorts", shorts)
+		var wolf := g.spawn_enemy("dusk_wolf", 2, "normal", [], g.player.global_position + Vector2(-60, 30))
+		wolf.aggro = true
 	if step == 2 and t > 3.0:
 		step = 3
 		var tgt: Enemy = get_meta("tgt")
 		ok(tgt.life < tgt.max_life, "spells dealt damage")
+		var h0: ChapterNodes.Herb = get_meta("herb")
+		ok(int(g.player.currency.get(h0.id, 0)) > int(get_meta("before")) and not h0.grown, "gathered %s" % h0.id)
+		for sc in get_meta("shorts"):
+			ok(sc.opened and not is_instance_valid(sc._body), "%s opened" % sc.data.name)
+		# brewing: not enough herbs is refused; then brew a flask rank and a tonic
+		g.player.currency["emberhood"] = 0
+		ok(not g.hud.brew_ui.brew(0), "brew refused without herbs")
+		g.player.currency["emberhood"] = 20
+		g.player.currency["bogbloom"] = 5
+		var life0 := g.player.max_life
+		ok(g.hud.brew_ui.brew(0) and int(g.player.brews.get("steeped_flask", 0)) == 1, "brewed Steeped Flask rank 1")
+		ok(g.player.stats.get_stat("flask_heal_inc") >= 25.0, "flask heals more")
+		ok(g.hud.brew_ui.brew(2) and g.player.tonic_id == "rime_tonic" and g.player.stats.get_stat("inc_cold_damage") >= 30.0, "Rime Tonic active")
+		ok(saw_tell, "monsters show a tell before attacking")
+		ok(int(g.player.currency.emberhood) == 17 and int(g.player.currency.bogbloom) == 2, "herbs were spent")
 		ok(tgt.blind_time > 0.0 or tgt.get_meta("was_blind", false) or true, "blind applied (soft)")
 		# boss: teleport to the arena, check the seal and the phases
 		var A: Dictionary = g.zone.chapter.arena

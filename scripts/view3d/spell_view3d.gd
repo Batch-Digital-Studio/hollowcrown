@@ -82,6 +82,14 @@ func _on_event(kind: String, pos: Vector2, e: String, radius: float, extra: Dict
 				ElementFx.nova(self, _p(to), 8.0, "cold"))
 		"gate":
 			_gate(extra)
+		"herb":
+			var c3h := _chapter3d()
+			if c3h:
+				c3h.set_herb(pos, bool(extra.get("on", true)))
+		"shortcut":
+			var c3s := _chapter3d()
+			if c3s:
+				c3s.open_shortcut(int(extra.get("index", -1)))
 		"cache":
 			ElementFx.nova(self, _p(pos), 2.0, "light")
 			var c3 := _chapter3d()

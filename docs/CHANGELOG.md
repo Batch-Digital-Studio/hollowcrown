@@ -144,3 +144,13 @@
 - Zone size is now variable (classic zones stay 90 x 70; the chapter is 180 x 180 cells).
 - Tests: chapter probe 0 failures; pad test 0 failures (now 9 chapter checks too); menu 37/37; iso 16/16; slice 9/9; nav, asc, damage, items, crafting pass.
 - Not verified on Jason's PC.
+
+## 2026-11-27 — Design philosophy, interaction, herbalism, shortcuts, readability (test chapter)
+- `docs/PHILOSOPHY.md` (Jason's brief) and `docs/DECISIONS.md` updated with his answers: pace is a blend; shortcuts first;
+  gathering is a substantial side path; Chapter I is the test chapter with everything unlocked.
+- Interaction system (`scripts/world/interact.gd`): A / click / G; Auto-loot and Auto-gather toggles in the pause menu.
+- Herbalism (`brewing_db.gd`, `chapter_nodes.gd`, `brew_ui.gd`), three shortcuts, monster tells (`tell_mark.gd`),
+  tree fade near the hero, effect budget. New Blender models: kettle, lever, gate, Bogbloom, Gravemoss.
+- Tests: chapter probe 0 failures (adds herbs, shortcuts, brewing, tells); pad test 0 failures (adds chest/item with A,
+  auto-loot, herb gather, kettle open, D-pad recipe, brew, close); menu 37/37, iso 16/16, slice 9/9, nav, asc, unit tests pass.
+- Not verified on Jason's PC.

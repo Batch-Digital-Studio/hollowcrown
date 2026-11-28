@@ -515,5 +515,110 @@ func _process(delta: float) -> void:
 		178:
 			if t > 32.2:
 				check("B closes the spellbook", not g.hud.class_ui.visible)
+				# interaction: a chest next to the hero; A opens it (and does not cast)
+				g.set_auto("loot", false)
+				g.set_auto("gather", false)
+				for e in g.enemies:
+					if e.global_position.distance_to(g.player.global_position) < 900.0:
+						e.dead = true
+						e.visible = false
+				var ch := Chest.new()
+				ch.position = g.player.global_position + Vector2(60, 0)
+				g.world_layer.add_child(ch)
+				mem["chest"] = ch
+				step = 179
+		179:
+			if t > 32.6:
+				var ch: Chest = mem.chest
+				check("Auto-loot off: walking up does not open the chest", not ch.opened)
+				check("the chest is focused with a prompt", g.interact_focus == ch)
+				mem["act"] = g.player.act_serial
+				tap(JOY_BUTTON_A)
+				step = 180
+		180:
+			if t > 33.1:
+				var ch: Chest = mem.chest
+				check("A opens the chest", ch.opened)
+				check("A did not also cast a spell", g.player.act_serial == int(mem.act))
+				var it := Loot.make_item(3, g.rng, "", 0.0)
+				g.drop_item(it, g.player.global_position + Vector2(-50, 0))
+				step = 181
+		181:
+			if t > 33.8:
+				var n := 0
+				for c in g.fx_node.get_children():
+					if c is Pickup:
+						n += 1
+				mem["n"] = n
+				check("dropped item waits to be picked up", n > 0)
+				tap(JOY_BUTTON_A)
+				step = 182
+		182:
+			if t > 34.3:
+				var n := 0
+				for c in g.fx_node.get_children():
+					if c is Pickup and not c.is_queued_for_deletion():
+						n += 1
+				check("A picks up the item", n < int(mem.n))
+				g.set_auto("loot", true)
+				var ch2 := Chest.new()
+				ch2.position = g.player.global_position + Vector2(0, 40)
+				g.world_layer.add_child(ch2)
+				mem["chest2"] = ch2
+				step = 183
+		183:
+			if t > 34.8:
+				check("Auto-loot on: walking up opens the chest", (mem.chest2 as Chest).opened)
+				g.set_auto("loot", false)
+				# herbalism on the pad: A gathers a herb, A at the kettle opens brewing, D-pad + A brews, B closes
+				var herb: ChapterNodes.Herb = null
+				for c in g.world_layer.get_children():
+					if c is ChapterNodes.Herb and c.grown:
+						herb = c
+						break
+				mem["herb"] = herb
+				mem["h0"] = int(g.player.currency.get(herb.id, 0))
+				g.player.global_position = herb.global_position + Vector2(50, 0)
+				step = 184
+		184:
+			if t > 35.2:
+				check("the herb is focused (%s)" % g.interact_focus, g.interact_focus == mem.herb)
+				tap(JOY_BUTTON_A)
+				step = 185
+		185:
+			if t > 36.3:
+				var herb: ChapterNodes.Herb = mem.herb
+				check("A gathers the herb", int(g.player.currency.get(herb.id, 0)) > int(mem.h0) and not herb.grown)
+				g.player.global_position = g.zone.chapter.kettle + Vector2(60, 40)
+				g.player.currency["emberhood"] = 10
+				step = 186
+		186:
+			if t > 36.8:
+				check("the kettle is focused", g.interact_focus is ChapterNodes.Kettle)
+				tap(JOY_BUTTON_A)
+				step = 187
+		187:
+			if t > 37.3:
+				check("A at the kettle opens brewing", g.hud.brew_ui.visible)
+				check("opening it did not brew by accident", int(g.player.brews.get("steeped_flask", 0)) == 0)
+				tap(JOY_BUTTON_DPAD_DOWN)
+				step = 188
+		188:
+			if t > 37.7:
+				check("D-pad moves the recipe selection", g.hud.brew_ui.sel == 1)
+				tap(JOY_BUTTON_DPAD_UP)
+				step = 189
+		189:
+			if t > 38.1:
+				tap(JOY_BUTTON_A)
+				step = 190
+		190:
+			if t > 38.6:
+				check("A brews Steeped Flask", int(g.player.brews.get("steeped_flask", 0)) == 1)
+				tap(JOY_BUTTON_B)
+				step = 191
+		191:
+			if t > 39.1:
+				check("B closes brewing", not g.hud.brew_ui.visible and not get_tree().paused)
 				print("PAD FAILURES: ", fails)
 				get_tree().quit(1 if fails > 0 else 0)

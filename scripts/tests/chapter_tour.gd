@@ -7,6 +7,7 @@ const STOPS := [
 	["camp", 0.0], ["oak", 0.0], ["route_forest", 0.18], ["bridge", -1.0], ["shrine", 0.0], ["lake", 0.0],
 	["swamp_route", 0.58], ["ruins", 0.0], ["graves", 0.0], ["cache", 0.0], ["arena", 0.0], ["boss", 0.0],
 	["rare", 0.0], ["boss_fight", 0.0], ["boss_p3", 0.0],
+	["kettle", 0.0], ["brew", 0.0], ["herb", 0.0], ["drawbridge", 0.0], ["gate", 0.0], ["log", 0.0], ["tells", 0.0], ["fade", 0.0],
 ]
 const EVERY := 4.0
 
@@ -49,6 +50,33 @@ func _process(delta: float) -> void:
 					if e.rarity == "rare" and e.rare and not e.dead:
 						pos = e.global_position + Vector2(0, 260)
 						break
+			"kettle": pos = C.kettle + Vector2(70, 90)
+			"brew":
+				pos = C.kettle + Vector2(70, 90)
+				g.player.currency["emberhood"] = 7
+				g.player.currency["bogbloom"] = 4
+				g.get_tree().create_timer(1.5, false).timeout.connect(func(): g.hud.brew_ui.open())
+				g.get_tree().create_timer(3.8, true).timeout.connect(func(): g.hud.brew_ui.close())
+			"herb":
+				for c in g.world_layer.get_children():
+					if c is ChapterNodes.Herb and c.id == "bogbloom":
+						pos = c.global_position + Vector2(70, 40)
+						break
+			"drawbridge", "gate", "log":
+				var idx: int = {"drawbridge": 0, "gate": 1, "log": 2}[s]
+				var sc: Dictionary = C.shortcuts[idx]
+				pos = sc.lever + Vector2(60, 60)
+				for c in g.world_layer.get_children():
+					if c is ChapterNodes.ShortcutGate and c.index == idx:
+						var node: ChapterNodes.ShortcutGate = c
+						g.get_tree().create_timer(1.2, false).timeout.connect(func(): Interact.use(g, node))
+			"tells":
+				pos = C.glades[2].pos + Vector2(0, 260)
+				for e in g.enemies:
+					if e.global_position.distance_to(pos) < 700.0:
+						e.aggro = true
+			"fade":
+				pos = C.glades[1].pos + Vector2(-60, -230)
 			"boss_fight":
 				pos = C.arena.pos + Vector2(0, -C.arena.r_px * 0.15)
 			"boss_p3":

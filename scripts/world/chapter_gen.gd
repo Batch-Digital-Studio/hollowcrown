@@ -35,6 +35,7 @@ var props: Array = []
 var blockers: Array = []
 var bridges: Array = []
 var branch_ends: Array = []
+var shortcuts: Array = []
 
 const STAMP := 24
 
@@ -84,6 +85,7 @@ func run() -> void:
 	_branches()
 	_river()
 	_lakes()
+	_shortcuts()
 	z.start_cell = Vector2i(ChapterDB.SPINE[0])
 	z.grid = grid
 	z._keep_reachable()
@@ -95,6 +97,7 @@ func run() -> void:
 	_walls()
 	_scatter()
 	_blockers()
+	var herbs := _herbs()
 	var packs := _packs()
 	var arena := _arena()
 	var caches: Array = []
@@ -114,6 +117,7 @@ func run() -> void:
 		"region": region, "water": water, "pathm": pathm, "edge": edge,
 		"props": props, "blockers": blockers, "packs": packs, "caches": caches, "glades": glades,
 		"bridges": bridges, "arena": arena, "waypoints": wps, "route": rpx, "route_t": route_t,
+		"herbs": herbs, "shortcuts": shortcuts, "kettle": _px(_glade_center(0) + ChapterDB.KETTLE_OFFSET),
 	}
 
 func _px(c: Vector2) -> Vector2:
@@ -500,6 +504,86 @@ func _arena() -> Dictionary:
 	var gate_mid := c + dir * (r + 0.5)
 	var side := dir.orthogonal()
 	return {"pos": _px(c), "r_px": r * Zone.CELL, "gate_a": _px(gate_mid + side * 6.0), "gate_b": _px(gate_mid - side * 6.0), "gate_mid": _px(gate_mid), "dir": dir}
+
+# ------------------------------------------------------------------ shortcuts and herbs
+
+func _shortcuts() -> void:
+	for sc in ChapterDB.SHORTCUTS:
+		var a: Vector2 = sc.a
+		var b: Vector2 = sc.b
+		var n := int(a.distance_to(b))
+		for i in n + 1:
+			var q := a.lerp(b, float(i) / n)
+			for y in range(int(q.y) - 2, int(q.y) + 3):
+				for x in range(int(q.x) - 2, int(q.x) + 3):
+					if inb(x, y) and q.distance_to(Vector2(x, y)) <= 1.9:
+						grid[idx(x, y)] = 1
+						no_props[idx(x, y)] = 1
+		# a small landing at each end
+		_disc(a, 2.5, 0.3)
+		_disc(b, 2.5, 0.3)
+		var mid := (a + b) * 0.5
+		var dir := (b - a).normalized()
+		# the obstacle sits where the way crosses water (drawbridge, log), else in the middle (gate)
+		if sc.kind != "gate":
+			var wet: Array = []
+			for i in n + 1:
+				var q := a.lerp(b, float(i) / n)
+				if water[idx(int(q.x), int(q.y))] == 2:
+					wet.append(q)
+			if not wet.is_empty():
+				mid = (wet[0] + wet[wet.size() - 1]) * 0.5
+		var span := 6.0
+		if sc.kind != "gate":
+			var wet_n := 0
+			for i in n + 1:
+				var q := a.lerp(b, float(i) / n)
+				if water[idx(int(q.x), int(q.y))] == 2:
+					wet_n += 1
+			span = maxf(6.0, wet_n + 3.0)
+		var lever_at: Vector2 = (a if sc.lever == "a" else b)
+		lever_at += dir.orthogonal() * 2.0 + (dir if sc.lever == "a" else -dir) * 1.0
+		shortcuts.append({"kind": sc.kind, "name": sc.name, "a": _px(a), "b": _px(b), "mid": _px(mid), "dir": dir,
+			"span_px": span * Zone.CELL, "lever": _px(lever_at), "lever_side": sc.lever})
+
+func _herbs() -> Array:
+	var out: Array = []
+	var taken := {}
+	for hid in BrewingDB.HERBS:
+		var reg: int = BrewingDB.HERBS[hid].region
+		var placed := 0
+		var tries := 0
+		while placed < BrewingDB.HERBS_PER_REGION and tries < 4000:
+			tries += 1
+			var x := rng.randi_range(4, W - 5)
+			var y := rng.randi_range(4, H - 5)
+			var k := idx(x, y)
+			if grid[k] != 1 or region[k] != reg or water[k] == 2 or no_props[k] == 1:
+				continue
+			if dist[k] < 3.0 or edge_near(x, y) > 3:
+				continue
+			# bogbloom likes the water's edge
+			if hid == "bogbloom" and water[k] != 1 and rng.randf() < 0.7:
+				continue
+			var key := Vector2i(x / 4, y / 4)
+			if taken.has(key):
+				continue
+			taken[key] = true
+			out.append({"id": hid, "pos": _px(Vector2(x, y) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3)))})
+			placed += 1
+	# a guaranteed patch near the camp so the trade is found early
+	var camp := _glade_center(0)
+	for i in 3:
+		out.append({"id": "emberhood", "pos": _px(camp + Vector2(-7 + i * 1.6, -5 - (i % 2)))})
+	return out
+
+## Distance in cells to the nearest non-walkable cell (small radius); herbs like the edges of clearings.
+func edge_near(x: int, y: int) -> int:
+	for r in range(1, 9):
+		for d in [Vector2i(r, 0), Vector2i(-r, 0), Vector2i(0, r), Vector2i(0, -r)]:
+			if not inb(x + d.x, y + d.y) or grid[idx(x + d.x, y + d.y)] == 0:
+				return r
+	return 9
 
 # ------------------------------------------------------------------ monsters
 

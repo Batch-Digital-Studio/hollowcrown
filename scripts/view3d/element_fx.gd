@@ -20,6 +20,12 @@ const PAL := {
 }
 
 static var _mats := {}
+## Readability budget: heavy casting must not bury enemy tells, hazards or the hero.
+const MAX_FLASH_LIGHTS := 10
+const MAX_IMPACTS_PER_TICK := 6     # full-size impacts per 0.1 s; the rest are drawn small
+static var _flash_lights := 0
+static var _impact_tick := 0
+static var _impacts := 0
 
 ## Element of a skill: its "element" field, else the damage type it deals most of.
 static func of_skill(s: Dictionary) -> String:
@@ -279,7 +285,11 @@ static func ring(parent: Node3D, pos: Vector3, radius: float, c: Color, t: float
 	tw.tween_callback(m.queue_free)
 
 static func flash_light(parent: Node3D, pos: Vector3, c: Color, rng: float, energy: float, t: float) -> void:
+	if _flash_lights >= MAX_FLASH_LIGHTS:
+		return
+	_flash_lights += 1
 	var l := light(c, rng, energy)
+	l.tree_exiting.connect(func(): _flash_lights -= 1)
 	l.position = pos + Vector3(0, 0.8, 0)
 	parent.add_child(l)
 	_fade_free(l, t)
@@ -512,6 +522,14 @@ static func finish_bolt(parent: Node3D, v: Node3D) -> void:
 
 ## A hit: element-specific burst, light, and a lingering mark.
 static func impact(parent: Node3D, pos: Vector3, e: String, s: float) -> void:
+	var tick := Time.get_ticks_msec() / 100
+	if tick != _impact_tick:
+		_impact_tick = tick
+		_impacts = 0
+	_impacts += 1
+	if _impacts > MAX_IMPACTS_PER_TICK:   # a flood of hits: keep a small spark only
+		_burst_at(parent, particles("spark", e, 6, 0.3, true, 0.6), pos, 0.6)
+		return
 	var ground := Vector3(pos.x, 0.0, pos.z)
 	match e:
 		"fire":

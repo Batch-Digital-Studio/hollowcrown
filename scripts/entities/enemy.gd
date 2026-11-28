@@ -14,6 +14,9 @@ var _boss_cycle := 0
 var _summon_cd := 8.0
 var brain: BossBrain = null
 var rare: RareBrain = null     # Chapter 1 named rares
+var tell_t := 0.0              # test chapter: the warning before an attack lands
+var tell_sid := ""
+var tell_aim := Vector2.ZERO
 var _intro_done := false
 
 
@@ -109,6 +112,12 @@ func _physics_process(delta: float) -> void:
 	var to_p := p.global_position - global_position
 	var dist := to_p.length()
 	var move := Vector2.ZERO
+	if tell_t > 0.0:
+		tell_t -= delta
+		facing = (tell_aim - global_position).normalized() if tell_aim != global_position else facing
+		if tell_t <= 0.0:
+			busy_time = 0.0
+			SkillExec.use(tell_sid, self, tell_aim)
 	if aggro and busy_time <= 0.0:
 		facing = to_p.normalized()
 		match def.ai:
@@ -164,25 +173,53 @@ func _pick_target(g: Game, pl: Player, delta: float) -> Actor:
 func _ai_melee(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	var sid: String = def.skills[0]
 	if dist <= def.range + p.radius:
-		SkillExec.use(sid, self, p.global_position)
+		_attack(sid, p.global_position)
 		return Vector2.ZERO
 	return to_p.normalized()
 
 func _ai_ranged(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	var sid: String = def.skills[0]
 	if dist < def.range and game().has_line_of_sight(global_position, p.global_position):
-		SkillExec.use(sid, self, p.global_position + p.velocity * 0.25)
+		_attack(sid, p.global_position + p.velocity * 0.25)
 	if dist < def.keep_away:
 		return -to_p.normalized() * 0.8 + to_p.normalized().orthogonal() * _strafe * 0.5
 	if dist > def.range * 0.85:
 		return to_p.normalized()
 	return to_p.normalized().orthogonal() * _strafe * 0.6
 
+## Use a skill. In the test chapter a normal attack shows a short tell first (TellMark) so it can be
+## read and dodged: melee arc, shot line or cast ring. Telegraphed skills and bosses keep their own.
+func _attack(sid: String, aim: Vector2) -> void:
+	var g := game()
+	var s: Dictionary = SkillsDB.SKILLS[sid]
+	if not g.chapter_mode or is_boss() or String(s.get("behavior", "")) in ["telegraph", "summon"] or not can_use(sid):
+		SkillExec.use(sid, self, aim)
+		return
+	var dur: float = float(def.get("tell", 0.0))
+	if dur <= 0.0:
+		var b: String = String(s.get("behavior", ""))
+		dur = 0.38 if b == "melee_arc" else (0.32 if b == "projectile" else 0.45)
+		if type_id == "dusk_wolf":
+			dur = 0.3
+	if rare:
+		dur *= 0.85
+	tell_t = dur
+	tell_sid = sid
+	tell_aim = aim
+	busy_time = dur + 0.05
+	var m := TellMark.new()
+	m.user = self
+	m.skill = s
+	m.aim = aim
+	m.dur = dur
+	m.global_position = global_position
+	g.fx_node.add_child(m)
+
 ## Melee, but spits its second skill from range (spiders).
 func _ai_skirmish(p: Actor, to_p: Vector2, dist: float) -> Vector2:
 	var far_sk: String = def.skills[1]
 	if dist > 180.0 and dist < 520.0 and can_use(far_sk) and game().has_line_of_sight(global_position, p.global_position):
-		SkillExec.use(far_sk, self, p.global_position + p.velocity * 0.2)
+		_attack(far_sk, p.global_position + p.velocity * 0.2)
 		return Vector2.ZERO
 	return _ai_melee(p, to_p, dist)
 

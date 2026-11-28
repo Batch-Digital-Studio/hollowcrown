@@ -14,12 +14,15 @@ func setup(cid: String, n: int, pos: Vector2, scatter: Vector2) -> void:
 	_vel = scatter
 	z_index = 3
 
+func _ready() -> void:
+	add_to_group("interactable")
+
 func _process(delta: float) -> void:
 	_t += delta
 	position += _vel * delta
 	_vel = _vel.move_toward(Vector2.ZERO, 900.0 * delta)
 	var g := Game.instance
-	if g and g.player and not g.player.dead and _t > 0.3:
+	if g and g.player and not g.player.dead and _t > 0.3 and g.auto_loot:
 		var to := g.player.global_position - global_position
 		var d := to.length()
 		if d < 170.0:
@@ -30,6 +33,22 @@ func _process(delta: float) -> void:
 			queue_free()
 			return
 	queue_redraw()
+
+# --- Interact: click / A to pick up (Auto-loot pulls it in as before) ---
+func can_interact() -> bool:
+	return _t > 0.3 and not is_queued_for_deletion()
+func interact_label() -> String:
+	return "Pick up %s x%d" % [CurrencyDB.info(id).name, amount]
+func interact_kind() -> String:
+	return ""          # auto-loot handles currency with its own magnet above
+func interact_range() -> float:
+	return 90.0
+func auto_range() -> float:
+	return 0.0
+func interact(p: Player) -> void:
+	p.add_currency(id, amount)
+	FX.sound("pickup", null, -12.0, 0.2)
+	queue_free()
 
 func _draw() -> void:
 	var c: Color = CurrencyDB.info(id).color

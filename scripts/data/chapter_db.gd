@@ -82,6 +82,18 @@ const BRANCHES := [
 const PACK_SPACING := 15.0       # cells along the route between packs
 const RARE_EVERY := 4            # one pack in this many has a rare leader
 
+## World shortcuts (cells). The way between a and b is carved but blocked in the middle until opened:
+##   drawbridge: raised over the river; its lever is on the b side
+##   gate:       a rusted gate; its lever is on the a side
+##   log:        a dead tree standing at a; knock it down to cross the water to b
+const SHORTCUTS := [
+	{"kind": "drawbridge", "a": Vector2(130, 130), "b": Vector2(132, 104), "lever": "b", "name": "Old Drawbridge"},
+	{"kind": "gate", "a": Vector2(104, 57), "b": Vector2(106, 77), "lever": "a", "name": "Barrow Gate"},
+	{"kind": "log", "a": Vector2(117, 86), "b": Vector2(135, 82), "lever": "a", "name": "Leaning Deadwood"},
+]
+## The Herbalist's Kettle in the camp (cells from the camp centre).
+const KETTLE_OFFSET := Vector2(-4, 2)
+
 ## Rare monster names: "<first>, the <title>" like the old ARPGs. Picked with Game.rng.
 const RARE_FIRST := ["Grimfang", "Mourncaller", "Hollowmaw", "Skarrow", "Vexhide", "Ashgrin", "Duskreaver", "Bilegut",
 	"Wretchwyrm", "Thornheart", "Gloomtalon", "Rotcrown", "Murkspawn", "Cinderjaw", "Wailmother", "Bonechant"]

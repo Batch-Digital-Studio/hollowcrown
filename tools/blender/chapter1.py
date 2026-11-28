@@ -379,6 +379,120 @@ def make_bridge(seed, M):
     return ob
 
 
+# ---------------------------------------------------------------- crafting and shortcuts
+
+def make_cauldron(seed, M):
+    """The Herbalist's Kettle: an iron cauldron on a tripod over coals, with a ladle."""
+    rng = random.Random(seed)
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=14, v_segments=8, radius=0.55)
+    for v in list(bm.verts):
+        if v.co.z > 0.25:
+            bm.verts.remove(v)
+    pot = obj_from_bm("pot", bm, M["iron"])
+    pot.location = (0, 0, 0.75)
+    rim = _cyl("rim", 0.5, 0.5, 0.06, (0, 0, 1.0), M["iron"], 14)
+    brew = _cyl("brew", 0.46, 0.46, 0.04, (0, 0, 0.97), M["coal"], 14)
+    brew.data.materials[0] = material("Brew", (0.35, 0.8, 0.3), rough=0.2, emit=(0.4, 0.9, 0.3), emit_strength=3.0)
+    parts = [pot, rim, brew]
+    for k in range(3):
+        a = k / 3 * math.tau
+        parts.append(_cyl("leg", 0.04, 0.04, 1.9, (math.cos(a) * 0.5, math.sin(a) * 0.5, 0.95), M["wood"], 5, (math.sin(a) * 0.28, -math.cos(a) * 0.28, 0)))
+    parts.append(_cyl("chain", 0.015, 0.015, 0.7, (0, 0, 1.45), M["iron"], 4))
+    parts.append(_cyl("ladle", 0.025, 0.025, 0.9, (0.25, 0.1, 1.2), M["wood"], 5, (0.6, 0.3, 0)))
+    for k in range(7):
+        a = k / 7 * math.tau
+        parts.append(blob("stone", Vector((math.cos(a) * 0.62, math.sin(a) * 0.62, 0.08)), 0.14, rng, M["stone"], 0.7, 1, 0.15))
+    parts.append(blob("coals", Vector((0, 0, 0.05)), 0.35, rng, M["coal"], 0.3, 1, 0.1))
+    ob = join(parts, f"cauldron_{seed}")
+    flat(ob)
+    return ob
+
+
+def make_lever_base(seed, M):
+    parts = [_box("base", (0.7, 0.5, 0.45), (0, 0, 0.22), M["stone_dark"]), _box("slot", (0.12, 0.4, 0.08), (0, 0, 0.47), M["iron"])]
+    ob = join(parts, f"lever_base_{seed}")
+    flat(ob)
+    return ob
+
+
+def make_lever_handle(seed, M):
+    """Origin at the pivot; the handle leans +Y (glTF -Z). The game rotates it to pull."""
+    rng = random.Random(seed)
+    parts = [_cyl("shaft", 0.04, 0.04, 1.0, (0, 0, 0.5), M["iron"], 6), blob("knob", Vector((0, 0, 1.02)), 0.08, rng, M["coal"], 1.0, 1, 0.05)]
+    ob = join(parts, f"lever_handle_{seed}")
+    flat(ob)
+    return ob
+
+
+def make_gate(seed, M):
+    """A rusted iron gate between two stone posts, 4 m wide (along X). The bars rise when opened (game side)."""
+    rng = random.Random(seed)
+    parts = []
+    for s in (-1, 1):
+        p = _box("post", (0.7, 0.7, 3.2), (s * 2.4, 0, 1.6), M["stone"])
+        _chip(p, rng, 0.04)
+        parts.append(p)
+        parts.append(_box("cap", (0.9, 0.9, 0.25), (s * 2.4, 0, 3.3), M["stone_dark"]))
+    parts.append(_box("lintel", (5.6, 0.6, 0.45), (0, 0, 3.15), M["stone_dark"]))
+    ob = join(parts, f"gate_frame_{seed}")
+    uv_project(ob, 1.5)
+    flat(ob)
+    return ob
+
+
+def make_gate_bars(seed, M):
+    parts = []
+    for i in range(9):
+        x = -1.9 + i * 0.475
+        parts.append(_cyl("bar", 0.05, 0.05, 2.9, (x, 0, 1.45), M["iron"], 6))
+        parts.append(_cyl("spike", 0.06, 0.0, 0.18, (x, 0, 0.0), M["iron"], 4, (math.pi, 0, 0)))
+    for z in (0.6, 1.7, 2.7):
+        parts.append(_box("rail", (4.0, 0.08, 0.1), (0, 0, z), M["iron"]))
+    ob = join(parts, f"gate_bars_{seed}")
+    flat(ob)
+    return ob
+
+
+def make_bogbloom(seed, M):
+    """Herb: pale blue bell flowers on long stems, glowing faintly. Grows at the swamp's edges."""
+    rng = random.Random(seed)
+    glow = material("BogbloomPetal", (0.55, 0.8, 1.0), rough=0.4, emit=(0.4, 0.75, 1.0), emit_strength=2.5)
+    parts = []
+    for k in range(7):
+        x, y = rng.uniform(-0.25, 0.25), rng.uniform(-0.25, 0.25)
+        h = rng.uniform(0.35, 0.7)
+        parts.append(_cyl("stem", 0.012, 0.012, h, (x, y, h / 2), M["reed"], 4))
+        parts.append(_cyl("bell", 0.0, 0.07, 0.12, (x, y, h - 0.02), glow, 6, (math.pi, 0, 0)))
+    for k in range(5):
+        a = k / 5 * math.tau
+        bm = bmesh.new()
+        bmesh.ops.create_circle(bm, cap_ends=True, segments=6, radius=0.14)
+        lf = obj_from_bm("leaf", bm, M["lily"])
+        lf.location = (math.cos(a) * 0.2, math.sin(a) * 0.2, 0.03)
+        lf.scale = (1.0, 0.45, 1.0)
+        lf.rotation_euler = (0, 0, a)
+        parts.append(lf)
+    return join(parts, f"bogbloom_{seed}")
+
+
+def make_gravemoss(seed, M):
+    """Herb: pale moss with white spore heads on an old bone-grey stone. Grows in the barrows."""
+    rng = random.Random(seed)
+    moss = material("Gravemoss", (0.62, 0.72, 0.5), rough=0.95)
+    spore = material("GravemossSpore", (0.9, 0.95, 0.85), rough=0.5, emit=(0.75, 0.9, 0.7), emit_strength=1.6)
+    parts = [blob("stone", Vector((0, 0, 0.12)), 0.32, rng, M["stone_dark"], 0.55, 1, 0.12)]
+    parts.append(blob("moss", Vector((0.02, 0, 0.26)), 0.3, rng, moss, 0.4, 1, 0.18))
+    for k in range(12):
+        x, y = rng.uniform(-0.25, 0.25), rng.uniform(-0.25, 0.25)
+        h = rng.uniform(0.08, 0.2)
+        parts.append(_cyl("stalk", 0.008, 0.008, h, (x, y, 0.3 + h / 2), moss, 3))
+        parts.append(blob("spore", Vector((x, y, 0.31 + h)), 0.025, rng, spore, 1.0, 1, 0.0))
+    ob = join(parts, f"gravemoss_{seed}")
+    flat(ob)
+    return ob
+
+
 # ---------------------------------------------------------------- creatures
 
 def anims(arm, idle, run, attack, hit, death, cast=None):
@@ -571,6 +685,10 @@ def main():
         ("pillar_ruin", lambda M: make_pillar_ruin(3, M)), ("pillar_great", lambda M: make_pillar_great(1, M)), ("tower_ruin", lambda M: make_tower_ruin(2, M)),
         ("throne", lambda M: make_throne(1, M)), ("brazier", lambda M: make_brazier(1, M)), ("campfire", lambda M: make_campfire(1, M)),
         ("tent", lambda M: make_tent(1, M)), ("waystone", lambda M: make_waystone(1, M)), ("bridge", lambda M: make_bridge(1, M)),
+        ("cauldron", lambda M: make_cauldron(1, M)), ("lever_base", lambda M: make_lever_base(1, M)),
+        ("lever_handle", lambda M: make_lever_handle(1, M)), ("gate_frame", lambda M: make_gate(1, M)),
+        ("gate_bars", lambda M: make_gate_bars(1, M)), ("bogbloom", lambda M: make_bogbloom(3, M)),
+        ("gravemoss", lambda M: make_gravemoss(4, M)),
     ]
     for name, fn in jobs:
         if WW.ARGS.only and name not in WW.ARGS.only.split(","):

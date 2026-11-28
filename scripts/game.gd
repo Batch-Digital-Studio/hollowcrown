@@ -58,6 +58,11 @@ var _rift_log := 0.0
 var _near_boss_level := 0
 var iso_view: IsoView
 var _menu_block := false
+var auto_loot := false          # settings: walk over loot / chests to take them (off = click / A)
+var auto_gather := false        # settings: walk over herbs to gather them
+var interact_focus: Node2D = null   # nearest usable thing (pad prompt, A / G)
+var interact_hover: Node2D = null   # under the mouse
+var interact_goal: Node2D = null    # clicked: the hero walks there and uses it
 var chapter_mode := false        # Chapter 1: The Hollow Crown (the new large open map)
 var chapter: ChapterRun = null
 var slice_mode := false          # Whisperwood Clearing playtest (Godot side of the Unreal comparison)
@@ -110,6 +115,11 @@ func _ready() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
 	var want_3d: bool = cfg.get_value("view", "iso", true)
+	auto_loot = cfg.get_value("play", "auto_loot", false)
+	auto_gather = cfg.get_value("play", "auto_gather", false)
+	if OS.get_cmdline_user_args().has("--auto-loot"):
+		auto_loot = true
+		auto_gather = true
 	var args := OS.get_cmdline_user_args()
 	if args.has("--2d"):
 		want_3d = false
@@ -210,6 +220,49 @@ func set_view_3d(on: bool) -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("view", "iso", on)
 	cfg.save(SETTINGS_PATH)
+
+func set_auto(kind: String, on: bool) -> void:
+	if kind == "loot":
+		auto_loot = on
+	else:
+		auto_gather = on
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("play", "auto_" + kind, on)
+	cfg.save(SETTINGS_PATH)
+
+## Interaction each frame: automatic pickups, the focused / hovered thing, A / G / click, walk-to.
+func _interact_tick() -> void:
+	var list := Interact.candidates(self)
+	var pp := player.global_position
+	for n in list:
+		var k: String = n.interact_kind()
+		if (k == "loot" and auto_loot) or (k == "gather" and auto_gather):
+			if (n as Node2D).global_position.distance_to(pp) < float(n.auto_range()):
+				n.interact(player)
+	list = Interact.candidates(self)
+	interact_focus = Interact.nearest(self, list)
+	interact_hover = null if PlayerInput.using_pad else Interact.hovered(self, list, get_global_mouse_position())
+	PlayerInput.claim = -1
+	if PlayerInput.using_pad and interact_focus:
+		PlayerInput.claim = 1          # A uses the thing instead of casting
+	elif not PlayerInput.using_pad and interact_hover:
+		PlayerInput.claim = 0          # a click on it is not an attack
+	if PlayerInput.using_pad and interact_focus and Input.is_action_just_pressed("skill_2"):
+		Interact.use(self, interact_focus)
+	elif not PlayerInput.using_pad and interact_hover and Input.is_action_just_pressed("skill_1"):
+		interact_goal = interact_hover
+	if Input.is_action_just_pressed("interact") and interact_focus:
+		Interact.use(self, interact_focus)
+	# walk to a clicked thing, then use it; any manual move cancels
+	if interact_goal:
+		if not is_instance_valid(interact_goal) or not interact_goal.can_interact() or player.input.move.length() > 0.2:
+			interact_goal = null
+		elif interact_goal.global_position.distance_to(pp) <= float(interact_goal.interact_range()):
+			Interact.use(self, interact_goal)
+		else:
+			player.input.move = (interact_goal.global_position - pp).normalized()
+			player.input.aim = interact_goal.global_position
 
 ## World point at the centre of the screen (either view).
 func view_center() -> Vector2:
@@ -991,11 +1044,15 @@ func _process(delta: float) -> void:
 	if state == "play" and player and not player.dead and not paused:
 		if bot:
 			bot.drive(player, self)
+			auto_loot = true      # the test bot walks over loot
+			auto_gather = true
+			_interact_tick()
 		elif inv_ui.visible:
 			player.input.latch()          # keeps move and skills at rest while the bag is open
 			player.input.aim = get_global_mouse_position() if not PlayerInput.using_pad else player.input.aim
 		else:
 			player.input.poll_local(get_global_mouse_position(), false, player)
+			_interact_tick()
 		camera.global_position = player.global_position + (player.input.aim - player.global_position).limit_length(220.0) * 0.18
 		minimap.update(player.global_position, delta)
 		_save_t += delta
@@ -1038,7 +1095,9 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("loadout") and state == "play" and not paused and not inv_ui.visible and player and not player.dead:
 		player.swap_loadout()
 	if Input.is_action_just_pressed("pause") and state == "play":
-		if hud.world_map.visible:
+		if hud.brew_ui.visible:
+			hud.brew_ui.close()
+		elif hud.world_map.visible:
 			hud.world_map.toggle()
 		elif hud.passives.visible:
 			hud.passives.toggle()

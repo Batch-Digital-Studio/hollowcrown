@@ -17,12 +17,16 @@ const ALIAS := {
 ## kinds that do not cast shadows (small ground cover)
 const NO_SHADOW := ["grass_1", "grass_2", "fern_1", "fern_2", "flowers_1", "mushroom_plain", "mushroom_ember", "rock_3",
 	"reeds_1", "reeds_2", "lily_pads", "bone_A", "skull", "swamp_hummock"]
+## Tall things that fade out when they stand between the camera and the hero.
+const OCCLUDERS := ["tree_dying_1", "tree_dying_2", "tree_dying_3", "tree_dead_1", "dead_large", "swamp_cypress",
+	"swamp_cypress_2", "swamp_snag", "hollow_oak", "tower_ruin", "pillar_great", "crypt", "standing_stone", "rock_2"]
 ## per-kind scale fix for imported kits (KayKit halloween is sized differently)
 const KIND_SCALE := {"gravestone": 0.62, "grave_A": 0.55, "grave_A_destroyed": 0.55, "coffin": 0.62, "crypt": 0.95,
 	"tree_dead_large": 1.3, "tree_dead_small": 1.2, "shrine_candles": 0.85, "skull": 0.3, "bone_A": 0.6,
 	"barrel_large": 0.5, "crates_stacked": 0.55, "banner_red": 0.7, "rubble_large": 0.3, "rubble_half": 0.35}
 
 static var _mesh_cache := {}
+var fade_batches: Array = []   # {chunk, mm, pos, faded}
 
 var zone: Zone
 var C: Dictionary
@@ -90,6 +94,49 @@ static func merged(path: String) -> ArrayMesh:
 	_mesh_cache[path] = out
 	return out
 
+## The same mesh with dither-fade materials (instance colour alpha): used for things that may hide the hero.
+static func merged_fade(path: String) -> ArrayMesh:
+	var key := path + "|fade"
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var src := merged(path)
+	if src == null:
+		return null
+	var out := src.duplicate() as ArrayMesh
+	for s in out.get_surface_count():
+		var m := out.surface_get_material(s)
+		if m is BaseMaterial3D:
+			var d := (m as BaseMaterial3D).duplicate() as BaseMaterial3D
+			d.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_HASH
+			d.vertex_color_use_as_albedo = true
+			out.surface_set_material(s, d)
+	_mesh_cache[key] = out
+	return out
+
+## Fade trees and tall props between the camera and the hero (dithered, so no sorting problems).
+func _fade_occluders(delta: float) -> void:
+	var g := Game.instance
+	if g == null or g.player == null:
+		return
+	var hp := IsoView.to3d(g.player.global_position)
+	var cam := Vector2(1, 1).normalized()          # towards the camera on the ground (south-east)
+	for fb in fade_batches:
+		if not (fb.node as Node3D).visible:
+			continue
+		var pos: PackedVector3Array = fb.pos
+		var al: PackedFloat32Array = fb.alpha
+		var reach: float = clampf(float(fb.h) * 0.8, 2.0, 9.0)
+		var mm: MultiMesh = fb.mm
+		for i in pos.size():
+			var d := Vector2(pos[i].x - hp.x, pos[i].z - hp.z)
+			var along := d.dot(cam)
+			var lat := absf(d.cross(cam))
+			var want := 0.28 if (along > -1.0 and along < reach and lat < 3.0 + along * 0.15) else 1.0
+			if absf(al[i] - want) > 0.01:
+				al[i] = move_toward(al[i], want, delta * 3.0)
+				mm.set_instance_color(i, Color(1, 1, 1, al[i]))
+		fb.alpha = al
+
 func height_at(px: Vector2) -> float:
 	var W := Zone.W
 	var H := Zone.H
@@ -117,17 +164,18 @@ func _add(kind: String, xf: Transform3D, px: Vector2) -> void:
 	var k := Vector2i(int(px.x * IsoView.S / CHUNK_M), int(px.y * IsoView.S / CHUNK_M))
 	var key := "%d,%d|%s" % [k.x, k.y, path]
 	if not _batches.has(key):
-		_batches[key] = {"path": path, "xforms": [], "shadow": not NO_SHADOW.has(kind), "chunk": k, "px": px}
+		_batches[key] = {"path": path, "xforms": [], "shadow": not NO_SHADOW.has(kind), "chunk": k, "px": px, "fade": OCCLUDERS.has(kind)}
 	_batches[key].xforms.append(xf)
 
 func _flush() -> void:
 	for key in _batches:
 		var b: Dictionary = _batches[key]
-		var mesh := merged(b.path)
+		var mesh := merged(b.path) if not b.fade else merged_fade(b.path)
 		if mesh == null:
 			continue
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = b.fade
 		mm.mesh = mesh
 		mm.instance_count = b.xforms.size()
 		for i in b.xforms.size():
@@ -136,6 +184,17 @@ func _flush() -> void:
 		mi.multimesh = mm
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if b.shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_chunk(b.px).add_child(mi)
+		if b.fade:
+			var pos := PackedVector3Array()
+			for xf in b.xforms:
+				pos.append((xf as Transform3D).origin)
+			for i in b.xforms.size():
+				mm.set_instance_color(i, Color.WHITE)
+			var faded := PackedFloat32Array()
+			faded.resize(pos.size())
+			faded.fill(1.0)
+			fade_batches.append({"node": _chunk(b.px), "mm": mm, "pos": pos, "alpha": faded,
+				"h": mesh.get_aabb().size.y * maxf(0.5, (b.xforms[0] as Transform3D).basis.get_scale().y)})
 	_batches.clear()
 
 # ------------------------------------------------------------------ build
@@ -151,6 +210,9 @@ func build(z: Zone) -> void:
 	_glade_fx()
 	_caches()
 	_waystones()
+	_herbs()
+	_kettle()
+	_shortcuts()
 	_ambient()
 	_cull(true)
 
@@ -507,6 +569,143 @@ func _ambient() -> void:
 	mist.color_ramp = mg
 	add_child(mist)
 
+# ------------------------------------------------------------------ herbs, kettle, shortcuts
+
+var herb_nodes := {}      # Vector2 px -> Node3D
+var shortcut_nodes: Array = []
+
+func _herbs() -> void:
+	for hb in C.herbs:
+		var px: Vector2 = hb.pos
+		var h: Dictionary = BrewingDB.HERBS[hb.id]
+		var root := Node3D.new()
+		root.position = IsoView.to3d(px, height_at(px))
+		var m: Node3D = Puppet.scene(resolve(String(h.model))).instantiate()
+		m.scale = Vector3.ONE * (1.6 if hb.id == "emberhood" else 1.4)
+		m.rotation.y = randf() * TAU
+		root.add_child(m)
+		var motes := ElementFx.particles("mote", "light", 5, 1.8, false, 0.7)
+		var col: Color = h.color
+		motes.color_ramp = ElementFx._ramp([Color(col.r, col.g, col.b, 0), col, Color(col.r, col.g, col.b, 0)])
+		motes.emission_sphere_radius = 0.35
+		motes.position.y = 0.3
+		motes.name = "Motes"
+		root.add_child(motes)
+		_chunk(px).add_child(root)
+		herb_nodes[px] = root
+
+func set_herb(px: Vector2, on: bool) -> void:
+	var best: Node3D = null
+	var bd := 1e9
+	for k in herb_nodes:
+		var d := (k as Vector2).distance_to(px)
+		if d < bd:
+			bd = d
+			best = herb_nodes[k]
+	if best and bd < 40.0:
+		var tw := best.create_tween()
+		tw.tween_property(best, "scale", Vector3.ONE * (1.0 if on else 0.05), 0.4)
+		(best.get_node("Motes") as CPUParticles3D).emitting = on
+
+func _kettle() -> void:
+	var px: Vector2 = C.kettle
+	var n: Node3D = Puppet.scene(C1 % "cauldron").instantiate()
+	n.position = IsoView.to3d(px)
+	_chunk(px).add_child(n)
+	_fire(px, 0.15, 0.6)
+	_omni(px, 1.2, Color(0.55, 1.0, 0.45), 5.0, 1.4, true)
+	var steam := ElementFx.particles("smoke", "physical", 8, 2.2, false, 0.7)
+	steam.color_ramp = ElementFx._ramp([Color(0.7, 0.95, 0.6, 0), Color(0.7, 0.95, 0.6, 0.35), Color(0.7, 0.95, 0.6, 0)])
+	steam.position = IsoView.to3d(px, 1.1)
+	_chunk(px).add_child(steam)
+
+func _shortcuts() -> void:
+	for i in C.shortcuts.size():
+		var sc: Dictionary = C.shortcuts[i]
+		var mid: Vector2 = sc.mid
+		var dir: Vector2 = sc.dir
+		var yaw := atan2(dir.x, dir.y) + PI      # model -Z along the way
+		var root := Node3D.new()
+		root.position = IsoView.to3d(mid)
+		root.rotation.y = yaw
+		var ent := {"kind": sc.kind, "root": root}
+		match String(sc.kind):
+			"drawbridge":
+				var span: float = sc.span_px * IsoView.S
+				# hinge at the far (lever) end; raised it stands up out of the water
+				var hinge := Node3D.new()
+				hinge.position = Vector3(0, -0.25, -span * 0.5)
+				root.add_child(hinge)
+				var br: Node3D = Puppet.scene(C1 % "bridge").instantiate()
+				br.scale = Vector3(1.0, 1.0, span / 8.0)
+				br.position = Vector3(0, 0, span * 0.5)
+				hinge.add_child(br)
+				hinge.rotation.x = deg_to_rad(-78.0)
+				ent.moving = hinge
+			"gate":
+				var fr: Node3D = Puppet.scene(C1 % "gate_frame").instantiate()
+				fr.rotation.y = PI * 0.5
+				root.add_child(fr)
+				var bars: Node3D = Puppet.scene(C1 % "gate_bars").instantiate()
+				bars.rotation.y = PI * 0.5
+				root.add_child(bars)
+				ent.moving = bars
+			"log":
+				# a dead tree standing at the near bank; it falls across the water
+				var pivot := Node3D.new()
+				pivot.position = Vector3(0, 0, float(sc.span_px) * IsoView.S * 0.5)   # the near bank
+				root.add_child(pivot)
+				var tree: Node3D = Puppet.scene(resolve("tree_dead_1")).instantiate()
+				tree.scale = Vector3.ONE * 1.7
+				pivot.add_child(tree)
+				ent.moving = pivot
+		# lever (or nothing for the log: you push the tree)
+		if sc.kind != "log":
+			var lp: Vector2 = sc.lever
+			var lever := Node3D.new()
+			lever.position = IsoView.to3d(lp, height_at(lp))
+			lever.add_child(Puppet.scene(C1 % "lever_base").instantiate())
+			var handle: Node3D = Puppet.scene(C1 % "lever_handle").instantiate()
+			handle.position.y = 0.45
+			handle.rotation.x = deg_to_rad(35.0)
+			lever.add_child(handle)
+			ent.handle = handle
+			add_child(lever)
+			var l := ElementFx.light(Color(1.0, 0.8, 0.45), 3.0, 0.8)
+			l.position.y = 1.2
+			lever.add_child(l)
+			ent.lever_light = l
+		add_child(root)
+		shortcut_nodes.append(ent)
+
+func open_shortcut(i: int) -> void:
+	if i < 0 or i >= shortcut_nodes.size():
+		return
+	var ent: Dictionary = shortcut_nodes[i]
+	var mv: Node3D = ent.get("moving")
+	if ent.has("handle"):
+		var ht := (ent.handle as Node3D).create_tween()
+		ht.tween_property(ent.handle, "rotation:x", deg_to_rad(-35.0), 0.35)
+		(ent.lever_light as OmniLight3D).light_energy = 0.0
+	match String(ent.kind):
+		"drawbridge":
+			var tw := mv.create_tween()
+			tw.tween_interval(0.4)
+			tw.tween_property(mv, "rotation:x", 0.0, 1.6).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		"gate":
+			var tw2 := mv.create_tween()
+			tw2.tween_interval(0.3)
+			tw2.tween_property(mv, "position:y", 2.9, 1.8).set_trans(Tween.TRANS_SINE)
+		"log":
+			var tw3 := mv.create_tween()
+			tw3.tween_property(mv, "rotation:x", deg_to_rad(-92.0), 1.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var root: Node3D = ent.root
+	get_tree().create_timer(1.6).timeout.connect(func():
+		ElementFx.ring(self, root.position, 4.0, Color(0.9, 0.85, 0.7, 0.8), 0.5, 0.06)
+		var dust := ElementFx.particles("smoke", "physical", 12, 1.4, true, 2.0)
+		dust.color_ramp = ElementFx._ramp([Color(0.5, 0.45, 0.4, 0), Color(0.5, 0.45, 0.4, 0.5), Color(0.5, 0.45, 0.4, 0)])
+		ElementFx._burst_at(self, dust, root.position + Vector3(0, 0.3, 0), 2.0))
+
 # ------------------------------------------------------------------ per frame
 
 func _cull(force: bool = false) -> void:
@@ -527,6 +726,7 @@ func _process(delta: float) -> void:
 	if _cull_t <= 0.0:
 		_cull_t = 0.2
 		_cull()
+	_fade_occluders(delta)
 	var iv := IsoView.instance
 	if iv == null:
 		return

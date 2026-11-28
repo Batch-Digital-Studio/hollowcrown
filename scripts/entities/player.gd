@@ -158,6 +158,14 @@ func build_stats(eq: Dictionary) -> StatBlock:
 		var it: Item = eq[slot]
 		if it:
 			s.add_mod_list(it.to_mods())
+	for rid in brews:   # herbalism
+		var r := BrewingDB.recipe(rid)
+		for k in r.get("mods", {}):
+			s.add(k, float(r.mods[k]) * int(brews[rid]))
+	if tonic_id != "" and tonic_t > 0.0:
+		var tr := BrewingDB.recipe(tonic_id)
+		for k in tr.get("mods", {}):
+			s.add(k, float(tr.mods[k]))
 	var tree := PassivesDB.nodes()
 	for id in passives:
 		if tree.has(id):
@@ -340,7 +348,10 @@ func _pay_respec() -> void:
 		currency["ember_shards"] = int(currency.get("ember_shards", 0)) - c
 		FX.text(global_position, "-%d Ember Shards" % c, Color(1.0, 0.78, 0.3), 15)
 
-var extra_rites: Array = []   # Chapter 1: the Mage's full spellbook
+var extra_rites: Array = []
+var brews := {}          # herbalism: recipe id -> rank (permanent brews)
+var tonic_id := ""       # active tonic (one at a time)
+var tonic_t := 0.0   # Chapter 1: the Mage's full spellbook
 
 ## Rites you can put on the bar: starting Rites of your classes + Rites unlocked in class trees.
 func unlocked_rites() -> Array:
@@ -654,6 +665,12 @@ func _physics_process(delta: float) -> void:
 	if resources().has("spirit") and game() and not game().targets_in_circle(faction, global_position, 600.0).is_empty():
 		gain_res("spirit", 0.6 * delta)
 	_anim += delta
+	if tonic_t > 0.0:
+		tonic_t -= delta
+		if tonic_t <= 0.0:
+			FX.text(global_position, "Tonic faded", Color(0.7, 0.9, 0.6), 18)
+			tonic_id = ""
+			recalc_stats()
 	_dodge_cd = maxf(0.0, _dodge_cd - delta)
 	mana = minf(max_mana, mana + stats.get_stat("mana_regen") * stats.inc_mult(["inc_mana_regen"]) * delta)
 	if _flask_heal > 0.0:
@@ -691,7 +708,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if input.flask and flask_charges >= 1.0 and life < max_life:
 		flask_charges -= 1.0
-		_flask_heal += max_life * 0.6
+		_flask_heal += max_life * 0.6 * (1.0 + stats.get_stat("flask_heal_inc") / 100.0)
 		if game():
 			game().writ_event("flask")
 		FX.sound("flask", null, -3.0)
